@@ -29,6 +29,7 @@ html.wallpaper,html.wallpaper body{background:transparent!important}
 html.wallpaper:not(.plash-is-browsing-mode) #panel,html.wallpaper:not(.plash-is-browsing-mode) #showBtn{display:none!important}
 #stage svg{width:100%;height:100%;display:block}
 #skel{display:none}
+#skel .grab{cursor:grab}
 html.skel-on #skel{display:inline}
 html.wallpaper:not(.plash-is-browsing-mode) #skel{display:none!important}
 
@@ -48,6 +49,8 @@ html.wallpaper:not(.plash-is-browsing-mode) #skel{display:none!important}
 .grip{width:10px;height:16px;flex:none;opacity:.55;
   background:radial-gradient(circle,var(--muted) 1.2px,transparent 1.6px) 0 0/5px 5px}
 .head h1{font-size:15px;font-weight:600;margin:0;flex:1;letter-spacing:.01em;white-space:nowrap}
+.proj{font-size:11px;color:var(--accent);white-space:nowrap}
+.proj.err{color:#b4483c}
 .btn{font:500 13px/1 var(--font-ui);color:var(--ink);background:var(--field);border:1px solid var(--line);
   border-radius:8px;padding:8px 10px;cursor:pointer}
 .btn:hover{border-color:var(--accent)}
@@ -206,6 +209,7 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
   <div class="head" id="dragHandle" title="Drag to move · double-click to collapse">
     <span class="grip" aria-hidden="true"></span>
     <h1>Cat Stretch</h1>
+    <span class="proj" id="projState" hidden></span>
     <button class="btn primary" id="playBtn" type="button">Pause</button>
     <button class="btn icon" id="collapseBtn" type="button" title="Collapse panel" aria-expanded="true">–</button>
     <button class="btn icon" id="hideBtn" type="button" title="Hide panel (H)">×</button>
@@ -354,7 +358,7 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <p class="toast" id="toast" role="status"></p>
       <textarea id="svgOut" hidden readonly aria-label="SVG markup"></textarea>
       <p class="hint"><kbd>1</kbd> stretch · <kbd>2</kbd> watch · <kbd>3</kbd> lick paw · <kbd>4</kbd> nap · <kbd>5</kbd> jump · <kbd>6</kbd> walk · <kbd>7</kbd> run · <kbd>8</kbd> face me · <kbd>9</kbd> belly up · <kbd>T</kbd> turn · <kbd>Space</kbd> pause · <kbd>H</kbd> hide panel. Drag the panel by its title bar.</p>
-      <p class="hint">Copy settings gives the text for a <b>settings.json</b> file. Put it next to the page (for example in the GitHub repo) and the cat starts with these settings.</p>
+      <p class="hint">Copy settings gives the text for a <b>settings.json</b> file. Put it next to the page (for example in the GitHub repo) and the cat starts with these settings. Opened from <b>tools/edit_server.py</b>, every change is written into the page itself.</p>
     </div>
   </details>
   </div>
@@ -377,6 +381,12 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <button class="ptab" role="tab" type="button" data-group="belly" aria-selected="false">Belly up</button>
     </div>
     <div class="chips"><label class="chip"><input type="checkbox" id="holdPose" checked>Hold this position while editing</label><label class="chip"><input type="checkbox" id="showSkel">Show skeleton</label></div>
+    <p class="sub">Leg points</p>
+    <div class="group">
+      <p class="hint">Every leg has points <b>1</b> shoulder / hip, <b>2</b> first fold, <b>3</b> second fold, <b>4</b> paw. With the skeleton shown, drag a point or its number: only that point of that leg moves, snapped to the grid (hold <kbd>⌥</kbd> to place it freely). Purple: front legs, orange: hind legs; filled numbers are the near side, outlined the far side.</p>
+      <p class="toast" id="legNote" role="status"></p>
+      <div class="actions"><button class="btn" id="resetLegPts" type="button">Reset leg points</button></div>
+    </div>
     <p class="sub">Head</p>
     <div class="group">
       <div class="row"><label for="headSize">Head size</label><input type="range" id="headSize" min="0.6" max="1.5" step="0.01"><output for="headSize"></output></div>
@@ -415,37 +425,36 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <div class="row"><label for="earFX">Left / right</label><input type="range" id="earFX" min="-15" max="15" step="0.5"><output for="earFX"></output></div>
       <div class="row"><label for="earFY">Up / down</label><input type="range" id="earFY" min="-15" max="15" step="0.5"><output for="earFY"></output></div>
     </div>
-    <p class="sub">Chest &amp; spine</p>
-    <div class="group">
-      <div class="row"><label for="ribW">Chest width</label><input type="range" id="ribW" min="0.6" max="1.5" step="0.01"><output for="ribW"></output></div>
-      <div class="row"><label for="ribH">Chest height</label><input type="range" id="ribH" min="0.6" max="1.5" step="0.01"><output for="ribH"></output></div>
+    <p class="sub" data-not="front">Spine</p>
+    <div class="group" data-not="front">
       <div class="row"><label for="spineCurve">Spine curve</label><input type="range" id="spineCurve" min="-25" max="25" step="0.5"><output for="spineCurve"></output></div>
-      <p class="hint">The chest and the hips set the body's form. Spine curve: 0 straight, + arches the back up, - sags it toward the ground.</p>
+      <p class="hint">The shoulder circles (front) and the hip circles (back) set the body's form; the back and belly lines join them. Spine curve: 0 straight, + arches the back up, - sags it toward the ground.</p>
     </div>
     <p class="sub">Shoulders &amp; front legs</p>
     <div class="group">
       <div class="row"><label for="shoulderSpread">Shoulder distance</label><input type="range" id="shoulderSpread" min="0" max="2" step="0.01"><output for="shoulderSpread"></output></div>
       <div class="row"><label for="shoulderX">Shoulders fwd/back</label><input type="range" id="shoulderX" min="-20" max="20" step="0.5"><output for="shoulderX"></output></div>
       <div class="row"><label for="shoulderY">Shoulders up/down</label><input type="range" id="shoulderY" min="-20" max="20" step="0.5"><output for="shoulderY"></output></div>
-      <div class="row"><label for="thighW">Shoulder width</label><input type="range" id="thighW" min="0.6" max="1.6" step="0.01"><output for="thighW"></output></div>
-      <div class="row"><label for="fMidX">Elbow fwd/back</label><input type="range" id="fMidX" min="-30" max="30" step="0.5"><output for="fMidX"></output></div>
-      <div class="row"><label for="fMidY">Elbow up/down</label><input type="range" id="fMidY" min="-30" max="30" step="0.5"><output for="fMidY"></output></div>
-      <div class="row"><label for="fPawX">Paw fwd/back</label><input type="range" id="fPawX" min="-40" max="40" step="0.5"><output for="fPawX"></output></div>
-      <div class="row"><label for="fPawY">Paw up/down</label><input type="range" id="fPawY" min="-20" max="60" step="0.5"><output for="fPawY"></output></div>
-      <p class="hint">Shoulders (purple dashed circles) hang from the spine inside the chest and place it; the dashed line between them is the distance. Elbow and paw move on their own: shoulders and the other joints stay put.</p>
+      <div class="row"><label for="thighW">1 size</label><input type="range" id="thighW" min="0.4" max="3" step="0.01"><output for="thighW"></output></div>
+      <div class="row"><label for="fMidX">2 fwd/back</label><input type="range" id="fMidX" min="-30" max="30" step="0.5"><output for="fMidX"></output></div>
+      <div class="row"><label for="fMidY">2 up/down</label><input type="range" id="fMidY" min="-30" max="30" step="0.5"><output for="fMidY"></output></div>
+      <div class="row"><label for="fPawX">3–4 fwd/back</label><input type="range" id="fPawX" min="-40" max="40" step="0.5"><output for="fPawX"></output></div>
+      <div class="row"><label for="fPawY">3–4 up/down</label><input type="range" id="fPawY" min="-20" max="60" step="0.5"><output for="fPawY"></output></div>
+      <p class="hint" data-only="front">Facing you, fwd/back does nothing: it is toward you.</p>
+      <p class="hint">The shoulder circles (purple dashed) are the front of the body: 1 size is its depth there, the dashed line between them the distance, and each front leg starts from its circle. These sliders move both front legs: 2 on its own, 3–4 together (the leg follows). To move one leg, drag its points.</p>
     </div>
     <p class="sub">Hips &amp; hind legs</p>
     <div class="group">
       <div class="row"><label for="hipSpread">Hip distance</label><input type="range" id="hipSpread" min="0" max="2" step="0.01"><output for="hipSpread"></output></div>
       <div class="row"><label for="hipX">Hips fwd/back</label><input type="range" id="hipX" min="-20" max="20" step="0.5"><output for="hipX"></output></div>
       <div class="row"><label for="hipY">Hips up/down</label><input type="range" id="hipY" min="-20" max="20" step="0.5"><output for="hipY"></output></div>
-      <div class="row"><label for="hipSize">Hip size (behind)</label><input type="range" id="hipSize" min="0.6" max="1.5" step="0.01"><output for="hipSize"></output></div>
+      <div class="row"><label for="hipSize">1 size</label><input type="range" id="hipSize" min="0.6" max="1.5" step="0.01"><output for="hipSize"></output></div>
       <div class="row"><label for="hipLen">Thigh length</label><input type="range" id="hipLen" min="0.7" max="1.4" step="0.01"><output for="hipLen"></output></div>
-      <div class="row"><label for="bMidX">Hock fwd/back</label><input type="range" id="bMidX" min="-30" max="30" step="0.5"><output for="bMidX"></output></div>
-      <div class="row"><label for="bMidY">Hock up/down</label><input type="range" id="bMidY" min="-30" max="30" step="0.5"><output for="bMidY"></output></div>
-      <div class="row"><label for="bPawX">Paw fwd/back</label><input type="range" id="bPawX" min="-40" max="40" step="0.5"><output for="bPawX"></output></div>
-      <div class="row"><label for="bPawY">Paw up/down</label><input type="range" id="bPawY" min="-20" max="60" step="0.5"><output for="bPawY"></output></div>
-      <p class="hint">The hip circles are the cat's behind; the body lines leave from their edges. The dashed line between them is the distance; the small pink circle is where the tail joins. Hock and paw move on their own: hips and the other joints stay put.</p>
+      <div class="row"><label for="bMidX">2 fwd/back</label><input type="range" id="bMidX" min="-30" max="30" step="0.5"><output for="bMidX"></output></div>
+      <div class="row"><label for="bMidY">2 up/down</label><input type="range" id="bMidY" min="-30" max="30" step="0.5"><output for="bMidY"></output></div>
+      <div class="row"><label for="bPawX">3–4 fwd/back</label><input type="range" id="bPawX" min="-40" max="40" step="0.5"><output for="bPawX"></output></div>
+      <div class="row"><label for="bPawY">3–4 up/down</label><input type="range" id="bPawY" min="-20" max="60" step="0.5"><output for="bPawY"></output></div>
+      <p class="hint">The hip circles are the cat's behind; the body lines leave from their edges. The dashed line between them is the distance; the small pink circle is where the tail joins. These sliders move both hind legs: 2 on its own, 3–4 together (the leg follows). Sitting, 2 is the knee: it folds forward and can go up past the hip.</p>
     </div>
     <p class="sub">All legs &amp; paws</p>
     <div class="group">
@@ -548,11 +557,14 @@ const POSES = {
     eye:  { lid:0, lx:0, ly:0 },
     tail: [[196,244],[164.0,242.9],[134.0,243.9],[106.2,241.0],[87.8,222.6],[94.0,199.4]],
     legs: {
-      bf: [[230,222],[220,236],[226,242]],
+      bf: [[232,212],[266,202],[272,242]],
       ff: [[276,160],[270,204],[268,242]],
-      bn: [[214,220],[200,236],[206,242]],
+      bn: [[220,214],[256,204],[262,242]],
       fn: [[294,160],[294,204],[294,242]],
     },
+    // sitting on its behind: each hind leg hangs from its own hip circle and the knee folds forward, up
+    // past the hip, then down to the paw on the floor
+    hipJoints: true, bend: { bn:-1, bf:-1 },
   },
   lieMid: { // halfway between sitting and lying (front paws step forward, body lowers)
     body: [[160,140],[220,126],[262,118],[314,176],[308,236],[236,248],[150,248],[122,200]],
@@ -693,7 +705,8 @@ const POSES = {
 // fx.air 0…1: paws never rest on the floor (lying on its back, every paw is up in the air)
 // head.ear: ear splay in degrees (+ relaxed / sideways, − perked forward)
 // fx.paw: near front leg drawn in front of the body in a lighter tone (raised paw while licking)
-const EXTRAS = { head:{ ear:0 }, eye:{ lid:0, lx:0, ly:0, pr:3.8, cx:4, mood:1, hunt:0 }, mouth:{ tongue:0, cx:38 }, fx:{ swish:0, front:0, spin:0, paw:0, curl:0, view:0, air:0 }, bend:{ bf:1, ff:1, bn:1, fn:1 }, fold:{ bf:0, ff:0, bn:0, fn:0 } };
+// fx.chest 0…1: the shoulder circles are the front of the body (0, every pose) or the old chest is (1)
+const EXTRAS = { head:{ ear:0 }, eye:{ lid:0, lx:0, ly:0, pr:3.8, cx:4, mood:1, hunt:0 }, mouth:{ tongue:0, cx:38 }, fx:{ swish:0, front:0, spin:0, paw:0, curl:0, view:0, air:0, chest:0 }, bend:{ bf:1, ff:1, bn:1, fn:1 }, fold:{ bf:0, ff:0, bn:0, fn:0 } };
 function derive(base, ch){
   const o = structuredClone(base);
   for (const k in ch){
@@ -823,7 +836,8 @@ function inMass(c, m){
   const q = fromFrame(F, [uv[0] * lim / L, uv[1] * lim / L]); return [q[0], q[1], c[2]];
 }
 for (const k in POSES){
-  const p = POSES[k], F = skelFrames(quad(p.rib), quad(p.pel)), given = p.joints || null;
+  const p = POSES[k], F = skelFrames(quad(p.rib), quad(p.pel)), given = p.joints || null, hipJ = p.hipJoints;
+  delete p.hipJoints;
   if (given){                                 // shoulders always inside the chest; legs and tail hang from the joints
     for (const j of ['shoulderL', 'shoulderR']) given[j] = inMass(given[j], quad(p.rib));
     for (const l in p.legs) p.legs[l][0] = given[LEG_JOINT[l]].slice(0, 2);
@@ -831,7 +845,7 @@ for (const k in POSES){
   }
   for (const l in p.legs){
     const Fm = F[LEG_FRAME[l]], uv = toFrame(Fm, p.legs[l][0]);
-    if (!given) uv[1] = Math.max(-0.5, uv[1] - ROOT_UP[l[0]]);
+    if (!given && !(hipJ && l[0] === 'b')) uv[1] = Math.max(-0.5, uv[1] - ROOT_UP[l[0]]);
     const root = fromFrame(Fm, uv), kn = p.legs[l][1];
     let L1 = dist(root, kn), L2 = p.bones[l][1];
     if (l[0] === 'f' && !given){ const T = L1 + L2; if (dist(root, wristOf(p.legs[l][2], p.fx.view, p.fx.air)) > 0.85 * T){ L1 = 0.42 * T; L2 = T - L1; } }
@@ -842,7 +856,8 @@ for (const k in POSES){
   // side poses: shoulders sit on the front-leg roots, both waist halves fill the pelvis, waistC on the tail root
   const rr = minR(quad(p.rib)), pr = minR(quad(p.pel)), J = given || {
     shoulderR: [...p.legs.fn[0], 0.3 * rr], shoulderL: [...p.legs.ff[0], 0.3 * rr],
-    waistR: [p.pel[0], p.pel[1], 0.85 * pr], waistL: [p.pel[0], p.pel[1], 0.85 * pr], waistC: [...p.tail[0], 0.25 * pr] };
+    waistR: [...(hipJ ? p.legs.bn[0] : p.pel.slice(0, 2)), 0.85 * pr], waistL: [...(hipJ ? p.legs.bf[0] : p.pel.slice(0, 2)), 0.85 * pr],
+    waistC: [...p.tail[0], 0.25 * pr] };
   delete p.joints;
   p.skin = {
     joints: Object.fromEntries(Object.entries(J).map(([j, c]) => {   // stored in their mass's frame, radius relative to it
@@ -879,7 +894,12 @@ function solveLegs(p){
     const len = (9 + 4 * w) * sh.pawW * (1 - 0.7 * fv * w);
     // Middle joint sliders: only the elbow / hock moves; shoulder / hip, paw and its direction stay
     const mx = l[0] === 'f' ? sh.fMidX : sh.bMidX, my = l[0] === 'f' ? sh.fMidY : sh.bMidY;
-    p.legs[l] = [h, mx || my ? [kn[0] + mx, kn[1] - my] : kn, wr, [wr[0] + fx / fl * len, wr[1] + fy / fl * len]];
+    // leg points dragged in the skeleton view: each one moves on its own; 3 and 4 never go below the floor
+    const rest = CAT_BOX.floor - 0.5 - rP, put = (q, i, floor) => {
+      const dx = sh[l + i + 'x'] || 0, dy = sh[l + i + 'y'] || 0;
+      return dx || dy ? [q[0] + dx, floor && dy > 0 ? Math.min(q[1] + dy, Math.max(q[1], rest)) : q[1] + dy] : q;
+    };
+    p.legs[l] = [put(h, 1), put(mx || my ? [kn[0] + mx, kn[1] - my] : kn, 2), put(wr, 3, true), put([wr[0] + fx / fl * len, wr[1] + fy / fl * len], 4, true)];
   }
   return p;
 }
@@ -938,14 +958,24 @@ function shapeMasses(p, sh, breath){
   // shoulders place the chest and hips place the back body: moving them carries the masses (and so the
   // outline, neck, head, legs and tail); facing you, spreading them apart widens that part of the body
   const v = clamp(p.fx.view, 0, 1), cw = 1 + (sh.shoulderSpread - 1) * 0.35 * v, pwk = 1 + (sh.hipSpread - 1) * 0.5 * v;
+  const fb = 1 - v * (1 - clamp(p.fx.chest, 0, 1));   // no chest, facing you: fwd / back is toward you, so it moves nothing sideways
   return {
-    rib: [SHAPE_CX + (r[0] - SHAPE_CX) * sx + g[0] + sh.shoulderX, r[1] + g[1] - sh.shoulderY, rw * cw, rw * cw, rh + breath, rh + breath * 0.6 * (1 - onFloor), r[4] + g[2]],
-    pel: [SHAPE_CX + (q[0] - SHAPE_CX) * sx + g[3] + sh.hipX, q[1] + g[4] - sh.hipY, pw * pwk, pw * pwk, ph, ph, q[4] + g[5]],
+    rib: [SHAPE_CX + (r[0] - SHAPE_CX) * sx + g[0] + sh.shoulderX * fb, r[1] + g[1] - sh.shoulderY, rw * cw, rw * cw, rh + breath, rh + breath * 0.6 * (1 - onFloor), r[4] + g[2]],
+    pel: [SHAPE_CX + (q[0] - SHAPE_CX) * sx + g[3] + sh.hipX * fb, q[1] + g[4] - sh.hipY, pw * pwk, pw * pwk, ph, ph, q[4] + g[5]],
   };
+}
+// the point of a set of circles [x, y, r] furthest out in the direction from m toward q (on their hull)
+function hullSupport(H, m, q){
+  const d = [q[0] - m[0], q[1] - m[1]], l = Math.hypot(d[0], d[1]) || 1, u = [d[0] / l, d[1] / l];
+  let best = -1e9, at = null; for (const c of H){ const s2 = c[0] * u[0] + c[1] * u[1] + c[2]; if (s2 > best){ best = s2; at = [c[0] + u[0] * c[2], c[1] + u[1] * c[2]]; } } return at;
 }
 function applyShape(p){
   const sh = p.shape, F0 = skelFrames(quad(p.rib), quad(p.pel));
   const { rib, pel } = shapeMasses(p, sh, p.breath || 0), F = skelFrames(rib, pel);
+  // no chest (fx.chest 0): the shoulder circles are the front of the body, the hip circles the back. The chest is only
+  // what carries the shoulders and the head, at the pose's own size. Facing you (face), fwd/back and Spine curve do nothing
+  const nc = 1 - clamp(p.fx.chest, 0, 1), face = clamp(p.fx.view, 0, 1) * nc;
+  const FJ = massFrame(mix(rib, [rib[0], rib[1], ...quad(p.rib).slice(2, 6), rib[6]], nc));
   // skin: every outline point rides on its mass; the waist slider pulls the belly toward the spine.
   // Points resting on the floor stay on it, and nothing sinks below the floor.
   p.body = p.skin.body.map((uv, i) => {
@@ -959,7 +989,7 @@ function applyShape(p){
   });
   // Spine curve: the middle of the body arches up (+) or sags toward the ground (-), most at the waist,
   // nothing at the hips' and chest's centres; 0 leaves the pose as it is
-  const sc = sh.spineCurve || 0, pa = [pel[0], pel[1]], ra = [rib[0], rib[1]];
+  const sc = (sh.spineCurve || 0) * (1 - face), pa = [pel[0], pel[1]], ra = [rib[0], rib[1]];   // facing you it would bend sideways
   const ax = [ra[0] - pa[0], ra[1] - pa[1]], al = Math.hypot(ax[0], ax[1]) || 1, sUp = ax[0] >= 0 ? [ax[1] / al, -ax[0] / al] : [-ax[1] / al, ax[0] / al];   // across the body, the side facing up
   const bendAt = q => { const t = ((q[0] - pa[0]) * ax[0] + (q[1] - pa[1]) * ax[1]) / (al * al); return t > 0 && t < 1 ? Math.sin(Math.PI * t) : 0; };
   if (sc) p.body = p.body.map(q => { const b = bendAt(q) * sc; return [q[0] + sUp[0] * b, Math.min(q[1] + sUp[1] * b, FLOOR_Y)]; });
@@ -969,16 +999,20 @@ function applyShape(p){
   const moved = sh.shoulderSpread !== 1;
   for (const j in p.skin.joints){
     const [u, w, r] = p.skin.joints[j], m = j[0] === 's' ? rib : pel;
-    J0[j] = fromFrame(F[j[0] === 's' ? 2 : 0], [u, w]); J0[j].push(r * minR(m));
+    J0[j] = fromFrame(j[0] === 's' ? FJ : F[0], [u, w]); J0[j].push(r * minR(m));
   }
   for (const j in J0){
     const c = J0[j], s = j[0] === 's';
     if (j === 'waistC'){ J[j] = c; continue; }
     const o = J0[s ? (j === 'shoulderL' ? 'shoulderR' : 'shoulderL') : (j === 'waistL' ? 'waistR' : 'waistL')], mid = [(c[0] + o[0]) / 2, (c[1] + o[1]) / 2], k1 = s ? sh.shoulderSpread : sh.hipSpread;
     const q = [mid[0] + (c[0] - mid[0]) * k1, mid[1] + (c[1] - mid[1]) * k1, c[2] * (s ? 1 : sh.hipSize)];   // they ride on their mass, apart along the line between them
-    const k = s ? inMass(q, rib) : q, kw = Math.max(v, moved ? 1 : 0);   // shoulders kept inside the chest (untouched side poses keep their exact leg roots)
+    const k = s ? inMass(q, rib) : q, kw = Math.max(v, moved ? 1 : 0) * (1 - nc);   // shoulders kept inside the chest, if there is one (untouched side poses keep their exact leg roots)
     J[j] = [q[0] + (k[0] - q[0]) * kw, q[1] + (k[1] - q[1]) * kw, q[2]];
   }
+  // a shoulder circle is the top of its front leg: the leg's anchor, sized by "1 size"
+  for (const j of ['shoulderR', 'shoulderL']) J[j][2] = LIMB.fn[0] * sh.legThick * sh.thighW + (p.breath || 0) * 0.6 * nc;   // and they breathe
+  // leg point 1 of a hind leg carries its hip circle (and with it the behind)
+  for (const [j, l] of [['waistR', 'bn'], ['waistL', 'bf']]) J[j] = [J[j][0] + sh[l + '1x'], J[j][1] + sh[l + '1y'], ...J[j].slice(2)];
   // the back of the body is the hips: the rump points sit on the hip circles (their outer edge, both hips
   // together when facing you), so hip position, distance and size set the cat's behind; the outline runs on from them.
   // Each pose keeps its rump size at Hip size 1 (radius = the pose's own rump distance from the hips)
@@ -986,8 +1020,7 @@ function applyShape(p){
     const R = p.skin.body.map((uv, i) => SKIN_FRAME[i] === 0 ? i : -1).filter(i => i >= 0);
     const h0 = ['waistR', 'waistL'].map(j => { const [u, w, r] = p.skin.joints[j], c = fromFrame(F0[0], [u, w]); return [c[0], c[1], r * minR(quad(p.pel))]; });
     const m0 = [(h0[0][0] + h0[1][0]) / 2, (h0[0][1] + h0[1][1]) / 2];
-    const sup = (H, m, q) => { const d = [q[0] - m[0], q[1] - m[1]], l = Math.hypot(d[0], d[1]) || 1, u = [d[0] / l, d[1] / l];
-      let best = -1e9, at = null; for (const c of H){ const s2 = c[0] * u[0] + c[1] * u[1] + c[2]; if (s2 > best){ best = s2; at = [c[0] + u[0] * c[2], c[1] + u[1] * c[2]]; } } return at; };
+    const sup = hullSupport;
     const src = R.map(i => fromFrame(F0[0], p.skin.body[i]));
     const k = R.reduce((a, i, n) => { const q = src[n], e = sup(h0.map(c => [c[0], c[1], 1e-6]), m0, q); return a + dist(q, e); }, 0) / R.length;   // the pose's rump reach past the hip centres
     const H = ['waistR', 'waistL'].map(j => { const c = J[j], r0 = J0[j][2]; return [c[0], c[1], k * (c[2] / r0)]; });   // Hip size scales it
@@ -1001,14 +1034,14 @@ function applyShape(p){
   }
   // hips ride on the pelvis, shoulders on the ribcage. Front legs hang from the shoulders, back legs from the
   // hips (apart = away from the middle of the two). Moving shoulders / hips moves the whole leg, paws included.
-  const base = Object.fromEntries(Object.keys(p.legs).map(l => [l, fromFrame(F[LEG_FRAME[l]], p.skin.legs[l])]));
+  const base = Object.fromEntries(Object.keys(p.legs).map(l => [l, fromFrame(l[0] === 'f' ? FJ : F[LEG_FRAME[l]], p.skin.legs[l])]));
   const hipMid = base.bn && base.bf ? [(base.bn[0] + base.bf[0]) / 2, (base.bn[1] + base.bf[1]) / 2] : [0, 0];
   for (const l in p.legs){
     const leg = p.legs[l], j = LEG_JOINT[l], b = base[l];
     leg[0] = l[0] === 'f' ? [b[0] + J[j][0] - J0[j][0], b[1] + J[j][1] - J0[j][1]]
                           : [hipMid[0] + (b[0] - hipMid[0]) * sh.hipSpread, hipMid[1] + (b[1] - hipMid[1]) * sh.hipSpread];
     leg[2] = [SHAPE_CX + (leg[2][0] - SHAPE_CX) * sh.waistLen, leg[2][1]];
-    const dx = leg[0][0] - b[0] + (l[0] === 'f' ? sh.shoulderX : sh.hipX), dy = l[0] === 'b' ? leg[0][1] - b[1] : 0;
+    const dx = leg[0][0] - b[0] + (l[0] === 'f' ? sh.shoulderX : sh.hipX) * (1 - face), dy = l[0] === 'b' ? leg[0][1] - b[1] : 0;
     if (dx || dy){ leg[2] = [leg[2][0] + dx, leg[2][1] + dy]; if (leg[1]) leg[1] = [leg[1][0] + dx, leg[1][1] + dy]; }
     // Paw position sliders: only the paw moves (the leg is solved again from the fixed shoulder / hip)
     const px = l[0] === 'f' ? sh.fPawX : sh.bPawX, py = l[0] === 'f' ? sh.fPawY : sh.bPawY;
@@ -1016,18 +1049,57 @@ function applyShape(p){
     // Hip height: each hind leg's own hip part (anchor → first fold) is longer or shorter
     if (l[0] === 'b' && sh.hipLen !== 1 && p.bones[l]) p.bones[l] = [p.bones[l][0] * sh.hipLen, p.bones[l][1]];
   }
+  // leg point 1 of a front leg carries its shoulder circle (the leg itself is moved in solveLegs, so the paw stays)
+  for (const [j, l] of [['shoulderR', 'fn'], ['shoulderL', 'ff']]) J[j] = [J[j][0] + sh[l + '1x'], J[j][1] + sh[l + '1y'], ...J[j].slice(2)];
+  // no chest: the outline runs round the shoulder circles in front and the hip circles behind (their size is the
+  // body's depth there), and the back and belly lines go straight from one to the other; Spine curve bends them
+  if (nc > 0){
+    const circ = js => js.map(j => [J[j][0], J[j][1], J[j][3] || J[j][2]]), S2 = circ(['shoulderR', 'shoulderL']), H2 = circ(['waistR', 'waistL']);
+    const mid2 = C => [(C[0][0] + C[1][0]) / 2, (C[0][1] + C[1][1]) / 2], mS = mid2(S2), mH = mid2(H2);
+    // side views: points 7 back and 3 front sit on the circles; the back (0 → 2) and the belly (4 → 6) are the
+    // circles' outer tangents, so they run straight from hip to shoulder without a dip
+    const B = p.body.map((q, i) => SKIN_FRAME[i] === 0 ? hullSupport(H2, mH, q) : SKIN_FRAME[i] === 2 ? hullSupport(S2, mS, q) : null);
+    const side = (c, s) => s * (c[0] * sUp[0] + c[1] * sUp[1]) + c[2], pick = (C, s) => side(C[0], s) >= side(C[1], s) ? C[0] : C[1];
+    const tangent = (a, b, s) => {   // outer tangent of circles a → b on the back (s 1) or belly (s -1) side: its two touching points
+      const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy); if (d <= Math.abs(a[2] - b[2]) + 1e-6) return null;
+      const u = [dx / d, dy / d], c = (a[2] - b[2]) / d, sn = Math.sqrt(1 - c * c);
+      let n = [u[0] * c - u[1] * sn, u[1] * c + u[0] * sn];
+      if ((n[0] * sUp[0] + n[1] * sUp[1] < 0) === (s > 0)) n = [u[0] * c + u[1] * sn, u[1] * c - u[0] * sn];
+      return [[a[0] + n[0] * a[2], a[1] + n[1] * a[2]], [b[0] + n[0] * b[2], b[1] + n[1] * b[2]]];
+    };
+    // Spine curve bows the back and the belly; each stays tangent to both circles: its ends slide round them to where
+    // a line from the bowed middle just touches (so the joins never kink or poke out)
+    const bow = (a, b, T, s) => {
+      const M = mix(T[0], T[1], 0.5), k = 2 * sc * bendAt(M), Q = [M[0] + sUp[0] * k, M[1] + sUp[1] * k];
+      const touch = c => {
+        const dx = Q[0] - c[0], dy = Q[1] - c[1], d = Math.hypot(dx, dy); if (d <= c[2] + 1e-6) return null;
+        const f = Math.atan2(dy, dx), al = Math.acos(c[2] / d), P = [-1, 1].map(g => [c[0] + c[2] * Math.cos(f + g * al), c[1] + c[2] * Math.sin(f + g * al)]);
+        const out = q => s * ((q[0] - c[0]) * sUp[0] + (q[1] - c[1]) * sUp[1]); return out(P[0]) >= out(P[1]) ? P[0] : P[1];
+      };
+      const P0 = (k && touch(a)) || T[0], P2 = (k && touch(b)) || T[1];
+      return [P0, [(P0[0] + 2 * Q[0] + P2[0]) / 4, (P0[1] + 2 * Q[1] + P2[1]) / 4], P2];   // the curve's middle (bandPath goes through it)
+    };
+    const ha = pick(H2, 1), sa = pick(S2, 1), hb = pick(H2, -1), sb = pick(S2, -1);
+    const top = tangent(ha, sa, 1), bot = tangent(hb, sb, -1), bentMid = (a, c) => { const m = mix(a, c, 0.5), k = bendAt(m) * sc; return [m[0] + sUp[0] * k, m[1] + sUp[1] * k]; };
+    if (top) [B[0], B[1], B[2]] = bow(ha, sa, top, 1); else B[1] = bentMid(B[0], B[2]);
+    if (bot) [B[6], B[5], B[4]] = bow(hb, sb, bot, -1); else B[5] = bentMid(B[4], B[6]);
+    // facing you: the outline tucks inside the shoulder and hip circles, which are joined round (see draw)
+    const C4 = [...S2, ...H2].map(c => [c[0], c[1], c[2] * 0.4]), m4 = mid2([mS, mH]);
+    const Bf = face ? p.body.map(q => hullSupport(C4, m4, q)) : B, Bm = face ? B.map((q, i) => mix(q, Bf[i], face)) : B;
+    p.body = p.body.map((q, i) => [q[0] + (Bm[i][0] - q[0]) * nc, Math.min(q[1] + (Bm[i][1] - q[1]) * nc, FLOOR_Y)]);
+  }
   // tail root on the pelvis
   const t1 = fromFrame(F[0], p.skin.tail), dx = t1[0] - p.tail[0][0], dy = t1[1] - p.tail[0][1];
   p.tail = p.tail.map(q => [q[0] + dx, q[1] + dy]);
   // head rides on the neck base (front-top of the ribcage)
-  const nUV = mix(NECK_UV, NECK_UV_FRONT, v), n0 = fromFrame(F0[2], nUV), n1 = fromFrame(F[2], nUV);
-  p.head.x += n1[0] - n0[0] + sh.headX; p.head.y += n1[1] - n0[1] - sh.headY;
-  p.neck = n1;
+  const nUV = mix(NECK_UV, NECK_UV_FRONT, v), n0 = fromFrame(F0[2], nUV), n1 = fromFrame(FJ, nUV);
+  p.head.x += n1[0] - n0[0] + sh.headX * (1 - face); p.head.y += n1[1] - n0[1] - sh.headY;
+  p.neck = mix(n1, [(J.shoulderR[0] + J.shoulderL[0]) / 2, (J.shoulderR[1] + J.shoulderL[1]) / 2], nc);   // no chest: the neck grows out of the shoulders
   // where the shoulders and hips hang from the spine (facing you: the top middle of the chest / hips)
   p.skel = { rib, pel, joints: J, view: v, scap: mix(fromFrame(F[2], SCAP_UV), fromFrame(F[2], [0, -0.9]), v),
     sacrum: mix(fromFrame(F[0], [-0.1, -0.78]), fromFrame(F[0], [0, -0.9]), v),
     // spine: from the middle of the line between the hips → neck as one line, straight or bowed one way by Spine curve (never an S)
-    spine: (() => { const a = [(J.waistR[0] + J.waistL[0]) / 2, (J.waistR[1] + J.waistL[1]) / 2], e = fromFrame(F[2], [0.4, -0.72]), m = [(a[0] + e[0]) / 2 + sUp[0] * sc * 2, (a[1] + e[1]) / 2 + sUp[1] * sc * 2];
+    spine: (() => { const a = [(J.waistR[0] + J.waistL[0]) / 2, (J.waistR[1] + J.waistL[1]) / 2], e = mix(fromFrame(F[2], [0.4, -0.72]), [(J.shoulderR[0] + J.shoulderL[0]) / 2, (J.shoulderR[1] + J.shoulderL[1]) / 2], nc), m = [(a[0] + e[0]) / 2 + sUp[0] * sc * 2, (a[1] + e[1]) / 2 + sUp[1] * sc * 2];
       return Array.from({ length: 5 }, (_, i) => { const t = i / 4, u = 1 - t; return [u*u*a[0] + 2*u*t*m[0] + t*t*e[0], u*u*a[1] + 2*u*t*m[1] + t*t*e[1]]; }); })() };
   return p;
 }
@@ -1074,8 +1146,17 @@ function sampleClosed(P, per = 6){
   return out;
 }
 const VOL_N = 14;
-function bodySlices(body){
-  const ring = sampleClosed(body), xs = ring.map(q => q[0]);
+// no chest: the band's outline as points (see bandPath)
+function bandRing(B, n = 10){
+  const via = (a, m, b) => { const c = [2 * m[0] - (a[0] + b[0]) / 2, 2 * m[1] - (a[1] + b[1]) / 2];
+    return Array.from({ length: n + 1 }, (_, i) => { const t = i / n, u = 1 - t; return [u*u*a[0] + 2*u*t*c[0] + t*t*b[0], u*u*a[1] + 2*u*t*c[1] + t*t*b[1]]; }); };
+  return [...via(B[0], B[1], B[2]), ...via(B[4], B[5], B[6])];
+}
+// the body's depth slice by slice along it (for turning in 3D). With circles (no chest) it is what is drawn:
+// the band and the shoulder and hip circles
+function bodySlices(body, circles){
+  const ring = circles ? bandRing(body) : sampleClosed(body), xs = ring.map(q => q[0]);
+  if (circles) for (const c of circles) xs.push(c[0] - c[2], c[0] + c[2]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), w = (x1 - x0) / VOL_N, out = [];
   for (let i = 0; i < VOL_N; i++){
     const x = x0 + (i + 0.5) * w, ys = [];
@@ -1083,6 +1164,7 @@ function bodySlices(body){
       const a = ring[j], b = ring[(j+1) % ring.length];
       if ((a[0] - x) * (b[0] - x) <= 0 && a[0] !== b[0]) ys.push(a[1] + (b[1]-a[1]) * (x - a[0]) / (b[0] - a[0]));
     }
+    if (circles) for (const c of circles){ const d = c[2] * c[2] - (x - c[0]) ** 2; if (d >= 0){ const h = Math.sqrt(d); ys.push(c[1] - h, Math.min(c[1] + h, FLOOR_Y)); } }
     if (ys.length >= 2){ const t = Math.min(...ys), bt = Math.max(...ys); out.push([x, (t + bt) / 2, (bt - t) / 2]); }
   }
   return { slices: out, w };
@@ -1093,13 +1175,15 @@ function spinPose(p){
   if (u <= 0.0005) return p;
   const ang = q => Math.PI * smooth(q);
   const thM = ang(spinPart(u, 0.5)), sM = Math.sin(thM), g = clamp(sM * 2.5, 0, 1);
-  const { slices, w } = bodySlices(p.body);
+  const band = p.fx.chest < 0.5 && p.skel, J0 = band && p.skel.joints;
+  const { slices, w } = bodySlices(p.body, band && ['shoulderR', 'shoulderL', 'waistR', 'waistL'].map(j => [J0[j][0], J0[j][1], J0[j][3] || J0[j][2]]));
   p.vol = slices.map(([x, cy, ry]) => {
     const th = ang(spinPart(u, frontness(x))), sn = Math.abs(Math.sin(th)), cs = Math.abs(Math.cos(th));
     return { x: spinX(x, 0, th), y: cy, rx: Math.max(w * 0.75 * cs, ry * 0.82 * sn) * g, ry: ry * 0.96 * g };
   });
   const cen = p.body.reduce((a, q) => [a[0] + q[0] / 8, a[1] + q[1] / 8], [0, 0]), k = 1 - 0.9 * sM;
-  p.body = p.body.map(([x, y]) => [spinX(cen[0] + (x - cen[0]) * k, 0, thM), cen[1] + (y - cen[1]) * k]);
+  p.body = band ? p.body.map(([x, y]) => [spinX(x, 0, ang(spinPart(u, frontness(x)))), y])   // no chest: the band turns with the circles it joins
+               : p.body.map(([x, y]) => [spinX(cen[0] + (x - cen[0]) * k, 0, thM), cen[1] + (y - cen[1]) * k]);
   p.tail = p.tail.map(([x, y], i) => [spinX(x, -SPIN.tailZ * i, ang(spinPart(u, frontness(x) - 0.15))), y]);
   // legs: shoulders/hips turn with the body; each paw stays planted and takes two real steps
   for (const k in p.legs){
@@ -1160,19 +1244,23 @@ const SHAPE_DEFAULT = { headSize:1, headWidth:1, headX:0, headY:0, ribW:1, ribH:
   fPawX:0, fPawY:0, bPawX:0, bPawY:0, fMidX:0, fMidY:0, bMidX:0, bMidY:0, spineCurve:0,
   thighW:1, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1, foldR:1,
 };
+// leg points 1–4 of each leg (1 shoulder / hip, 2 first fold, 3 second fold, 4 paw), dragged in the skeleton view:
+// fn1x / fn1y … bf4y, an offset in drawing units from where the pose puts the point
+const LEG_KEY = /^[fb][nf][1-4][xy]$/;
+for (const l of ['fn', 'ff', 'bn', 'bf']) for (let i = 1; i <= 4; i++){ SHAPE_DEFAULT[l + i + 'x'] = 0; SHAPE_DEFAULT[l + i + 'y'] = 0; }
 // tuned settings, built in: a new browser (or a fresh copy of this file) starts from these;
 // what a browser saved, or a newer settings.json, still wins
 Object.assign(DEFAULTS, {
-  speed:1, idleTime:1, postureTime:1, turnTime:1, trans:0.9, holdStretch:2.4, watchTime:4, licks:6, napTime:5,
+  speed:1, idleTime:1, postureTime:1, turnTime:1, trans:0.9, holdStretch:2.4, watchTime:1, licks:2, napTime:2,
   jumpPrep:0.9, jumpHeight:2.5, followCursor:true, lickCursor:true, jumpCursor:true, pounce:true, jumpReach:8,
   eyeRest:"round", eyeAuto:true, lookGap:7, lookSoft:true, lookSquint:true, lookCross:true, lookFly:true,
   lookShifty:true, auto:true, useStretch:true, useWatch:true, useGroom:true, useNap:true, useJump:true,
-  useWalk:true, useRun:true, walkSpeed:1.25, runSpeed:2.5, runStride:0.54, blink:true, breathe:true, sway:true,
-  closeEyes:true, turnBack:false, catColor:"#232423", eyeColor:"#efece4", tongueColor:"#c98d8a",
-  bgColor:"#8f938b", shadowColor:"#6f6a4b", size:18, posX:50, ground:16, flip:false, showSkel:true, fluid:1.5,
-  lookSurprised:true, lookHappy:true, lookSly:true, lookWink:true, lookSkeptic:true, lookBored:true,
-  lookDeadpan:true, lookSideeye:true, lookSuspicious:true, lookSleepy:true, lookWorried:true, lookPleading:true,
-  lookSad:false, lookAngry:false
+  useWalk:true, useRun:true, useFace:true, useBelly:true, walkSpeed:1.25, runSpeed:2.5, runStride:0.54,
+  blink:true, breathe:true, sway:true, closeEyes:true, turnBack:false, catColor:"#191a19", eyeColor:"#ffe499",
+  tongueColor:"#ee736d", bgColor:"#8f938b", shadowColor:"#6f6a4b", size:27, posX:50, ground:10, flip:false,
+  showSkel:true, fluid:1.4, lookSurprised:true, lookHappy:true, lookSly:true, lookWink:true, lookSkeptic:true,
+  lookBored:true, lookDeadpan:true, lookSideeye:true, lookSuspicious:true, lookSleepy:true, lookWorried:true,
+  lookPleading:true, lookSad:false, lookAngry:true
 });
 const SHAPE_GROUPS = ['stand', 'sit', 'lie', 'stretch', 'jump', 'front', 'belly'];
 const GROUP_LABEL = { stand:'Stand', sit:'Sit', lie:'Lie', stretch:'Stretch', jump:'Jump', front:'Front', belly:'Belly up' };
@@ -1190,13 +1278,13 @@ function migrateShape(g){
 }
 // tuned shape for each position (built in; "Reset this position" goes back to it)
 const SHAPE_PRESET = {
-  stand: { headSize:1.06, headWidth:0.97, headX:13, headY:-4, ribW:0.95, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.6, legThick:1.15, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.82, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:1, earBX:0, earBY:0, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6 },
-  sit: { headSize:1.06, headWidth:0.97, headX:13, headY:-4, ribW:1.13, ribH:0.8475, waistLen:1.08, waistH:0.78, pelW:0.87, pelH:0.6525, neckW:1.72, toeR:0.6, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.82, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:1, earBX:0, earBY:0, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6 },
-  lie: { headSize:1.06, headWidth:0.97, headX:-2, headY:7, ribW:0.83, ribH:0.9462, waistLen:1.21, waistH:0.88, pelW:0.96, pelH:1.0944, neckW:1.72, toeR:0.69, legThick:1.36, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.99, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:1, earBX:0, earBY:0, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6 },
-  stretch: { headSize:1.06, headWidth:0.97, headX:13, headY:16, ribW:0.79, ribH:0.95, waistLen:1.4, waistH:1.12, pelW:0.93, pelH:1.3, neckW:1.72, toeR:0.64, legThick:1.15, tailThick:1.04, tailLen:1, pawW:0.6, pawH:1.08, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:1, earBX:0, earBY:0, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6 },
-  front: { headSize:1.06, headWidth:0.97, headX:0, headY:-4, ribW:1, ribH:1, waistLen:1, waistH:1, pelW:1, pelH:1, neckW:1.72, toeR:0.6, legThick:1.1, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.82, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:1, earBX:0, earBY:0, earFW:1.8, earFH:1, earFX:0, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6 },
-  belly: { kneeOut:0.4, headSize:1.06, headWidth:0.97, headX:0, headY:0, ribW:1, ribH:1, waistLen:1, waistH:1, pelW:1, pelH:1, neckW:1.72, toeR:0.6, legThick:1.3, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.82, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:1, earBX:0, earBY:0, earFW:1.8, earFH:1, earFX:0, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6 },
-  jump: { headSize:1.06, headWidth:0.97, headX:13, headY:7, ribW:1.11, ribH:1.0656, waistLen:0.92, waistH:1.02, pelW:0.73, pelH:1.09, neckW:1.72, toeR:0.6, legThick:1.15, tailThick:1.04, tailLen:1, pawW:0.6, pawH:1.16, eyeSize:1.39, eyeGap:19.5, eyeX:9.5, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.79, earBX:-12, earBY:0.5, earFW:1.8, earFH:0.93, earFX:10, earFY:-2, cheekOut:0, cheekY:-15, cheekRound:0.56, jawW:1.05, chinY:-7 },
+  stand: { headSize:1.09, headWidth:0.97, headX:13, headY:-4, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:-3, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, ff1x:-0.54, ff1y:-1.2, ff2x:-4.99, ff2y:2.57, ff3x:-6.93, ff3y:1.18, ff4x:-4.73, ff4y:1.18, bn1x:-3.3, bn1y:-2.5, bn2x:-3.58, bn2y:3.75, bn3x:1.06, bn3y:1.49, bf1x:-3.3, bf1y:-2.5, bf2x:3.3, bf2y:0.71 },
+  sit: { headSize:1.09, headWidth:0.97, headX:13, headY:2, ribW:1.03, ribH:0.67, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:2, shoulderX:20, shoulderY:0.5, hipSpread:1.62, hipX:5.5, hipY:1, hipSize:0.69, fPawX:1.5, fPawY:-17, bPawX:-16.5, bPawY:-3.5, fMidX:-3, fMidY:-3, bMidX:9, bMidY:25.5, spineCurve:-2, thighW:2.25, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.94, foldR:1.24, fn1x:-10.52, fn1y:-21.1, fn2x:7.46, fn2y:-15.79, ff1x:20.48, ff1y:-21.1, ff2x:9.71, ff2y:-16.88, ff3x:12.7, ff3y:1.18, ff4x:15.59, ff4y:1.18, bn1x:3.79, bn1y:2.32 },
+  lie: { headSize:1.09, headWidth:0.97, headX:5, headY:10, ribW:0.89, ribH:0.62, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.09, toeR:0.61, legThick:1.16, tailThick:0.82, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.21, shoulderX:2, shoulderY:-7, hipSpread:1.52, hipX:3.5, hipY:-1, hipSize:0.85, fPawX:15.5, fPawY:-20, bPawX:8.5, bPawY:-12.5, fMidX:-30, fMidY:-7.5, bMidX:30, bMidY:30, spineCurve:9.5, thighW:2.39, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.9, foldR:1.19, fn1x:-21.32, fn1y:-5.66, fn2x:-27.7, fn2y:3.36, ff1x:23.36, ff1y:-10.66, ff2x:7.38, ff2y:-6.88, ff3x:15.41, ff3y:-3.51, ff4x:17.64, ff4y:-3.44, bn1x:6.8, bn1y:-9, bn2x:16.44, bn2y:-13.98, bn3x:-7.89, bn3y:0.27, bn4x:-5.69, bn4y:0.27, bf1x:6.8, bf1y:-4, bf2x:29.78, bf2y:-23.63, bf3x:1.15, bf3y:-9.32, bf4x:13.35, bf4y:-9.32 },
+  stretch: { headSize:1.09, headWidth:0.97, headX:-2, headY:17, ribW:0.74, ribH:1.15, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:2, shoulderX:-5.5, shoulderY:-20, hipSpread:1.07, hipX:17.5, hipY:4, hipSize:0.96, fPawX:15.5, fPawY:-20, bPawX:6, bPawY:-7.5, fMidX:4.5, fMidY:-9.5, bMidX:10.5, bMidY:4, spineCurve:-18, thighW:2.33, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.18, foldR:1.09, fn1x:-24.61, fn1y:3.29, fn2x:-8.52, fn2y:-10.41, ff1x:-13.71, ff1y:7.8, ff2x:-12.13, ff2y:2.3, bn1x:3.74, bn1y:17, bn2x:-11.03, bn2y:-13.76, bf1x:8.74, bf1y:17, bf2x:-21.33, bf2y:-12.86 },
+  jump: { headSize:1.09, headWidth:0.97, headX:13, headY:8, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.16, shoulderX:20, shoulderY:-6, hipSpread:1.5, hipX:20, hipY:17, hipSize:0.86, fPawX:9.5, fPawY:-7.5, bPawX:-5, bPawY:-17.5, fMidX:-20.5, fMidY:4.5, bMidX:-7, bMidY:15.5, spineCurve:-3, thighW:2.18, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.13, fn1x:-28.52, fn1y:-13.58, fn2x:-10.09, fn2y:-11.19, ff1x:-32.64, ff1y:-18.58, ff2x:-23.73, ff2y:-16.87, bn1x:-25.3, bn1y:-33, bn2x:-16.75, bn2y:-14.99, bf1x:-25.3, bf1y:-33, bf2x:-29.65, bf2y:-14.29 },
+  front: { headSize:1.09, headWidth:0.97, headX:2, headY:-8, ribW:0.6, ribH:0.6, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.67, shoulderX:10, shoulderY:-4.5, hipSpread:0.9, hipX:7.5, hipY:-15, hipSize:0.77, fPawX:10, fPawY:-7, bPawX:2.5, bPawY:-20, fMidX:5.5, fMidY:-1, bMidX:10.5, bMidY:30, spineCurve:0, thighW:1.25, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.24, fn1x:5.06, fn1y:-24.5, fn2x:4.17, fn2y:-16.2, fn3x:-10.78, fn3y:2.36, fn4x:-18.44, fn4y:1.18, ff1x:-1.7, ff1y:-24.5, ff2x:-1.32, ff2y:-11.02, bn1x:0.15, bn1y:-8.6, bn2x:-10.37, bn2y:-4.95, bn3x:18.51, bn3y:1.49, bn4x:10.85, bn4y:1.49, bf1x:3.21, bf1y:-8.6, bf2x:4.77, bf2y:-27.32, bf3x:-10.15, bf3y:1.49, bf4x:-2.49, bf4y:1.49 },
+  belly: { headSize:1.09, headWidth:0.97, headX:13, headY:-4, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:-3, thighW:0.73, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, fn1x:8.48, fn1y:0.97, fn2x:-44.15, fn2y:-5.94, fn3x:-30.56, fn3y:6.5, fn4x:-30.27, fn4y:-4.58, ff1x:19.64, ff1y:4.03, ff2x:-16.15, ff2y:7.36, ff3x:8.26, ff3y:2.5, ff4x:7.83, ff4y:-4.6, bn1x:15.85, bn1y:-15.51, bn2x:9.32, bn2y:10.21, bn3x:57.77, bn3y:-32.88, bn4x:57.69, bn4y:-35.66, bf1x:33.99, bf1y:7.8, bf2x:89.1, bf2y:17.74, bf3x:7.33, bf3y:-32.65, bf4x:7.01, bf4y:-41.7 },
 };
 const freshShapes = (from = {}) => Object.fromEntries(SHAPE_GROUPS.map(g => [g, { ...SHAPE_DEFAULT, ...SHAPE_PRESET[g], ...migrateShape(from[g]) }]));
 const oldFluid = j => j && !('fluid' in j) && j.shapes && j.shapes.stand && 'fluid' in j.shapes.stand ? j.shapes.stand.fluid : null;
@@ -1212,7 +1300,22 @@ if (oldFluid(saved) !== null) S.fluid = oldFluid(saved);
 for (const k of Object.keys(SHAPE_DEFAULT)) delete S[k];
 delete S.floorShadow;
 if (!saved && matchMedia('(prefers-reduced-motion: reduce)').matches) { S.breathe = false; S.sway = false; }
-function save(keepTime){ if (!keepTime) S.savedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function save(keepTime){ if (!keepTime) S.savedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (toProject) saveToProject(); }
+// opened from tools/edit_server.py: each change is also written into cat-stretch.html (and index.html)
+let toProject = false, projTimer;
+function projState(text, title, err){ const el = $('projState'); el.hidden = false; el.textContent = text; el.title = title; el.classList.toggle('err', !!err); }
+function saveToProject(){
+  clearTimeout(projTimer); projState('Saving…', 'Writing your changes into cat-stretch.html');
+  projTimer = setTimeout(() => fetch('__save', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(S) })
+    .then(r => r.ok ? projState('Saved', 'Changes are in cat-stretch.html and index.html') : r.json().then(j => { throw j.error; }))
+    .catch(e => projState('Not saved', 'Could not write the project files' + (typeof e === 'string' ? ': ' + e : '. Is tools/edit_server.py still running?'), true)), 500);
+}
+if (location.protocol.startsWith('http')) fetch('__edit', { cache:'no-store' }).then(r => {
+  if (!r.ok) return;
+  // the source is what gets saved, so start from it rather than from what this browser kept
+  S = { ...DEFAULTS, shapes: freshShapes() }; syncInputs(); syncShapeInputs(); applyColors(); layout(); setLook(S.eyeRest, Infinity); edSelect(edId);
+  toProject = true; projState('Edit mode', 'Every change is written into cat-stretch.html');
+}).catch(() => {});
 
 /* ---------- math ---------- */
 const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
@@ -1239,6 +1342,12 @@ function arc(a, v, b, t){
 const fmt = p => p[0].toFixed(1) + ' ' + p[1].toFixed(1);
 // maxY: no part of the curve goes below this line (a Bézier stays inside its control points,
 // so clamping the points and their handles is enough)
+// no chest: the body between the circles, i.e. the back line (0 → 1 → 2) and the belly line (4 → 5 → 6), each a
+// curve through its middle point, joined by straight cuts through the shoulder and hip circles (which draw the ends)
+function bandPath(B, maxY = Infinity){
+  const via = (a, m, b) => `Q${fmt([2 * m[0] - (a[0] + b[0]) / 2, Math.min(2 * m[1] - (a[1] + b[1]) / 2, maxY)])} ${fmt(b)}`;
+  return `M${fmt(B[0])}${via(B[0], B[1], B[2])}L${fmt(B[4])}${via(B[4], B[5], B[6])}Z`;
+}
 function closedCurve(P, maxY = Infinity){
   const n = P.length, lo = q => [q[0], Math.min(q[1], maxY)]; let d = 'M' + fmt(lo(P[0]));
   for (let i = 0; i < n; i++){
@@ -1441,8 +1550,21 @@ function turnSteps(pose, label){
   ];
 }
 // where the cat is on screen: fraction of the screen width
-let worldX = S.posX / 100;
-function catScale(){ return Math.min((S.size/100) * innerHeight / CAT_BOX.h, 0.9 * innerWidth / CAT_BOX.w); }
+// how far the drawn cat reaches from its spot on screen, in drawing units (measured over every move, facing either
+// way): to the left and right of it, up from the floor (tail up), and up at the top of a jump on top of the jump's lift
+const REACH = { left:200, right:240, up:300, jump:320, hop:45, pad:6 };   // hop: the smallest jump; pad: screen pixels kept free
+// the cat is never drawn bigger than fits: across the screen, and above the floor with room left for a small jump
+function catScale(){
+  const above = innerHeight * (1 - S.ground / 100) - REACH.pad;
+  return Math.min((S.size/100) * innerHeight / CAT_BOX.h, (innerWidth - 2 * REACH.pad) / (REACH.left + REACH.right), above / (REACH.jump + REACH.hop));
+}
+// spots (share of the screen width) where the whole cat is on screen
+function xRange(){
+  const s = catScale(), lo = (REACH.left * s + REACH.pad) / innerWidth, hi = 1 - (REACH.right * s + REACH.pad) / innerWidth;
+  return lo < hi ? [lo, hi] : [(lo + hi) / 2, (lo + hi) / 2];
+}
+const onScreen = x => { const [lo, hi] = xRange(); return clamp(x, lo, hi); };
+let worldX = onScreen(S.posX / 100);
 function screenFacing(f){ return (S.flip ? -1 : 1) * f; }
 
 function moveSteps(kind, ctx){
@@ -1478,7 +1600,8 @@ function moveSteps(kind, ctx){
   }
   if (kind === 'walk' || kind === 'run'){
     // across to the other side of the screen (turning first if that is behind)
-    const target = ctx.x < 0.5 ? 0.78 + Math.random() * 0.1 : 0.12 + Math.random() * 0.1;
+    const target = onScreen(ctx.x < 0.5 ? 0.78 + Math.random() * 0.1 : 0.12 + Math.random() * 0.1);
+    if (Math.abs(target - ctx.x) * innerWidth / catScale() < 30) return [];   // no room to walk anywhere
     const a = [];
     if (Math.sign(target - ctx.x) !== screenFacing(ctx.facing)) a.push(...turnSteps('stand', 'Turning'));
     const G = gaitPlan(kind, Math.abs(target - ctx.x) * innerWidth / catScale()), label = GAITS[kind].label;
@@ -1514,7 +1637,7 @@ function moveSteps(kind, ctx){
     let target, tries = 0;
     const ct = S.jumpCursor ? cursorJumpTarget() : null;
     if (ct && Math.abs(ct.x - ctx.x) > 0.02) target = ct.x;
-    else do { target = 0.1 + Math.random() * 0.8; } while (Math.abs(target - ctx.x) < 0.18 && ++tries < 30);
+    else do { target = onScreen(0.1 + Math.random() * 0.8); } while (Math.abs(target - ctx.x) < 0.18 && ++tries < 30);
     const a = [];
     if (Math.sign(target - ctx.x) !== screenFacing(ctx.facing)) a.push(...turnSteps('stand', 'Turning to jump'));
     const label = 'Getting ready to jump';
@@ -1525,8 +1648,8 @@ function moveSteps(kind, ctx){
     const units = Math.abs(target - ctx.x) * innerWidth / catScale();       // distance in cat units
     const base = Math.max(units * 0.32, 50);                                 // the farther, the higher
     const want = ct && target === ct.x ? Math.max(base, (ct.up - 170) * 0.85) : base;   // a higher cursor, a higher arc
-    const room = innerHeight * (1 - S.ground / 100) / catScale() - 320;      // never above the top of the screen
-    const lift = Math.min(want * S.jumpHeight, Math.max(120, room * 0.9));
+    const room = (innerHeight * (1 - S.ground / 100) - REACH.pad) / catScale() - REACH.jump;   // never above the top of the screen
+    const lift = Math.min(want * S.jumpHeight, Math.max(REACH.hop * 0.9, room * 0.9));   // (catScale always leaves room for a hop)
     const dur = 2 * Math.sqrt(2 * lift / JUMP_G);   // time in the air follows from the height, as under real gravity
     // the spine tilts with the path: as steep as the take-off (nose up), level at the top, as steep nose down to land
     const tilt = Math.min(70, Math.atan2(4 * lift, Math.max(units, 1)) * 180 / Math.PI);
@@ -1946,7 +2069,8 @@ function startIdle(dur){
 }
 function pickNext(){
   const pool = [['stretch','useStretch'],['watch','useWatch'],['groom','useGroom'],['nap','useNap'],['jump','useJump'],['walk','useWalk'],['run','useRun'],['face','useFace'],['belly','useBelly']]
-    .filter(([,k]) => S[k]).map(([m]) => m);
+    .filter(([,k]) => S[k]).map(([m]) => m)
+    .filter(m => !['walk', 'run'].includes(m) || xRange()[1] - xRange()[0] > 0.1);   // a cat as wide as the screen stays put
   if (!pool.length) return null;
   const fresh = pool.length > 1 ? pool.filter(m => m !== lastMove) : pool;
   return fresh[Math.floor(Math.random() * fresh.length)];
@@ -2275,7 +2399,7 @@ const foldR = (p, k) => LIMB[k][1] * p.shape.legThick * p.shape.foldR;   // the 
 function draw(p, ht){
   p = spinPose(p); p.legX = {};
   catBody.setAttribute('transform', `translate(0 ${(-ht).toFixed(1)})`);
-  els.body.setAttribute('d', closedCurve(p.body, FLOOR_Y));   // the body rests on the floor, level with the soles
+  els.body.setAttribute('d', p.fx.chest < 0.5 ? bandPath(p.body, FLOOR_Y) : closedCurve(p.body, FLOOR_Y));   // the body rests on the floor, level with the soles
   const v = p.vol;
   els.vol.forEach((e, i) => {
     const q = v && v[i];
@@ -2309,7 +2433,12 @@ function draw(p, ht){
   // masses: the body outline never cuts inside the ribcage or the pelvis
   if (p.skel){
     const put = (e, m) => { const q = massPath(m); e.setAttribute('d', q.d); e.setAttribute('transform', q.at); };
-    put(els.massRib, p.skel.rib); els.massPel.removeAttribute('transform');
+    const nc = 1 - clamp(p.fx.chest, 0, 1), Js = p.skel.joints;
+    if (nc >= 0.5){   // no chest: the shoulder circles are the front of the body
+      els.massRib.removeAttribute('transform');
+      els.massRib.setAttribute('d', 'M' + circlesHull(['shoulderR', 'shoulderL'].map(j => [Js[j][0], Js[j][1], Js[j][2]])).map(fmt).join('L') + 'Z');
+    } else put(els.massRib, p.skel.rib);
+    els.massPel.removeAttribute('transform');
     // no ball for a rump: the hips (thighs) and the outline make its back edge. Facing you, hips spread apart
     // stay one body: a smooth bridge joins both hips and the middle of the back body
     const v = clamp(p.skel.view || 0, 0, 1), kb = v * clamp((p.shape.hipSpread - 1) / 0.15, 0, 1), J = p.skel.joints, pc = p.skel.pel;
@@ -2322,7 +2451,8 @@ function draw(p, ht){
       return [rb[0] + x * Math.cos(ra) - y * Math.sin(ra), rb[1] + x * Math.sin(ra) + y * Math.cos(ra), 0]; });
     const hc2 = j => { const c = hc(j); return [c[0], c[1], c[2]]; }, hips = [hc2('waistR'), hc2('waistL')];
     const lerpTo = (q, k) => [pc[0] + (q[0] - pc[0]) * k, pc[1] + (q[1] - pc[1]) * k, 0], kc = clamp(1 + Math.min(0, p.shape.spineCurve || 0) / 8, 0, 1) * Math.max(v, 1 - clamp((pc[1] + pc[5] - 205) / 15, 0, 1));   // side views: while the hips are up (lying / sitting keep their own lines)
-    els.massPel.setAttribute('d', 'M' + circlesHull([...hips, ...(kb > 0 ? [[pc[0], pc[1], Math.min(pc[2], pc[4]) * 0.9 * kb]] : []), ...ribPts.map(q => lerpTo(q, kc))]).map(fmt).join('L') + 'Z');
+    els.massPel.setAttribute('d', 'M' + circlesHull([...hips, ...(kb > 0 ? [[pc[0], pc[1], Math.min(pc[2], pc[4]) * 0.9 * kb]] : []), ...ribPts.map(q => lerpTo(q, kc * (1 - nc))),
+      ...(nc ? ['shoulderR', 'shoulderL'].map(j => [pc[0] + (J[j][0] - pc[0]) * v, pc[1] + (J[j][1] - pc[1]) * v, J[j][2] * v * nc]) : [])]).map(fmt).join('L') + 'Z');   // facing you: shoulders and hips joined round
     // the two waist halves (haunches): they shape the body only when it faces you (side views: the thighs do it)
     for (const j in els.massW){
       const c = p.skel.joints[j], e = els.massW[j], r = c[2] * clamp(p.skel.view || 0, 0, 1);
@@ -2405,10 +2535,15 @@ function draw(p, ht){
    Pink: ribcage, pelvis, spine and tail. Blue: head. Purple: shoulder blade and front legs.
    Orange: hind legs. Far legs are fainter. Joints are dots. */
 const SK = { pink:'#d0679a', front:'#7d63c4', hind:'#d08a3c', head:'#5aa0bf' };
-let skelShown = false, skelEls = null;
+let skelShown = false, skelEls = null, skelPts = {};
+// the grid leg points snap to: 400 × 400 drawing units around the cat, its bottom on the floor line
+const GRID = { x:0, y:CAT_BOX.floor - 400, size:400, step:10, snap:5 };
 function buildSkel(){
   const g = $('skel'), NS = 'http://www.w3.org/2000/svg';
   const mk = (tag, attrs, parent = g) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  const lines = (step, op) => { let d = ''; for (let v = 0; v <= GRID.size; v += step) d += `M${GRID.x + v} ${GRID.y}V${GRID.y + GRID.size}M${GRID.x} ${GRID.y + v}H${GRID.x + GRID.size}`;
+    return mk('path', { d, fill:'none', stroke:'#fff', 'stroke-width':1, opacity:op, 'vector-effect':'non-scaling-stroke' }); };
+  lines(GRID.step, 0.06); lines(50, 0.16);
   const line = (col, op = 1) => mk('path', { fill:'none', stroke:col, 'stroke-width':2.2, 'stroke-linejoin':'round', 'stroke-linecap':'round', 'vector-effect':'non-scaling-stroke', opacity:op });
   const mass = () => ({ shape: mk('path', { fill:SK.pink, 'fill-opacity':0.28, stroke:SK.pink, 'stroke-width':2, 'vector-effect':'non-scaling-stroke' }),
     cross: mk('path', { fill:'none', stroke:SK.pink, 'stroke-width':1.4, 'vector-effect':'non-scaling-stroke', opacity:0.8 }),
@@ -2432,6 +2567,20 @@ function buildSkel(){
   E.hipLine = mk('path', { fill:'none', stroke:SK.pink, 'stroke-width':2, 'stroke-dasharray':'5 4', 'vector-effect':'non-scaling-stroke' });
   // distance between the two shoulders ("Shoulder distance"); the chest is just its own outline
   E.shLine = mk('path', { fill:'none', stroke:SK.front, 'stroke-width':2, 'stroke-dasharray':'5 4', 'vector-effect':'non-scaling-stroke' });
+  // leg points 1–4: a number outside the cat on a thin line; the number and the dot both drag the point
+  E.tags = {};
+  for (const l of ['bf', 'ff', 'bn', 'fn']){
+    const col = l[0] === 'f' ? SK.front : SK.hind, far = l[1] === 'f';
+    E.tags[l] = [0, 1, 2, 3].map(i => {
+      const line = mk('path', { fill:'none', stroke:col, 'stroke-width':1, opacity:far ? 0.6 : 0.95, 'vector-effect':'non-scaling-stroke' });
+      const tag = mk('g', { class:'grab', 'pointer-events':'all' });
+      mk('circle', { r:8, stroke:col, 'stroke-width':1.5, style:`fill:${far ? 'var(--panel)' : col}` }, tag);
+      mk('text', { 'text-anchor':'middle', dy:'0.35em', 'font-size':10, 'font-weight':700, style:`fill:${far ? col : '#fff'};font-family:var(--font-num)` }, tag).textContent = i + 1;
+      tag.addEventListener('pointerdown', e => legDown(e, l, i));
+      return { line, tag };
+    });
+    E.dots[l].forEach((d, i) => { d.classList.add('grab'); d.setAttribute('pointer-events', 'all'); d.addEventListener('pointerdown', e => legDown(e, l, i)); });
+  }
   E.rib.cross.setAttribute('display', 'none'); E.rib.dots.forEach(d => d.setAttribute('display', 'none'));
   for (const k of ['shape', 'cross']) E.pel[k].setAttribute('display', 'none');   // the hips place the back body: no pelvis circle to show
   E.pel.dots.forEach(d => d.setAttribute('display', 'none'));
@@ -2447,6 +2596,8 @@ function drawSkel(p){
     [[f, 0], [-bk, 0], [0, -t], [0, d]].forEach(([x, y], i) => { M.dots[i].setAttribute('cx', x.toFixed(1)); M.dots[i].setAttribute('cy', y.toFixed(1)); M.dots[i].setAttribute('transform', q.at); });
   };
   put(E.rib, sk.rib);
+  const nc = 1 - clamp(p.fx.chest, 0, 1);
+  E.rib.shape.setAttribute('opacity', (1 - nc).toFixed(2));   // no chest: nothing to show
   const wR = sk.joints.waistR, wL = sk.joints.waistL;
   E.hipLine.setAttribute('d', `M${fmt(wR)}L${fmt(wL)}`);
   E.shLine.setAttribute('d', `M${fmt(sk.joints.shoulderR)}L${fmt(sk.joints.shoulderL)}`);
@@ -2460,15 +2611,56 @@ function drawSkel(p){
   E.head.setAttribute('cx', hc[0].toFixed(1)); E.head.setAttribute('cy', hc[1].toFixed(1)); E.head.setAttribute('r', hr.toFixed(1));
   // spine: tail tip → tail root → pelvis → waist → withers → neck → head
   const tail = p.tail.slice().reverse();
-  E.spine.setAttribute('d', openCurve([...tail, ...sk.spine, hc]));
+  E.spine.setAttribute('d', nc < 0.5 ? openCurve([...tail, ...sk.spine, hc]) : openCurve(tail) + openCurve([...sk.spine, hc]));   // facing you: the tail goes off to the side
   for (const l in E.legs){
     // body anchor → (curved thigh / upper arm) → fold → paw
-    const [h, kn, wr, toe] = p.legs[l], X = (p.legX && p.legX[l]) || {}, pts = [h, kn, wr, toe];
+    const [, kn, wr, toe] = p.legs[l], hip = l[0] === 'b' && sk.joints[LEG_JOINT[l]], h = hip || p.legs[l][0], pts = [h, kn, wr, toe];
     E.legs[l].setAttribute('d', 'M' + fmt(h) + 'L' + fmt(kn) + 'L' + fmt(wr) + 'L' + fmt(toe));
     E.folds[l].setAttribute('cx', kn[0].toFixed(1)); E.folds[l].setAttribute('cy', kn[1].toFixed(1)); E.folds[l].setAttribute('r', foldR(p, l).toFixed(1));
     E.dots[l].forEach((d, i) => { const q = pts[i]; d.setAttribute('cx', q[0].toFixed(1)); d.setAttribute('cy', q[1].toFixed(1)); });
+    skelPts[l] = pts;
+  }
+  // labels: a column beside the cat on each leg's side (side view: hind legs behind, front legs in front), each
+  // leg's 1–4 together (higher leg first), spread so they never overlap; the same size whatever the cat's size
+  const all = [...p.body, ...p.tail, ...Object.values(p.legs).flat(), [hc[0] - hr, hc[1]], [hc[0] + hr, hc[1]]];
+  const u = 1 / catScale(), r = 8 * u, gap = 2 * r + 3 * u, f = screenFacing(facing), mid = (sk.rib[0] + sk.pel[0]) / 2;
+  const cols = { L:[], R:[] }, lo = Math.min(...all.map(q => q[0])) - 3 * r, hi = Math.max(...all.map(q => q[0])) + 3 * r;
+  for (const l of Object.keys(skelPts).sort((a, b) => skelPts[a][0][1] - skelPts[b][0][1]))
+    skelPts[l].forEach((q, i) => cols[skelPts[l][0][0] < mid ? 'L' : 'R'].push({ l, i, q }));
+  for (const side in cols){
+    const c = cols[side], x = side === 'L' ? lo : hi, bottom = CAT_BOX.floor + r, step = k => gap + (c[k].l !== c[k - 1].l ? r : 0);   // a little room between legs
+    c.forEach((o, k) => { o.y = k ? Math.max(o.q[1], c[k - 1].y + step(k)) : o.q[1]; });
+    for (let k = c.length - 1; k >= 0; k--) c[k].y = Math.min(c[k].y, k === c.length - 1 ? bottom : c[k + 1].y - step(k + 1));
+    for (const o of c){
+      const T = E.tags[o.l][o.i], ex = x + (side === 'L' ? r : -r);
+      T.line.setAttribute('d', `M${fmt(o.q)}L${ex.toFixed(1)} ${o.y.toFixed(1)}`);
+      T.tag.setAttribute('transform', `translate(${x.toFixed(1)} ${o.y.toFixed(1)}) scale(${(u * f).toFixed(4)} ${u.toFixed(4)})`);   // numbers read the right way round
+    }
   }
 }
+// dragging a leg point (Shape tab, skeleton shown, position held): only that point of that leg moves; it snaps
+// to the grid (hold Alt / Option to place it freely)
+const LEG_NAME = { fn:'Front near', ff:'Front far', bn:'Hind near', bf:'Hind far' };
+let legDrag = null;
+function legNote(text){ $('legNote').textContent = text; }
+function legDown(e, l, i){
+  e.preventDefault(); e.stopPropagation();
+  if (!holding){ legNote('Turn on “Hold this position while editing” to drag points.'); return; }
+  const sh = S.shapes[editGroup], p0 = toLocal($('skel'), e.clientX, e.clientY), q0 = skelPts[l] && skelPts[l][i];
+  if (!p0 || !q0) return;
+  e.target.setPointerCapture(e.pointerId);
+  legDrag = { l, i, p0, q0: q0.slice(0, 2), o0: [sh[l + (i + 1) + 'x'], sh[l + (i + 1) + 'y']], moved:false };
+}
+addEventListener('pointermove', e => {
+  const D = legDrag; if (!D) return;
+  const p = toLocal($('skel'), e.clientX, e.clientY); if (!p) return;
+  const snap = v => e.altKey ? Math.round(v * 2) / 2 : Math.round(v / GRID.snap) * GRID.snap;
+  const x = snap(D.q0[0] + p[0] - D.p0[0]), y = snap(D.q0[1] + p[1] - D.p0[1]), sh = S.shapes[editGroup], k = D.l + (D.i + 1);
+  sh[k + 'x'] = +(D.o0[0] + x - D.q0[0]).toFixed(2); sh[k + 'y'] = +(D.o0[1] + y - D.q0[1]).toFixed(2); D.moved = true;
+  legNote(`${LEG_NAME[D.l]} ${D.i + 1}: x ${+(x - GRID.x).toFixed(1)}, y ${+(GRID.y + GRID.size - y).toFixed(1)}`);
+});
+const legUp = () => { if (legDrag && legDrag.moved) save(); legDrag = null; };
+addEventListener('pointerup', legUp); addEventListener('pointercancel', legUp);
 function syncSkel(){
   skelShown = !!S.showSkel && !$('tab-shape').hidden && !panel.hidden && !UI.collapsed;
   document.documentElement.classList.toggle('skel-on', skelShown);
@@ -2498,13 +2690,18 @@ function applyColors(){
 }
 function applyTransform(xFrac){
   const W = innerWidth, H = innerHeight, s = catScale();
-  const x = xFrac * W, y = H - (S.ground/100) * H, f = screenFacing(facing);
+  const x = onScreen(xFrac) * W, y = H - (S.ground/100) * H, f = screenFacing(facing);   // never drawn past an edge
   cat.setAttribute('transform',
     `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${s.toFixed(4)}) translate(${-CAT_BOX.cx} ${-CAT_BOX.floor})` +
     ` translate(${TURN_AXIS} 0) scale(${f} 1) translate(${-TURN_AXIS} 0)`);
 }
 function layout(){
   svg.setAttribute('viewBox', `0 0 ${innerWidth} ${innerHeight}`);
+  // a smaller window or a bigger cat: a cat standing near an edge steps in to where it fits
+  if (plan.startX === plan.endX && onScreen(worldX) !== worldX){
+    worldX = onScreen(worldX); plan.startX = plan.endX = worldX;
+    for (const s of plan.steps){ s.x0 = s.x1 = worldX; }
+  }
   applyTransform(worldX); placePanel();
 }
 
@@ -2549,7 +2746,7 @@ function cursorJumpTarget(){
   if (Math.abs(dx) < catPx * 0.62 || Math.abs(dx) > catPx * S.jumpReach) return null;
   if (up < -catPx * 0.4 || up > catPx * S.jumpReach * 0.8) return null;
   const dir = Math.sign(dx);
-  return { x: clamp((mouse.x - dir * 100 * s) / W, 0.05, 0.95), up: up / s };   // head lands under the cursor
+  return { x: onScreen((mouse.x - dir * 100 * s) / W), up: up / s };   // head lands under the cursor
 }
 function updateCursor(dt, now){
   const active = mouse.inside && now - mouse.moved < 6000;
@@ -2659,7 +2856,7 @@ for (const k in DEFAULTS){
     const out = document.querySelector(`output[for="${k}"]`); if (out) out.textContent = fmtOut[k](S[k]);
     if (k === 'posX' && !curStep?.flight){
       // slide the cat to the new spot (it keeps whatever it is doing)
-      worldX = S.posX / 100; plan.startX = plan.endX = worldX;
+      worldX = onScreen(S.posX / 100); plan.startX = plan.endX = worldX;
       for (const s of plan.steps){ s.x0 = s.x1 = worldX; }
     }
     applyColors(); layout(); save(); syncSkel();
@@ -2769,8 +2966,26 @@ function showTab(t){
 }
 document.querySelectorAll('.tab').forEach(b => b.onclick = () => showTab(b.dataset.tab));
 let editGroup = SHAPE_GROUPS.includes(UI.shapeGroup) ? UI.shapeGroup : 'stand', holding = false;
+// controls that differ per position: [label, min, max]; a position not listed keeps what the panel says.
+// Parts of the panel can also say where they show: data-only="front sit" or data-not="front" (positions)
+const GROUP_CTRL = {
+  sit: { bMidX:['2 fwd/back', -80, 80], bMidY:['2 up/down', -80, 80] },
+};
+const CTRL_BASE = {};
+function groupControls(){
+  for (const g in GROUP_CTRL) for (const k in GROUP_CTRL[g]){
+    const el = $(k), lab = document.querySelector(`label[for="${k}"]`);
+    CTRL_BASE[k] = CTRL_BASE[k] || [lab.textContent, el.min, el.max];
+    const [t, a, b] = (GROUP_CTRL[editGroup] || {})[k] || CTRL_BASE[k];
+    lab.textContent = t; el.min = a; el.max = b;
+  }
+  const has = (el, a) => el.dataset[a].split(' ').includes(editGroup);
+  document.querySelectorAll('#tab-shape [data-only]').forEach(el => { el.hidden = !has(el, 'only'); });
+  document.querySelectorAll('#tab-shape [data-not]').forEach(el => { el.hidden = has(el, 'not'); });
+}
 function syncShapeInputs(){
   const sh = S.shapes[editGroup];
+  groupControls();   // ranges first, so a value outside the old range is not clipped
   for (const k in SHAPE_DEFAULT){
     const el = $(k); if (!el) continue;
     el.value = sh[k];
@@ -2820,6 +3035,7 @@ function selectGroup(g){
 document.querySelectorAll('.ptab').forEach(b => b.onclick = () => selectGroup(b.dataset.group));
 $('holdPose').addEventListener('change', () => holdPosition($('holdPose').checked));
 $('copyShape').onclick = () => { for (const g of SHAPE_GROUPS) S.shapes[g] = { ...S.shapes[editGroup] }; save(); toast('Shape copied to all positions'); };
+$('resetLegPts').onclick = () => { const sh = S.shapes[editGroup]; for (const k in sh) if (LEG_KEY.test(k)) sh[k] = 0; save(); legNote(GROUP_LABEL[editGroup] + ': leg points back where the pose puts them'); };
 $('resetShape').onclick = () => { S.shapes[editGroup] = { ...SHAPE_DEFAULT, ...SHAPE_PRESET[editGroup] }; save(); syncShapeInputs(); };
 /* ---------- Eyes tab: edit each emotion's eyes on a 20 × 20 grid ---------- */
 const NS = 'http://www.w3.org/2000/svg';

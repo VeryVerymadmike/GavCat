@@ -4,6 +4,7 @@ SVG + JS cat animation in one file.
 
 - `cat-stretch.html` — source. Open in Safari/any browser.
 - `index.html` — GitHub Pages copy. Rebuild: `./build.sh`
+- Tuning: `python3 tools/edit_server.py`, open `http://127.0.0.1:8766/` and use the panel. Every change is written into `cat-stretch.html` and `index.html` (the panel shows **Saved**), so it shows up in git and in the app.
 - `tools/` — Python Playwright test scripts (smoke, gait/jump checks, `bake_in.py`). They expect the page served at `http://127.0.0.1:8765/`.
 
 ## App (iPhone, iPad, Mac)
