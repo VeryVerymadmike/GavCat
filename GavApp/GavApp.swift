@@ -15,8 +15,9 @@ struct GavApp: App {
     }
 }
 
-// The page: the GitHub Pages site, so the wallpaper follows main (reload to get the latest); the copy bundled with
-// the app when the site can't be reached. ?wallpaper: see-through background, no controls.
+// The page: the GitHub Pages site, so the wallpaper follows main (it checks for a new version every half hour and on
+// wake, see checkForUpdate); the copy bundled with the app when the site can't be reached. ?wallpaper: see-through
+// background, no controls.
 let siteURL = URL(string: "https://veryverymadmike.github.io/GavCat/?wallpaper")!
 
 /* The cat as the desktop wallpaper: a see-through window behind the desktop icons, on every Space, that clicks pass
@@ -28,6 +29,8 @@ final class Desktop: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     private var activity: NSObjectProtocol?
     private var cursor: CGPoint?          // where the page last saw the cursor (page coordinates); nil: not over the desktop
     private var lastAt = CGPoint(x: -1, y: -1), ticks = 0
+    private var onSite = false            // showing the site (not the bundled copy)
+    private var version: String?          // the site's version shown (its ETag)
 
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.setActivationPolicy(.accessory)                 // no Dock icon, just the menu bar cat
@@ -51,6 +54,28 @@ final class Desktop: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "The cat watches the cursor")
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.trackCursor() } }
         RunLoop.main.add(timer, forMode: .common)
+        // a new version of the cat: looked for every half hour, and a little after the Mac wakes (once the network is back)
+        checkForUpdate()
+        let updates = Timer(timeInterval: 30 * 60, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.checkForUpdate() } }
+        RunLoop.main.add(updates, forMode: .common)
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(woke), name: NSWorkspace.didWakeNotification, object: nil)
+    }
+
+    @objc private func woke() {
+        Task { try? await Task.sleep(for: .seconds(15)); checkForUpdate() }
+    }
+
+    // asks the site for its version only (no page): reloads when it changed, or when the bundled copy is showing and
+    // the site can be reached again; offline it waits for the next check
+    private func checkForUpdate() {
+        Task {
+            var ask = URLRequest(url: siteURL, cachePolicy: .reloadIgnoringLocalCacheData)
+            ask.httpMethod = "HEAD"
+            guard let res = (try? await URLSession.shared.data(for: ask))?.1 as? HTTPURLResponse, res.statusCode == 200 else { return }
+            let now = res.value(forHTTPHeaderField: "ETag") ?? res.value(forHTTPHeaderField: "Last-Modified")
+            if !onSite || (version != nil && now != version) { reload() }
+            version = now
+        }
     }
 
     // the whole main display (the one with the menu bar)
@@ -59,13 +84,17 @@ final class Desktop: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     }
 
     func reload() {
+        onSite = true
         web.load(URLRequest(url: siteURL, cachePolicy: .reloadRevalidatingCacheData))
     }
 
+    // the site can't be reached: the bundled copy (not when a load was only cut short by the next one, e.g. Reload twice)
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        guard let file = Bundle.main.url(forResource: "index", withExtension: "html"),
+        guard onSite, (error as NSError).code != NSURLErrorCancelled,
+              let file = Bundle.main.url(forResource: "index", withExtension: "html"),
               var page = URLComponents(url: file, resolvingAgainstBaseURL: false) else { return }
         page.query = "wallpaper"
+        onSite = false
         if let url = page.url { webView.loadFileURL(url, allowingReadAccessTo: file.deletingLastPathComponent()) }
     }
 
