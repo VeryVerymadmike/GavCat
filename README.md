@@ -18,7 +18,8 @@ SVG + JS cat animation in one file.
 After editing `cat-stretch.html`, run `./build.sh` so the app gets the new `index.html`.
 
 On the Mac, Gav is the desktop wallpaper: a see-through window behind the desktop icons that clicks pass through, with a
-cat in the menu bar (Reload, Quit). It loads the GitHub Pages site (`https://veryverymadmike.github.io/GavCat/?wallpaper`,
-so it follows `main`; Reload after a push) and falls back to the bundled `index.html` when offline. It reads the cursor
-itself and passes it to the page while it is over the bare desktop, so the cat reacts to the mouse without Plash's
-Browsing Mode. The wallpaper never shows the controls: edit in a browser (`tools/edit_server.py`) and push.
+cat in the menu bar (Reload, Quit). It loads the GitHub Pages site
+(`https://veryverymadmike.github.io/GavCat/?wallpaper`, so it follows `main`: it checks for a new version every half
+hour and after the Mac wakes, or Reload after a push) and falls back to the bundled `index.html` when offline. It reads
+the cursor itself and passes it to the page while it is over the bare desktop, so the cat reacts to the mouse without
+Plash's Browsing Mode. The wallpaper never shows the controls: edit in a browser (`tools/edit_server.py`) and push.
