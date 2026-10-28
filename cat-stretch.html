@@ -22,12 +22,13 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font-ui);overflo
   padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
 #stage{position:fixed;inset:0;touch-action:none}
 html.wallpaper,html.wallpaper body{background:transparent!important}
-html.wallpaper:not(.plash-is-browsing-mode) #panel,html.wallpaper:not(.plash-is-browsing-mode) #showBtn{display:none!important}
+/* the wallpaper never shows a control (they are for editing in a browser), not even in Plash's Browsing Mode */
+html.wallpaper #panel,html.wallpaper #showBtn,html.wallpaper #statesPanel{display:none!important}
 #stage svg{width:100%;height:100%;display:block}
 #skel,#ghosts{display:none}
 #skel .grab{cursor:grab}
 html.skel-on #skel,html.skel-on #ghosts{display:inline}
-html.wallpaper:not(.plash-is-browsing-mode) #skel,html.wallpaper:not(.plash-is-browsing-mode) #ghosts{display:none!important}
+html.wallpaper #skel,html.wallpaper #ghosts{display:none!important}
 #ghosts .gShape *{fill:currentColor!important;stroke:none!important}
 
 .panel{position:fixed;z-index:5;
@@ -299,7 +300,7 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
         <label class="chip"><input type="checkbox" id="dodgeTail">Keeps its tail away from the cursor</label>
       </div>
       <div class="row"><label for="jumpReach">Jump to cursor</label><input type="range" id="jumpReach" min="1.5" max="8" step="0.5"><output for="jumpReach"></output></div>
-      <p class="hint">Jump to cursor: how far away the cursor may be (in cat lengths) for the cat to jump to it. In Plash the cursor reaches the cat only in Browsing Mode.</p>
+      <p class="hint">Jump to cursor: how far away the cursor may be (in cat lengths) for the cat to jump to it. As the desktop wallpaper (the Gav Mac app) the cat sees the cursor whenever it is over the bare desktop; in Plash only in Browsing Mode.</p>
     </div>
   </details>
 
@@ -1303,8 +1304,8 @@ function spinPose(p){
 }
 
 /* ---------- settings ---------- */
-// ?wallpaper in the address: see-through background (your desktop picture shows behind the cat);
-// the panel only appears while Plash is in Browsing Mode
+// ?wallpaper in the address: see-through background (your desktop picture shows behind the cat) and no controls;
+// it always starts playing, never in an editing tab (see start)
 const WALL = new URLSearchParams(location.search).has('wallpaper');
 document.documentElement.classList.toggle('wallpaper', WALL);
 const DEFAULTS = {
@@ -1343,15 +1344,15 @@ for (let i = 1; i <= 3; i++){ SHAPE_DEFAULT['tail' + i + 'x'] = 0; SHAPE_DEFAULT
 // what a browser saved, or a newer settings.json, still wins
 Object.assign(DEFAULTS, {
   speed:1, idleTime:1, postureTime:1, turnTime:1, trans:0.9, holdStretch:2.4, watchTime:1, licks:2, napTime:2,
-  jumpPrep:0.9, jumpHeight:2.5, followCursor:true, lickCursor:true, jumpCursor:true, pounce:true, jumpReach:8,
-  eyeRest:"round", eyeAuto:true, lookGap:7, lookSoft:true, lookSquint:true, lookCross:true, lookFly:true,
-  lookShifty:true, auto:true, useStretch:true, useWatch:true, useGroom:true, useNap:true, useJump:true,
-  useWalk:true, useRun:true, useFace:true, useBelly:true, walkSpeed:1.25, runSpeed:2.5, runStride:0.54,
-  blink:true, breathe:true, sway:true, closeEyes:true, turnBack:false, catColor:"#191a19", eyeColor:"#ffe499",
-  tongueColor:"#ee736d", bgColor:"#8f938b", shadowColor:"#6f6a4b", size:21, posX:5, ground:10, flip:false,
-  showSkel:true, fluid:2.3, lookSurprised:true, lookHappy:true, lookSly:true, lookWink:true, lookSkeptic:true,
-  lookBored:true, lookDeadpan:true, lookSideeye:true, lookSuspicious:true, lookSleepy:true, lookWorried:true,
-  lookPleading:true, lookSad:false, lookAngry:true,
+  jumpPrep:0.9, jumpHeight:2.5, followCursor:true, lickCursor:true, jumpCursor:true, pounce:true, dodgeTail:true,
+  jumpReach:8, eyeRest:"round", eyeAuto:true, lookGap:7, lookSoft:true, lookSquint:true, lookCross:true,
+  lookFly:true, lookShifty:true, auto:true, useStretch:true, useWatch:true, useGroom:true, useNap:true,
+  useJump:true, useWalk:true, useRun:true, useFace:true, useBelly:true, walkSpeed:1.25, runSpeed:2.5,
+  runStride:0.54, blink:true, breathe:true, sway:true, closeEyes:true, turnBack:false, catColor:"#191a19",
+  eyeColor:"#ffe499", tongueColor:"#ee736d", bgColor:"#8f938b", shadowColor:"#6f6a4b", size:11, posX:5, ground:8,
+  flip:false, showSkel:true, fluid:2.3, lookSurprised:true, lookHappy:true, lookSly:true, lookWink:true,
+  lookSkeptic:true, lookBored:true, lookDeadpan:true, lookSideeye:true, lookSuspicious:true, lookSleepy:true,
+  lookWorried:true, lookPleading:true, lookSad:false, lookAngry:true,
   states:{"sitMid": {"bf4x": 3.65, "bf4y": 21.84, "bf3x": 0.44, "bf3y": 27.39, "bn4x": 6.34, "bn4y": 19.07, "bn3x": 2.88, "bn3y": 29.01, "bn1x": -11.12, "bn1y": 1.34, "bf1x": -4.22, "bf1y": 7.5, "bn2x": 44.87, "bn2y": -21.9, "bf2x": 40.63, "bf2y": -23.93, "ff1x": -24.54, "ff1y": -2.56, "fn1x": -24.61, "fn1y": -3.16, "ff2x": -14.15, "ff2y": 4.04, "ff3x": -15.38, "ff3y": 1.18, "ff4x": -15.72, "ff4y": 1.18, "fn3x": -12.23, "fn3y": 1.18, "fn4x": -10.03, "fn4y": 1.18, "fn2x": -22.08, "fn2y": 4.24, "headX": -20.98, "headY": -4.22}, "lieMid": {"bf4x": 11.94, "bf4y": 26.1, "bf3x": 10.84, "bf3y": 26.1, "bn4x": 12.12, "bn4y": 21, "bn3x": 6.02, "bn3y": 21, "fn4x": 1.44, "fn4y": 25.77, "fn3x": 4.24, "fn3y": 19.59, "ff3x": 1.81, "ff3y": 11.17, "ff4x": -3.55, "ff4y": 16.13, "fn2x": -1.32, "fn2y": 17.03, "ff2x": -13.91, "ff2y": 22.88}, "reach": {"ff2x": -11.02, "ff2y": 6.97, "fn2x": -9.84, "fn2y": 11.01, "ff1x": -1.96, "ff1y": 6.42, "fn1x": -7.08, "fn1y": 13.08, "headX": 3.21, "headY": -7.35, "bn1x": -2.99, "bn1y": -8.5, "bf1x": -0.49, "bf1y": -8.5}, "bellyMid": {"bn1x": -5.22, "bn1y": -5.22, "bf1x": 16.06, "bf1y": 16.08, "bn4x": -8.18, "bn4y": -27.63, "bn3x": 25.78, "bn3y": -48.95, "bn2x": 2.57, "bn2y": -22.36, "t2x": -26.16, "t2y": -3.02, "t3x": -31.5, "t3y": -6.04, "t1x": -8.22, "t1y": -8.95, "t4x": -33.91, "t4y": -0.44, "t5x": -39.25, "t5y": 3.4, "bf2x": -20.99, "bf2y": 0.8, "bf3x": -2.05, "bf3y": -44.26, "fn2x": -10.51, "fn2y": -16.63, "bn4a": 64.4, "fn1x": -5.98, "fn1y": -16.6, "ff1x": -9, "ff1y": 19.53, "ff2x": 3.95, "ff2y": -13.46, "fn3x": -66.12, "fn3y": -21.5, "headX": 12.59, "headY": -6.17, "headRot": 43, "spineCurve": -20, "catX": -10.31, "catY": -18.25}, "faceMid": {"fn1x": -5.21, "fn1y": -18.11, "ff1x": -0.17, "ff1y": 13.49, "fn2x": -3.42, "fn2y": -17.1, "fn4x": -2.94, "fn4y": 2.36, "fn3x": -11.7, "fn3y": 1.18, "ff4x": -3.63, "ff4y": 14.09, "ff3x": -2.11, "ff3y": 14.09, "ff2x": -2.85, "ff2y": 5.91, "bf2x": -3.72, "bf2y": -2.49, "bn1x": -0.24, "bn1y": -1.18, "bn2x": -22.79, "bn2y": -27.15, "bn4x": -10.76, "bn4y": 1.49, "bn3x": -4.59, "bn3y": 1.49}, "jumpReady": {"bn1x": 0, "bn1y": 5, "bf1x": 0, "bf1y": 5, "bf2x": 5, "bf2y": -5, "fn1x": -15, "fn1y": -10, "headX": -32.38, "headY": 9.77, "spineCurve": -5.5}, "jumpPush": {"bn1x": 13.54, "bn1y": 65.06, "bf1x": 18.52, "bf1y": 60, "ff1x": 38.52, "ff1y": 42.01, "fn1x": 27.92, "fn1y": 62.02, "bf2x": 26.43, "bf2y": 12.6, "bn2x": 9.98, "bn2y": 21.25, "ff2x": 83.96, "ff2y": 51.43, "fn2x": 63.2, "fn2y": 55.34, "fn3x": 39.95, "fn3y": 43.79, "ff3x": 62.03, "ff3y": 29.22, "fn4x": 10.46, "fn4y": 73.86, "ff4x": 42.05, "ff4y": 59.08, "headX": 13.2, "headY": -18.02, "headRot": -3, "spineCurve": -3, "t1x": -7.66, "t1y": -3.23, "ff4a": -153, "fn4a": -180.3}, "jumpFly": {"fn1x": 2.92, "fn1y": -89.72, "ff1x": -9.4, "ff1y": -71.58, "ff2x": -27.47, "ff2y": 17.05, "fn2x": 5.38, "fn2y": 8.26, "fn3x": -69.1, "fn3y": 22.7, "fn4x": -64.34, "fn4y": 46.38, "ff3x": -95.66, "ff3y": 31.98, "ff4x": -40.9, "ff4y": 39.48, "headX": -42.47, "headY": -5.52, "t1x": 8.11, "t1y": -42.52, "t2x": 0.92, "t2y": -36.49, "t4x": -0.18, "t4y": 23.74, "t5x": 2.32, "t5y": 57.08, "t3x": 0.53, "t3y": -10.55, "bn1x": 9.52, "bn1y": -111.01, "bf1x": 24.52, "bf1y": -121.01, "tail1x": 6.37, "tail1y": -163.49, "tail2x": 15.93, "tail2y": 1.44, "tail3x": 29.27, "tail3y": 0.83, "bn2x": -1.78, "bn2y": -89.73, "bf2x": 17.55, "bf2y": -107.58, "bf3x": -6.69, "bf3y": -104.56, "bn3x": -10.64, "bn3y": -76.46, "ff4a": 40.8, "fn4a": -9.4, "bn4a": -193.3, "headRot": 6, "spineCurve": 28}, "jumpReach": {"bf1x": -81.56, "bf1y": 45.37, "bn1x": -81.6, "bn1y": 40.38, "bn2x": -110.2, "bn2y": 65.16, "bn3x": -139.3, "bn3y": 23.71, "bn4x": -136.14, "bn4y": 18.06, "bf2x": -68.79, "bf2y": 35.45, "bf3x": -112.17, "bf3y": -7.49, "bf4x": -113.98, "bf4y": -13.15, "t1x": -1.77, "t1y": -6.75, "t2x": -34.8, "t2y": 30.12, "t3x": -50.78, "t3y": 54.86, "t4x": -82.04, "t4y": 85.79, "t5x": -134.25, "t5y": 101.48, "ff1x": 5.42, "ff1y": -18.72, "fn1x": -31.7, "fn1y": -45.62, "fn2x": 27.85, "fn2y": 19.3, "ff2x": 27.24, "ff2y": 20.27, "headX": -78.39, "headY": -12.24, "headRot": -27, "tail1x": -113.13, "tail1y": 30.7, "tail2x": -7.94, "tail2y": -35.38, "tail3x": 25.02, "tail3y": -47.26, "spineCurve": -3}, "jumpAbsorb": {"bn1x": 2, "bn1y": -34, "bf1x": 7, "bf1y": -34, "bf2x": -5.14, "bf2y": -67.9, "bf3x": -35.94, "bf3y": -73.51, "bf4x": -13.74, "bf4y": -18.51, "bn2x": -9.53, "bn2y": -75.03, "bn3x": -31.82, "bn3y": -78.51, "bn4x": -19.62, "bn4y": -23.51, "headX": -29.32, "headY": -21.02, "ff2x": 17.95, "ff2y": 19.24, "fn2x": 8.56, "fn2y": 23.04, "fn1x": -14.12, "fn1y": 0.47, "spineCurve": 17.5, "tail1x": -19.3, "tail1y": -63.6, "tail2x": 32.56, "tail2y": -92.04, "tail3x": 10.08, "tail3y": -80.27}, "jumpRise": {"tail1x": -45.4, "tail1y": -15.82, "tail2x": 18.24, "tail2y": 13.51, "tail3x": 12.6, "tail3y": 28.02, "bn2x": 25.63, "bn2y": -15.17, "bn4a": -68.7, "bn3x": 55.62, "bn3y": -12.58, "bf3x": 22.45, "bf3y": 3.9, "bf4a": 362.4, "bf2x": 10.76, "bf2y": -1.94, "bf1x": -29.53, "bf1y": 19.16, "bn1x": -29.53, "bn1y": 29.16, "headX": -34.21, "headY": 33.2, "fn1x": -3.54, "fn1y": -1.83, "ff1x": 1.83, "ff1y": -8.86, "ff2x": 54.95, "ff2y": 2.54, "fn2x": 35.09, "fn2y": 13.84, "fn3x": 35.37, "fn3y": 21.45, "ff3x": 41.56, "ff3y": 14.53, "fn4a": -565, "ff4a": -177.7, "spineCurve": 27.5, "headRot": 21}, "lickReady": {"fn2x": -30.86, "fn2y": 15.65, "fn1x": 11, "fn1y": -4, "fn3x": 7.8, "fn3y": -13, "fn4a": -62.3, "ff1x": -12, "ff1y": -7, "ff2x": 20.53, "ff2y": 33.85, "ff3x": 14.66, "ff3y": 6.18, "ff4a": -242.3}, "lickDown": {"fn2x": 0.79, "fn2y": -2.51, "fn4a": -267.7, "fn3x": -10, "fn3y": -1, "headRot": -7, "headX": -1.32, "headY": -7.65}, "bellyDown": {"bn2x": 10.08, "bn2y": 17.94, "bn3x": 22.39, "bn3y": 55.85, "bf3x": 6.49, "bf3y": 10.01, "bf4a": 152.2, "bn4a": 181.5, "bn1x": -8.84, "bn1y": 13.22, "bf1x": -8.95, "bf1y": 9.65, "bf2x": -24.41, "bf2y": 4.68, "fn1x": -14.04, "fn1y": -13.42, "ff1x": -23.97, "ff1y": -15.36, "fn3x": -4.25, "fn3y": 30.19, "ff3x": -1.71, "ff3y": 11.16, "catX": 9.39, "catY": 15.56}}
 });
 const SHAPE_GROUPS = ['stand', 'sit', 'lie', 'stretch', 'jump', 'front', 'belly'];
@@ -3664,7 +3665,7 @@ addEventListener('resize', layout);
 syncInputs(); syncShapeInputs(); applyColors(); setCollapsed(!!UI.collapsed); layout();
 startIdle(S.auto ? 2 : Infinity);
 look.cur = look.prev = S.eyeRest; setLook(S.eyeRest, Infinity); edSelect(edId); runNote();
-showTab(['shape', 'eyes'].includes(UI.tab) ? UI.tab : 'anim');
+showTab(!WALL && ['shape', 'eyes'].includes(UI.tab) ? UI.tab : 'anim');
 draw(solveLegs(applyShape(addLife(livePose, 0, 0))), 0);
 requestAnimationFrame(frame);
 
