@@ -3,7 +3,7 @@
 import json, os, re, sys
 SRC = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'cat-stretch.html'))
 OBS = {'browColor','brows','savedAt','shapes','eyeLooks'}
-LEG_KEY = re.compile(r'[fb][nf][1-4][xy]')   # leg point offsets (fn1x … bf4y)
+LEG_KEY = re.compile(r'[fb][nf]([1-4][xy]|4a)|(t[1-5]|tail[1-3])[xy]|headRot|cat[XY]')   # dragged points: legs (fn1x … bf4y), tail (t1x … t5y), head tilt, whole cat
 def num(v):
     if isinstance(v,float): v=round(v,4); return '%g' % v
     return json.dumps(v).replace('</', '<\\/')
