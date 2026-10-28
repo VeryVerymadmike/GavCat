@@ -28,10 +28,11 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font-ui);overflo
 html.wallpaper,html.wallpaper body{background:transparent!important}
 html.wallpaper:not(.plash-is-browsing-mode) #panel,html.wallpaper:not(.plash-is-browsing-mode) #showBtn{display:none!important}
 #stage svg{width:100%;height:100%;display:block}
-#skel{display:none}
+#skel,#ghosts{display:none}
 #skel .grab{cursor:grab}
-html.skel-on #skel{display:inline}
-html.wallpaper:not(.plash-is-browsing-mode) #skel{display:none!important}
+html.skel-on #skel,html.skel-on #ghosts{display:inline}
+html.wallpaper:not(.plash-is-browsing-mode) #skel,html.wallpaper:not(.plash-is-browsing-mode) #ghosts{display:none!important}
+#ghosts .gShape *{fill:currentColor!important;stroke:none!important}
 
 .panel{position:fixed;z-index:5;
   top:calc(16px + env(safe-area-inset-top, 0px));left:calc(16px + env(safe-area-inset-left, 0px));
@@ -50,6 +51,13 @@ html.wallpaper:not(.plash-is-browsing-mode) #skel{display:none!important}
   background:radial-gradient(circle,var(--muted) 1.2px,transparent 1.6px) 0 0/5px 5px}
 .head h1{font-size:15px;font-weight:600;margin:0;flex:1;letter-spacing:.01em;white-space:nowrap}
 .proj{font-size:11px;color:var(--accent);white-space:nowrap}
+.panel.states{left:auto;right:calc(16px + env(safe-area-inset-right, 0px));width:250px}
+#stList{display:flex;flex-direction:column;gap:16px}
+.st{display:flex;flex-direction:column;gap:6px}
+.stView{width:100%;aspect-ratio:1;display:block;background:var(--stage);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.st.on .stView{outline:2px solid var(--accent);outline-offset:1px}
+.stGrid{fill:none;stroke:#fff;stroke-opacity:.2;stroke-width:1;vector-effect:non-scaling-stroke}
+.gsw{width:10px;height:10px;border-radius:50%;flex:none;box-shadow:0 0 0 1px var(--shade)}
 .proj.err{color:#b4483c}
 .btn{font:500 13px/1 var(--font-ui);color:var(--ink);background:var(--field);border:1px solid var(--line);
   border-radius:8px;padding:8px 10px;cursor:pointer}
@@ -127,6 +135,7 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
 
 @media (max-width:560px){
   .panel{width:auto;right:max(16px, env(safe-area-inset-right, 0px));max-height:55%}
+  .panel.states{left:max(16px, env(safe-area-inset-left, 0px));top:auto;bottom:16px;max-height:40%}
   #showBtn{opacity:.6}
 }
 </style>
@@ -141,6 +150,11 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <filter id="goo" filterUnits="userSpaceOnUse" x="-80" y="-130" width="560" height="410" color-interpolation-filters="sRGB">
         <feGaussianBlur id="gooBlur" in="SourceGraphic" stdDeviation="4.5"/>
         <feColorMatrix mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 26 -12"/>
+      </filter>
+      <!-- ghost: only the outline of a shape (grown a little, minus the shape itself) -->
+      <filter id="ghostLine" filterUnits="userSpaceOnUse" x="-100" y="-250" width="600" height="600">
+        <feMorphology in="SourceGraphic" operator="dilate" radius="1.6" result="grown"/>
+        <feComposite in="grown" in2="SourceGraphic" operator="out"/>
       </filter>
     </defs>
     <rect id="bg" x="0" y="0" width="100%" height="100%"/>
@@ -197,6 +211,7 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
           </g>
           </g>
         </g>
+        <g id="ghosts" pointer-events="none"></g>
         <g id="skel" pointer-events="none"></g>
       </g>
     </g>
@@ -204,7 +219,6 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
 </div>
 
 <button id="showBtn" class="btn" type="button" hidden>Controls</button>
-
 <aside class="panel" id="panel" aria-label="Animation controls">
   <div class="head" id="dragHandle" title="Drag to move · double-click to collapse">
     <span class="grip" aria-hidden="true"></span>
@@ -286,6 +300,7 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
         <label class="chip"><input type="checkbox" id="lickCursor">Licks the cursor on its nose</label>
         <label class="chip"><input type="checkbox" id="jumpCursor">Jumps go to the cursor</label>
         <label class="chip"><input type="checkbox" id="pounce">Pounces when the cursor rests nearby</label>
+        <label class="chip"><input type="checkbox" id="dodgeTail">Keeps its tail away from the cursor</label>
       </div>
       <div class="row"><label for="jumpReach">Jump to cursor</label><input type="range" id="jumpReach" min="1.5" max="8" step="0.5"><output for="jumpReach"></output></div>
       <p class="hint">Jump to cursor: how far away the cursor may be (in cat lengths) for the cat to jump to it. In Plash the cursor reaches the cat only in Browsing Mode.</p>
@@ -380,12 +395,18 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <button class="ptab" role="tab" type="button" data-group="front" aria-selected="false">Front</button>
       <button class="ptab" role="tab" type="button" data-group="belly" aria-selected="false">Belly up</button>
     </div>
+    <p class="hint" id="stateNote" hidden></p>
     <div class="chips"><label class="chip"><input type="checkbox" id="holdPose" checked>Hold this position while editing</label><label class="chip"><input type="checkbox" id="showSkel">Show skeleton</label></div>
     <p class="sub">Leg points</p>
     <div class="group">
-      <p class="hint">Every leg has points <b>1</b> shoulder / hip, <b>2</b> first fold, <b>3</b> second fold, <b>4</b> paw. With the skeleton shown, drag a point or its number: only that point of that leg moves, snapped to the grid (hold <kbd>⌥</kbd> to place it freely). Purple: front legs, orange: hind legs; filled numbers are the near side, outlined the far side.</p>
+      <p class="hint">Every leg has points <b>1</b> shoulder / hip, <b>2</b> first fold, <b>3</b> second fold (it carries the paw), <b>4</b> paw tip (it turns round 3, the paw keeps its length). With the skeleton shown, drag a point or its number: only that point of that leg moves, snapped to the grid (hold <kbd>⌥</kbd> to place it freely). Purple: front legs, orange: hind legs; filled numbers are the near side, outlined the far side. The head (blue dot; the white dot on its edge tilts it) drags the same way, and the tail has pink points <b>1</b> start (moves the whole tail), <b>2</b> middle, <b>3</b> tip. The white handle with arrows in the middle of the body moves the whole cat on the grid: every part keeps its shape. Everything stays inside the grid, and while you edit the grid fits on screen.</p>
       <p class="toast" id="legNote" role="status"></p>
-      <div class="actions"><button class="btn" id="resetLegPts" type="button">Reset leg points</button></div>
+      <div class="actions"><button class="btn" id="resetLegPts" type="button">Reset points &amp; position</button></div>
+    </div>
+    <p class="sub">Transitions</p>
+    <div class="group">
+      <div class="actions" id="trBtns"></div>
+      <p class="hint">Opens the move's key states on the right: start, the states in between, finish. Click one to hold it here and adjust it.</p>
     </div>
     <p class="sub">Head</p>
     <div class="group">
@@ -394,6 +415,7 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <div class="row"><label for="headX">Head fwd/back</label><input type="range" id="headX" min="-30" max="30" step="1"><output for="headX"></output></div>
       <div class="row"><label for="headY">Head up/down</label><input type="range" id="headY" min="-30" max="30" step="1"><output for="headY"></output></div>
       <div class="row"><label for="neckW">Neck</label><input type="range" id="neckW" min="0.4" max="2" step="0.01"><output for="neckW"></output></div>
+      <div class="row"><label for="headRot">Head tilt</label><input type="range" id="headRot" min="-60" max="60" step="1"><output for="headRot"></output></div>
     </div>
     <p class="sub">Face</p>
     <div class="group">
@@ -476,6 +498,18 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <button class="btn" id="resetShape" type="button">Reset this position</button>
     </div>
   </div>
+</aside>
+
+<aside class="panel states" id="statesPanel" hidden aria-label="Transition states">
+  <div class="head">
+    <h1 id="stTitle">Transition</h1>
+    <button class="btn primary" id="stPlay" type="button" title="Play this move once">Play</button>
+    <button class="btn icon" id="stClose" type="button" title="Close">×</button>
+  </div>
+  <p class="hint">Click a state to hold it on the stage, then drag its points there. Start and finish are the positions themselves.</p>
+  <div class="chips"><label class="chip"><input type="checkbox" id="ghost0"><span class="gsw"></span><span id="ghost0Name">Start</span></label><label class="chip"><input type="checkbox" id="ghost1"><span class="gsw"></span><span id="ghost1Name">Finish</span></label></div>
+  <p class="hint">Ghosts: outlines and points of the start and finish over the held state, and while the move plays. A dragged point snaps onto the same point of a ghost (hold Alt / Option to place it freely).</p>
+  <div id="stList"></div>
 </aside>
 
 <script>
@@ -894,12 +928,33 @@ function solveLegs(p){
     const len = (9 + 4 * w) * sh.pawW * (1 - 0.7 * fv * w);
     // Middle joint sliders: only the elbow / hock moves; shoulder / hip, paw and its direction stay
     const mx = l[0] === 'f' ? sh.fMidX : sh.bMidX, my = l[0] === 'f' ? sh.fMidY : sh.bMidY;
-    // leg points dragged in the skeleton view: each one moves on its own; 3 and 4 never go below the floor
+    // leg points dragged in the skeleton view: 1, 2 and 3 each move on their own, 3 carrying the paw; 4 turns round 3
+    // at the paw's length (an older save that moved 4 by itself keeps that direction as its turn). 3 and 4 stay above the floor
     const rest = CAT_BOX.floor - 0.5 - rP, put = (q, i, floor) => {
       const dx = sh[l + i + 'x'] || 0, dy = sh[l + i + 'y'] || 0;
       return dx || dy ? [q[0] + dx, floor && dy > 0 ? Math.min(q[1] + dy, Math.max(q[1], rest)) : q[1] + dy] : q;
     };
-    p.legs[l] = [put(h, 1), put(mx || my ? [kn[0] + mx, kn[1] - my] : kn, 2), put(wr, 3, true), put([wr[0] + fx / fl * len, wr[1] + fy / fl * len], 4, true)];
+    const w3 = put(wr, 3, true), qx = fx / fl, qy = fy / fl, ox = (sh[l + '4x'] || 0) - (sh[l + '3x'] || 0), oy = (sh[l + '4y'] || 0) - (sh[l + '3y'] || 0);
+    const vx = qx * len + ox, vy = qy * len + oy, turn = (ox || oy ? Math.atan2(qx * vy - qy * vx, qx * vx + qy * vy) : 0) + (sh[l + '4a'] || 0) * Math.PI / 180;
+    const toe = [w3[0] + (qx * Math.cos(turn) - qy * Math.sin(turn)) * len, w3[1] + (qx * Math.sin(turn) + qy * Math.cos(turn)) * len];
+    (p.pawTurn = p.pawTurn || {})[l] = turn;
+    p.legs[l] = [put(h, 1), put(mx || my ? [kn[0] + mx, kn[1] - my] : kn, 2), w3, [toe[0], Math.min(toe[1], Math.max(w3[1], rest))]];
+  }
+  return shiftPose(p);
+}
+// the whole cat moved on the editing canvas (its move handle: catX / catY), every part keeping its shape
+function shiftPose(p){
+  const dx = p.shape.catX || 0, dy = p.shape.catY || 0;
+  if (!dx && !dy) return p;
+  const mv = q => [q[0] + dx, q[1] + dy, ...q.slice(2)];
+  p.body = p.body.map(mv); p.tail = p.tail.map(mv);
+  for (const l in p.legs) p.legs[l] = p.legs[l].map(mv);
+  if (p.neck) p.neck = mv(p.neck);
+  p.head.x += dx; p.head.y += dy;
+  if (p.skel){
+    const sk = p.skel;
+    p.skel = { ...sk, rib: mv(sk.rib), pel: mv(sk.pel), scap: mv(sk.scap), sacrum: mv(sk.sacrum), spine: sk.spine.map(mv),
+               joints: Object.fromEntries(Object.entries(sk.joints).map(([j, c]) => [j, mv(c)])) };
   }
   return p;
 }
@@ -919,13 +974,21 @@ for (const k in POSES){
   }
   POSES[k].tail = out;            // [[baseX, baseY], angle1 … angle5]
 }
-// rolling over (loaf ↔ belly up): halfway between the two, sunk toward the floor, paws already lifting
+// turning to face you has a middle of its own, so it can be adjusted (unadjusted it is the exact in-between)
+POSES.faceMid = mix(POSES.sit, POSES.sitFront, 0.5);
+// the flight passes this on the way up (a quarter of the way to the top of the arc); unadjusted it is exactly that moment
+POSES.jumpRise = arc(POSES.jumpPush, POSES.jumpFly, POSES.jumpReach, 0.25);
+// rolling over (standing ↔ belly up) passes through this: halfway between a loaf and belly up, sunk toward the floor,
+// paws already lifting
 POSES.bellyMid = (() => {
   const m = mix(POSES.lie, POSES.belly, 0.5), dy = 26, down = q => { q[1] += dy; };
   down(m.rib); down(m.pel); down(m.tail[0]); m.head.y += dy; m.head.rot = 30; m.eye.lid = 0.3;
   for (const l in m.legs) m.legs[l].forEach(down);
   m.fx.air = 1; return m;
 })();
+// going down from standing to roll over (and coming up again): a quarter of the way; unadjusted it is exactly where
+// the roll passes
+POSES.bellyDown = arc(POSES.stand, POSES.bellyMid, POSES.belly, 0.25);
 function tailPoints(T, lenK = 1){
   const pts = [T[0].slice()];
   for (let i = 1; i < T.length; i++){
@@ -939,11 +1002,27 @@ function tailPoints(T, lenK = 1){
    Applied every frame on top of the pose, before the legs are solved, so every move keeps working. */
 const GROUP_OF = { stand:'stand', standSpun:'stand', walk:'stand', run:'stand', sit:'sit', sitSpun:'sit', sitWatch:'sit', lickReady:'sit', lickDown:'sit', lickUp:'sit',
   lie:'lie', lieAwake:'lie', stretch:'stretch', stretchLook:'stretch', sitFront:'front', sitFrontTiltA:'front', sitFrontTiltB:'front', belly:'belly', bellyBat:'belly',
-  jumpReady:'jump', jumpWiggle:'jump', jumpPush:'jump', jumpFly:'jump', jumpReach:'jump', jumpAbsorb:'jump' };
-const MID_OF = { sitMid:['stand', 'sit'], lieMid:['sit', 'lie'], reach:['stand', 'stretch'], bellyMid:['lie', 'belly'] };   // in-between poses blend both
+  jumpReady:'jump', jumpWiggle:'jump', jumpPush:'jump', jumpRise:'jump', jumpFly:'jump', jumpReach:'jump', jumpAbsorb:'jump',
+  bellyDown:'stand' };   // (going down: the Stand controls; its shape, see ARC_OF)
+const MID_OF = { sitMid:['stand', 'sit'], lieMid:['sit', 'lie'], reach:['stand', 'stretch'], bellyMid:['lie', 'belly'], faceMid:['sit', 'front'] };   // in-between poses blend both
+// a pose a move passes on its way between two others: its shape is where the move passes too [from, via, to, when]
+const ARC_OF = { bellyDown:['stand', 'bellyMid', 'belly', 0.25] };
+// a transition state (right-hand panel) keeps its own changes, added on top of its position's shape; transitions blend
+// them in and out like everything else
+// A state can also carry another state's changes, under its own: the crouch wiggle moves with the crouch, the licks
+// with the raised paw
+const STATE_OF = { jumpWiggle:'jumpReady', lickDown:'lickReady', lickUp:'lickReady' };
+const withDelta = (sh, d) => { const o = { ...sh }; for (const k in d) o[k] = (o[k] || 0) + d[k]; return o; };
+function baseShape(k){
+  if (ARC_OF[k]){ const [a, v, b, t] = ARC_OF[k]; return arc(POSES[a].shape, POSES[v].shape, POSES[b].shape, t); }   // (those are refreshed first)
+  return MID_OF[k] ? mix(S.shapes[MID_OF[k][0]], S.shapes[MID_OF[k][1]], 0.5) : S.shapes[GROUP_OF[k] || 'stand'];
+}
+// what a state's own changes are added to
+function stateBase(k){ const up = STATE_OF[k] && S.states && S.states[STATE_OF[k]]; return up ? withDelta(baseShape(k), up) : baseShape(k); }
 function refreshShapes(){
   for (const k in POSES){
-    POSES[k].shape = MID_OF[k] ? mix(S.shapes[MID_OF[k][0]], S.shapes[MID_OF[k][1]], 0.5) : S.shapes[GROUP_OF[k] || 'stand'];
+    const d = S.states && S.states[k];
+    POSES[k].shape = d && Object.keys(d).length ? withDelta(stateBase(k), d) : stateBase(k);
   }
 }
 const RUMP_RIM = 1.0;   // how far the back of the body may reach past the hips (1 = their rim)
@@ -1091,9 +1170,17 @@ function applyShape(p){
   // tail root on the pelvis
   const t1 = fromFrame(F[0], p.skin.tail), dx = t1[0] - p.tail[0][0], dy = t1[1] - p.tail[0][1];
   p.tail = p.tail.map(q => [q[0] + dx, q[1] + dy]);
+  // tail points dragged in the skeleton view: 1 the start carries the whole tail, 2 (middle) and 3 (tip) bend it, the points
+  // between following; older saves moved points one by one. Never below the floor
+  const tf = FLOOR_Y - LIMB.tail[0] * sh.tailThick, TW2 = [0, 1/3, 2/3, 1, 0.5, 0], TW3 = [0, 0, 0, 0, 0.5, 1];
+  p.tail = p.tail.map((q, i) => {
+    const ox = (sh.tail1x || 0) + TW2[i] * (sh.tail2x || 0) + TW3[i] * (sh.tail3x || 0) + (sh['t' + i + 'x'] || 0);
+    const oy = (sh.tail1y || 0) + TW2[i] * (sh.tail2y || 0) + TW3[i] * (sh.tail3y || 0) + (sh['t' + i + 'y'] || 0);
+    return ox || oy ? [q[0] + ox, Math.min(q[1] + oy, tf)] : q;
+  });
   // head rides on the neck base (front-top of the ribcage)
   const nUV = mix(NECK_UV, NECK_UV_FRONT, v), n0 = fromFrame(F0[2], nUV), n1 = fromFrame(FJ, nUV);
-  p.head.x += n1[0] - n0[0] + sh.headX * (1 - face); p.head.y += n1[1] - n0[1] - sh.headY;
+  p.head.x += n1[0] - n0[0] + sh.headX * (1 - face); p.head.y += n1[1] - n0[1] - sh.headY; p.head.rot += sh.headRot || 0;
   p.neck = mix(n1, [(J.shoulderR[0] + J.shoulderL[0]) / 2, (J.shoulderR[1] + J.shoulderL[1]) / 2], nc);   // no chest: the neck grows out of the shoulders
   // where the shoulders and hips hang from the spine (facing you: the top middle of the chest / hips)
   p.skel = { rib, pel, joints: J, view: v, scap: mix(fromFrame(F[2], SCAP_UV), fromFrame(F[2], [0, -0.9]), v),
@@ -1227,7 +1314,7 @@ document.documentElement.classList.toggle('wallpaper', WALL);
 const DEFAULTS = {
   speed:1, idleTime:5, postureTime:1.0, turnTime:1.0, trans:0.9, holdStretch:2.4, watchTime:4, licks:6, napTime:10,
   jumpPrep:1.4, jumpHeight:1,
-  followCursor:true, lickCursor:true, jumpCursor:true, pounce:true, jumpReach:4,
+  followCursor:true, lickCursor:true, jumpCursor:true, pounce:true, dodgeTail:true, jumpReach:4,
   eyeRest:'round', eyeAuto:true, lookGap:7, lookSoft:true, lookSquint:true, lookCross:true, lookFly:true, lookShifty:true,
   auto:true, useStretch:true, useWatch:true, useGroom:true, useNap:true, useJump:true, useWalk:true, useRun:true, useFace:true, useBelly:true,
   walkSpeed:1, runSpeed:1, runStride:0.46,
@@ -1246,8 +1333,16 @@ const SHAPE_DEFAULT = { headSize:1, headWidth:1, headX:0, headY:0, ribW:1, ribH:
 };
 // leg points 1–4 of each leg (1 shoulder / hip, 2 first fold, 3 second fold, 4 paw), dragged in the skeleton view:
 // fn1x / fn1y … bf4y, an offset in drawing units from where the pose puts the point
-const LEG_KEY = /^[fb][nf][1-4][xy]$/;
+const LEG_KEY = /^[fb][nf]([1-4][xy]|4a)$/;
 for (const l of ['fn', 'ff', 'bn', 'bf']) for (let i = 1; i <= 4; i++){ SHAPE_DEFAULT[l + i + 'x'] = 0; SHAPE_DEFAULT[l + i + 'y'] = 0; }
+for (const l of ['fn', 'ff', 'bn', 'bf']) SHAPE_DEFAULT[l + '4a'] = 0;   // point 4 turns round point 3 (degrees); fn4x / fn4y are from older saves
+// head tilt (degrees) and tail points 1 (next to the body) … 5 (tip), dragged like the leg points
+// tail1x / tail1y: the start (moves the whole tail), tail2: the middle, tail3: the tip; t1x … t5y are from older saves (point by point)
+const TAIL_KEY = /^(t[1-5]|tail[1-3])[xy]$/;
+SHAPE_DEFAULT.headRot = 0;
+SHAPE_DEFAULT.catX = 0; SHAPE_DEFAULT.catY = 0;   // the whole cat moved on the editing canvas (move handle in the middle of the body)
+for (let i = 1; i <= 5; i++){ SHAPE_DEFAULT['t' + i + 'x'] = 0; SHAPE_DEFAULT['t' + i + 'y'] = 0; }
+for (let i = 1; i <= 3; i++){ SHAPE_DEFAULT['tail' + i + 'x'] = 0; SHAPE_DEFAULT['tail' + i + 'y'] = 0; }
 // tuned settings, built in: a new browser (or a fresh copy of this file) starts from these;
 // what a browser saved, or a newer settings.json, still wins
 Object.assign(DEFAULTS, {
@@ -1257,15 +1352,16 @@ Object.assign(DEFAULTS, {
   lookShifty:true, auto:true, useStretch:true, useWatch:true, useGroom:true, useNap:true, useJump:true,
   useWalk:true, useRun:true, useFace:true, useBelly:true, walkSpeed:1.25, runSpeed:2.5, runStride:0.54,
   blink:true, breathe:true, sway:true, closeEyes:true, turnBack:false, catColor:"#191a19", eyeColor:"#ffe499",
-  tongueColor:"#ee736d", bgColor:"#8f938b", shadowColor:"#6f6a4b", size:27, posX:50, ground:10, flip:false,
-  showSkel:true, fluid:1.4, lookSurprised:true, lookHappy:true, lookSly:true, lookWink:true, lookSkeptic:true,
+  tongueColor:"#ee736d", bgColor:"#8f938b", shadowColor:"#6f6a4b", size:21, posX:5, ground:10, flip:false,
+  showSkel:true, fluid:2.3, lookSurprised:true, lookHappy:true, lookSly:true, lookWink:true, lookSkeptic:true,
   lookBored:true, lookDeadpan:true, lookSideeye:true, lookSuspicious:true, lookSleepy:true, lookWorried:true,
-  lookPleading:true, lookSad:false, lookAngry:true
+  lookPleading:true, lookSad:false, lookAngry:true,
+  states:{"sitMid": {"bf4x": 3.65, "bf4y": 21.84, "bf3x": 0.44, "bf3y": 27.39, "bn4x": 6.34, "bn4y": 19.07, "bn3x": 2.88, "bn3y": 29.01, "bn1x": -11.12, "bn1y": 1.34, "bf1x": -4.22, "bf1y": 7.5, "bn2x": 44.87, "bn2y": -21.9, "bf2x": 40.63, "bf2y": -23.93, "ff1x": -24.54, "ff1y": -2.56, "fn1x": -24.61, "fn1y": -3.16, "ff2x": -14.15, "ff2y": 4.04, "ff3x": -15.38, "ff3y": 1.18, "ff4x": -15.72, "ff4y": 1.18, "fn3x": -12.23, "fn3y": 1.18, "fn4x": -10.03, "fn4y": 1.18, "fn2x": -22.08, "fn2y": 4.24, "headX": -20.98, "headY": -4.22}, "lieMid": {"bf4x": 11.94, "bf4y": 26.1, "bf3x": 10.84, "bf3y": 26.1, "bn4x": 12.12, "bn4y": 21, "bn3x": 6.02, "bn3y": 21, "fn4x": 1.44, "fn4y": 25.77, "fn3x": 4.24, "fn3y": 19.59, "ff3x": 1.81, "ff3y": 11.17, "ff4x": -3.55, "ff4y": 16.13, "fn2x": -1.32, "fn2y": 17.03, "ff2x": -13.91, "ff2y": 22.88}, "reach": {"ff2x": -11.02, "ff2y": 6.97, "fn2x": -9.84, "fn2y": 11.01, "ff1x": -1.96, "ff1y": 6.42, "fn1x": -7.08, "fn1y": 13.08, "headX": 3.21, "headY": -7.35, "bn1x": -2.99, "bn1y": -8.5, "bf1x": -0.49, "bf1y": -8.5}, "bellyMid": {"bn1x": -5.22, "bn1y": -5.22, "bf1x": 16.06, "bf1y": 16.08, "bn4x": -8.18, "bn4y": -27.63, "bn3x": 25.78, "bn3y": -48.95, "bn2x": 2.57, "bn2y": -22.36, "t2x": -26.16, "t2y": -3.02, "t3x": -31.5, "t3y": -6.04, "t1x": -8.22, "t1y": -8.95, "t4x": -33.91, "t4y": -0.44, "t5x": -39.25, "t5y": 3.4, "bf2x": -20.99, "bf2y": 0.8, "bf3x": -2.05, "bf3y": -44.26, "fn2x": -10.51, "fn2y": -16.63, "bn4a": 64.4, "fn1x": -5.98, "fn1y": -16.6, "ff1x": -9, "ff1y": 19.53, "ff2x": 3.95, "ff2y": -13.46, "fn3x": -66.12, "fn3y": -21.5, "headX": 12.59, "headY": -6.17, "headRot": 43, "spineCurve": -20, "catX": -10.31, "catY": -18.25}, "faceMid": {"fn1x": -5.21, "fn1y": -18.11, "ff1x": -0.17, "ff1y": 13.49, "fn2x": -3.42, "fn2y": -17.1, "fn4x": -2.94, "fn4y": 2.36, "fn3x": -11.7, "fn3y": 1.18, "ff4x": -3.63, "ff4y": 14.09, "ff3x": -2.11, "ff3y": 14.09, "ff2x": -2.85, "ff2y": 5.91, "bf2x": -3.72, "bf2y": -2.49, "bn1x": -0.24, "bn1y": -1.18, "bn2x": -22.79, "bn2y": -27.15, "bn4x": -10.76, "bn4y": 1.49, "bn3x": -4.59, "bn3y": 1.49}, "jumpReady": {"bn1x": 0, "bn1y": 5, "bf1x": 0, "bf1y": 5, "bf2x": 5, "bf2y": -5, "fn1x": -15, "fn1y": -10, "headX": -32.38, "headY": 9.77, "spineCurve": -5.5}, "jumpPush": {"bn1x": 13.54, "bn1y": 65.06, "bf1x": 18.52, "bf1y": 60, "ff1x": 38.52, "ff1y": 42.01, "fn1x": 27.92, "fn1y": 62.02, "bf2x": 26.43, "bf2y": 12.6, "bn2x": 9.98, "bn2y": 21.25, "ff2x": 83.96, "ff2y": 51.43, "fn2x": 63.2, "fn2y": 55.34, "fn3x": 39.95, "fn3y": 43.79, "ff3x": 62.03, "ff3y": 29.22, "fn4x": 10.46, "fn4y": 73.86, "ff4x": 42.05, "ff4y": 59.08, "headX": 13.2, "headY": -18.02, "headRot": -3, "spineCurve": -3, "t1x": -7.66, "t1y": -3.23, "ff4a": -153, "fn4a": -180.3}, "jumpFly": {"fn1x": 2.92, "fn1y": -89.72, "ff1x": -9.4, "ff1y": -71.58, "ff2x": -27.47, "ff2y": 17.05, "fn2x": 5.38, "fn2y": 8.26, "fn3x": -69.1, "fn3y": 22.7, "fn4x": -64.34, "fn4y": 46.38, "ff3x": -95.66, "ff3y": 31.98, "ff4x": -40.9, "ff4y": 39.48, "headX": -42.47, "headY": -5.52, "t1x": 8.11, "t1y": -42.52, "t2x": 0.92, "t2y": -36.49, "t4x": -0.18, "t4y": 23.74, "t5x": 2.32, "t5y": 57.08, "t3x": 0.53, "t3y": -10.55, "bn1x": 9.52, "bn1y": -111.01, "bf1x": 24.52, "bf1y": -121.01, "tail1x": 6.37, "tail1y": -163.49, "tail2x": 15.93, "tail2y": 1.44, "tail3x": 29.27, "tail3y": 0.83, "bn2x": -1.78, "bn2y": -89.73, "bf2x": 17.55, "bf2y": -107.58, "bf3x": -6.69, "bf3y": -104.56, "bn3x": -10.64, "bn3y": -76.46, "ff4a": 40.8, "fn4a": -9.4, "bn4a": -193.3, "headRot": 6, "spineCurve": 28}, "jumpReach": {"bf1x": -81.56, "bf1y": 45.37, "bn1x": -81.6, "bn1y": 40.38, "bn2x": -110.2, "bn2y": 65.16, "bn3x": -139.3, "bn3y": 23.71, "bn4x": -136.14, "bn4y": 18.06, "bf2x": -68.79, "bf2y": 35.45, "bf3x": -112.17, "bf3y": -7.49, "bf4x": -113.98, "bf4y": -13.15, "t1x": -1.77, "t1y": -6.75, "t2x": -34.8, "t2y": 30.12, "t3x": -50.78, "t3y": 54.86, "t4x": -82.04, "t4y": 85.79, "t5x": -134.25, "t5y": 101.48, "ff1x": 5.42, "ff1y": -18.72, "fn1x": -31.7, "fn1y": -45.62, "fn2x": 27.85, "fn2y": 19.3, "ff2x": 27.24, "ff2y": 20.27, "headX": -78.39, "headY": -12.24, "headRot": -27, "tail1x": -113.13, "tail1y": 30.7, "tail2x": -7.94, "tail2y": -35.38, "tail3x": 25.02, "tail3y": -47.26, "spineCurve": -3}, "jumpAbsorb": {"bn1x": 2, "bn1y": -34, "bf1x": 7, "bf1y": -34, "bf2x": -5.14, "bf2y": -67.9, "bf3x": -35.94, "bf3y": -73.51, "bf4x": -13.74, "bf4y": -18.51, "bn2x": -9.53, "bn2y": -75.03, "bn3x": -31.82, "bn3y": -78.51, "bn4x": -19.62, "bn4y": -23.51, "headX": -29.32, "headY": -21.02, "ff2x": 17.95, "ff2y": 19.24, "fn2x": 8.56, "fn2y": 23.04, "fn1x": -14.12, "fn1y": 0.47, "spineCurve": 17.5, "tail1x": -19.3, "tail1y": -63.6, "tail2x": 32.56, "tail2y": -92.04, "tail3x": 10.08, "tail3y": -80.27}, "jumpRise": {"tail1x": -45.4, "tail1y": -15.82, "tail2x": 18.24, "tail2y": 13.51, "tail3x": 12.6, "tail3y": 28.02, "bn2x": 25.63, "bn2y": -15.17, "bn4a": -68.7, "bn3x": 55.62, "bn3y": -12.58, "bf3x": 22.45, "bf3y": 3.9, "bf4a": 362.4, "bf2x": 10.76, "bf2y": -1.94, "bf1x": -29.53, "bf1y": 19.16, "bn1x": -29.53, "bn1y": 29.16, "headX": -34.21, "headY": 33.2, "fn1x": -3.54, "fn1y": -1.83, "ff1x": 1.83, "ff1y": -8.86, "ff2x": 54.95, "ff2y": 2.54, "fn2x": 35.09, "fn2y": 13.84, "fn3x": 35.37, "fn3y": 21.45, "ff3x": 41.56, "ff3y": 14.53, "fn4a": -565, "ff4a": -177.7, "spineCurve": 27.5, "headRot": 21}, "lickReady": {"fn2x": -30.86, "fn2y": 15.65, "fn1x": 11, "fn1y": -4, "fn3x": 7.8, "fn3y": -13, "fn4a": -62.3, "ff1x": -12, "ff1y": -7, "ff2x": 20.53, "ff2y": 33.85, "ff3x": 14.66, "ff3y": 6.18, "ff4a": -242.3}, "lickDown": {"fn2x": 0.79, "fn2y": -2.51, "fn4a": -267.7, "fn3x": -10, "fn3y": -1, "headRot": -7, "headX": -1.32, "headY": -7.65}, "bellyDown": {"bn2x": 10.08, "bn2y": 17.94, "bn3x": 22.39, "bn3y": 55.85, "bf3x": 6.49, "bf3y": 10.01, "bf4a": 152.2, "bn4a": 181.5, "bn1x": -8.84, "bn1y": 13.22, "bf1x": -8.95, "bf1y": 9.65, "bf2x": -24.41, "bf2y": 4.68, "fn1x": -14.04, "fn1y": -13.42, "ff1x": -23.97, "ff1y": -15.36, "fn3x": -4.25, "fn3y": 30.19, "ff3x": -1.71, "ff3y": 11.16, "catX": 9.39, "catY": 15.56}}
 });
 const SHAPE_GROUPS = ['stand', 'sit', 'lie', 'stretch', 'jump', 'front', 'belly'];
 const GROUP_LABEL = { stand:'Stand', sit:'Sit', lie:'Lie', stretch:'Stretch', jump:'Jump', front:'Front', belly:'Belly up' };
 const GROUP_POSE = { stand:'stand', sit:'sit', lie:'lie', stretch:'stretch', jump:'jumpReady', front:'sitFront', belly:'belly' };   // shown while editing
-const GROUP_HOME = { stand:'stand', sit:'sit', lie:'lie', stretch:'stand', jump:'stand', front:'sit', belly:'lie' };
+const GROUP_HOME = { stand:'stand', sit:'sit', lie:'lie', stretch:'stand', jump:'stand', front:'sit', belly:'stand' };
 // older saves: one Chest / Hips size, Body depth, Spine length, Waist (belly) and a Fluidity per position
 function migrateShape(g){
   const o = { ...(g || {}) };
@@ -1279,12 +1375,12 @@ function migrateShape(g){
 // tuned shape for each position (built in; "Reset this position" goes back to it)
 const SHAPE_PRESET = {
   stand: { headSize:1.09, headWidth:0.97, headX:13, headY:-4, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:-3, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, ff1x:-0.54, ff1y:-1.2, ff2x:-4.99, ff2y:2.57, ff3x:-6.93, ff3y:1.18, ff4x:-4.73, ff4y:1.18, bn1x:-3.3, bn1y:-2.5, bn2x:-3.58, bn2y:3.75, bn3x:1.06, bn3y:1.49, bf1x:-3.3, bf1y:-2.5, bf2x:3.3, bf2y:0.71 },
-  sit: { headSize:1.09, headWidth:0.97, headX:13, headY:2, ribW:1.03, ribH:0.67, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:2, shoulderX:20, shoulderY:0.5, hipSpread:1.62, hipX:5.5, hipY:1, hipSize:0.69, fPawX:1.5, fPawY:-17, bPawX:-16.5, bPawY:-3.5, fMidX:-3, fMidY:-3, bMidX:9, bMidY:25.5, spineCurve:-2, thighW:2.25, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.94, foldR:1.24, fn1x:-10.52, fn1y:-21.1, fn2x:7.46, fn2y:-15.79, ff1x:20.48, ff1y:-21.1, ff2x:9.71, ff2y:-16.88, ff3x:12.7, ff3y:1.18, ff4x:15.59, ff4y:1.18, bn1x:3.79, bn1y:2.32 },
-  lie: { headSize:1.09, headWidth:0.97, headX:5, headY:10, ribW:0.89, ribH:0.62, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.09, toeR:0.61, legThick:1.16, tailThick:0.82, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.21, shoulderX:2, shoulderY:-7, hipSpread:1.52, hipX:3.5, hipY:-1, hipSize:0.85, fPawX:15.5, fPawY:-20, bPawX:8.5, bPawY:-12.5, fMidX:-30, fMidY:-7.5, bMidX:30, bMidY:30, spineCurve:9.5, thighW:2.39, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.9, foldR:1.19, fn1x:-21.32, fn1y:-5.66, fn2x:-27.7, fn2y:3.36, ff1x:23.36, ff1y:-10.66, ff2x:7.38, ff2y:-6.88, ff3x:15.41, ff3y:-3.51, ff4x:17.64, ff4y:-3.44, bn1x:6.8, bn1y:-9, bn2x:16.44, bn2y:-13.98, bn3x:-7.89, bn3y:0.27, bn4x:-5.69, bn4y:0.27, bf1x:6.8, bf1y:-4, bf2x:29.78, bf2y:-23.63, bf3x:1.15, bf3y:-9.32, bf4x:13.35, bf4y:-9.32 },
+  sit: { headSize:1.09, headWidth:0.97, headX:13, headY:2, ribW:1.03, ribH:0.67, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:2, shoulderX:6.5, shoulderY:-3.5, hipSpread:1.62, hipX:5.5, hipY:1, hipSize:0.69, fPawX:1.5, fPawY:-17, bPawX:-16.5, bPawY:-3.5, fMidX:-11, fMidY:14, bMidX:9, bMidY:25.5, spineCurve:-2, thighW:1.72, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.94, foldR:1.24, fn1x:-22.02, fn1y:-20.1, fn2x:7.81, fn2y:-8.28, ff1x:28.98, ff1y:-20.1, ff2x:30.57, ff2y:-12.1, ff3x:12.7, ff3y:1.18, ff4x:15.59, ff4y:1.18, bn1x:3.79, bn1y:2.32, bn2x:-10.08, bn2y:-7.99, bf2x:-9.58, bf2y:-3.9 },
+  lie: { headSize:1.09, headWidth:0.97, headX:5, headY:10, ribW:0.89, ribH:0.62, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.09, toeR:0.61, legThick:1.16, tailThick:0.82, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.21, shoulderX:2, shoulderY:-7, hipSpread:1.52, hipX:3.5, hipY:-1, hipSize:0.77, fPawX:15.5, fPawY:-20, bPawX:8.5, bPawY:-12.5, fMidX:-30, fMidY:-7.5, bMidX:30, bMidY:30, spineCurve:18.5, thighW:2.38, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.9, foldR:1.19, fn1x:-21.32, fn1y:-5.66, fn2x:-27.7, fn2y:3.36, ff1x:23.36, ff1y:-10.66, ff2x:7.38, ff2y:-6.88, ff3x:15.41, ff3y:-3.51, ff4x:17.64, ff4y:-3.44, bn1x:31.8, bn1y:-4, bn2x:21.44, bn2y:-3.98, bn3x:-2.89, bn3y:-9.73, bn4x:4.31, bn4y:-9.73, bf1x:11.8, bf1y:1, bf2x:44.78, bf2y:-3.63, bf3x:36.15, bf3y:-9.32, bf4x:43.35, bf4y:-9.32, t1x:-6.08, t1y:-4.83, t2x:8.96, t2y:-6.7, t3x:11.03, t3y:-7.67, t4x:10.25, t4y:-4.32, t5x:12.42, t5y:7.41 },
   stretch: { headSize:1.09, headWidth:0.97, headX:-2, headY:17, ribW:0.74, ribH:1.15, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:2, shoulderX:-5.5, shoulderY:-20, hipSpread:1.07, hipX:17.5, hipY:4, hipSize:0.96, fPawX:15.5, fPawY:-20, bPawX:6, bPawY:-7.5, fMidX:4.5, fMidY:-9.5, bMidX:10.5, bMidY:4, spineCurve:-18, thighW:2.33, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.18, foldR:1.09, fn1x:-24.61, fn1y:3.29, fn2x:-8.52, fn2y:-10.41, ff1x:-13.71, ff1y:7.8, ff2x:-12.13, ff2y:2.3, bn1x:3.74, bn1y:17, bn2x:-11.03, bn2y:-13.76, bf1x:8.74, bf1y:17, bf2x:-21.33, bf2y:-12.86 },
   jump: { headSize:1.09, headWidth:0.97, headX:13, headY:8, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.16, shoulderX:20, shoulderY:-6, hipSpread:1.5, hipX:20, hipY:17, hipSize:0.86, fPawX:9.5, fPawY:-7.5, bPawX:-5, bPawY:-17.5, fMidX:-20.5, fMidY:4.5, bMidX:-7, bMidY:15.5, spineCurve:-3, thighW:2.18, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.13, fn1x:-28.52, fn1y:-13.58, fn2x:-10.09, fn2y:-11.19, ff1x:-32.64, ff1y:-18.58, ff2x:-23.73, ff2y:-16.87, bn1x:-25.3, bn1y:-33, bn2x:-16.75, bn2y:-14.99, bf1x:-25.3, bf1y:-33, bf2x:-29.65, bf2y:-14.29 },
-  front: { headSize:1.09, headWidth:0.97, headX:2, headY:-8, ribW:0.6, ribH:0.6, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.67, shoulderX:10, shoulderY:-4.5, hipSpread:0.9, hipX:7.5, hipY:-15, hipSize:0.77, fPawX:10, fPawY:-7, bPawX:2.5, bPawY:-20, fMidX:5.5, fMidY:-1, bMidX:10.5, bMidY:30, spineCurve:0, thighW:1.25, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.24, fn1x:5.06, fn1y:-24.5, fn2x:4.17, fn2y:-16.2, fn3x:-10.78, fn3y:2.36, fn4x:-18.44, fn4y:1.18, ff1x:-1.7, ff1y:-24.5, ff2x:-1.32, ff2y:-11.02, bn1x:0.15, bn1y:-8.6, bn2x:-10.37, bn2y:-4.95, bn3x:18.51, bn3y:1.49, bn4x:10.85, bn4y:1.49, bf1x:3.21, bf1y:-8.6, bf2x:4.77, bf2y:-27.32, bf3x:-10.15, bf3y:1.49, bf4x:-2.49, bf4y:1.49 },
-  belly: { headSize:1.09, headWidth:0.97, headX:13, headY:-4, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:-3, thighW:0.73, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, fn1x:8.48, fn1y:0.97, fn2x:-44.15, fn2y:-5.94, fn3x:-30.56, fn3y:6.5, fn4x:-30.27, fn4y:-4.58, ff1x:19.64, ff1y:4.03, ff2x:-16.15, ff2y:7.36, ff3x:8.26, ff3y:2.5, ff4x:7.83, ff4y:-4.6, bn1x:15.85, bn1y:-15.51, bn2x:9.32, bn2y:10.21, bn3x:57.77, bn3y:-32.88, bn4x:57.69, bn4y:-35.66, bf1x:33.99, bf1y:7.8, bf2x:89.1, bf2y:17.74, bf3x:7.33, bf3y:-32.65, bf4x:7.01, bf4y:-41.7 },
+  front: { headSize:1.09, headWidth:0.97, headX:2, headY:-8, ribW:0.6, ribH:0.6, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.67, shoulderX:10, shoulderY:-4.5, hipSpread:0.9, hipX:7.5, hipY:-15, hipSize:0.77, fPawX:10, fPawY:-7, bPawX:2.5, bPawY:-20, fMidX:5.5, fMidY:-1, bMidX:10.5, bMidY:30, spineCurve:0, thighW:1.25, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.24, fn1x:5.06, fn1y:-24.5, fn2x:4.17, fn2y:-16.2, fn3x:-10.78, fn3y:2.36, fn4x:-18.44, fn4y:1.18, ff1x:-6.7, ff1y:-24.5, ff2x:-6.32, ff2y:-11.02, ff3x:-15.86, ff3y:6.18, ff4x:-13.2, ff4y:1.18, bn1x:0.15, bn1y:-13.6, bn2x:-17.87, bn2y:-4.95, bn3x:6.01, bn3y:2.98, bn4x:-1.65, bn4y:2.98, bf1x:-1.79, bf1y:-13.6, bf2x:2.27, bf2y:-27.32, bf3x:-27.65, bf3y:2.98, bf4x:-14.99, bf4y:2.98 },
+  belly: { headSize:1.09, headWidth:0.97, headX:-16.64, headY:-30.51, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:1.03, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:15.5, thighW:1.46, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, fn1x:43.48, fn1y:70.97, fn2x:5.85, fn2y:84.06, fn3x:19.44, fn3y:91.5, fn4x:-30.27, fn4y:-4.58, ff1x:-15.36, ff1y:19.03, ff2x:-38.94, ff2y:-11.71, ff3x:-35.8, ff3y:-12.5, ff4x:4.18, ff4y:19.58, bn1x:28.85, bn1y:9.49, bn2x:9.32, bn2y:10.21, bn3x:57.77, bn3y:-32.88, bn4x:57.69, bn4y:-35.66, bf1x:17.4, bf1y:27.3, bf2x:-22.49, bf2y:27.24, bf3x:-89.26, bf3y:-18.15, bf4x:-32.99, bf4y:-26.7, fn4a:-1.5, ff4a:-187.9, bf4a:325.6, headRot:-37, catX:1.59, catY:30.5 },
 };
 const freshShapes = (from = {}) => Object.fromEntries(SHAPE_GROUPS.map(g => [g, { ...SHAPE_DEFAULT, ...SHAPE_PRESET[g], ...migrateShape(from[g]) }]));
 const oldFluid = j => j && !('fluid' in j) && j.shapes && j.shapes.stand && 'fluid' in j.shapes.stand ? j.shapes.stand.fluid : null;
@@ -1293,6 +1389,7 @@ let S = { ...DEFAULTS };
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
 if (saved) Object.assign(S, saved);
+S.states = structuredClone(S.states || {});   // transition states: { pose: its own changes on top of its position }
 // earlier versions stored one shape for every position; carry those values over to all positions
 const legacyShape = saved ? Object.fromEntries(Object.keys(SHAPE_DEFAULT).filter(k => k in saved).map(k => [k, saved[k]])) : {};
 S.shapes = freshShapes(saved && saved.shapes ? saved.shapes : Object.fromEntries(SHAPE_GROUPS.map(g => [g, legacyShape])));
@@ -1300,7 +1397,9 @@ if (oldFluid(saved) !== null) S.fluid = oldFluid(saved);
 for (const k of Object.keys(SHAPE_DEFAULT)) delete S[k];
 delete S.floorShadow;
 if (!saved && matchMedia('(prefers-reduced-motion: reduce)').matches) { S.breathe = false; S.sway = false; }
-function save(keepTime){ if (!keepTime) S.savedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (toProject) saveToProject(); }
+function save(keepTime){ if (!keepTime) S.savedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (toProject) saveToProject(); if (stateTr) refreshSnaps(); }
+let stateEdit = null, stateTr = null;   // the transition state being edited (a pose name) and the open transition (right-hand panel)
+let stateSel = null, playGhost = null, ghostVis = true, snapGhost = [], ghostOn = [];   // the state picked there (its index); ghosts (see drawGhosts)
 // opened from tools/edit_server.py: each change is also written into cat-stretch.html (and index.html)
 let toProject = false, projTimer;
 function projState(text, title, err){ const el = $('projState'); el.hidden = false; el.textContent = text; el.title = title; el.classList.toggle('err', !!err); }
@@ -1313,7 +1412,7 @@ function saveToProject(){
 if (location.protocol.startsWith('http')) fetch('__edit', { cache:'no-store' }).then(r => {
   if (!r.ok) return;
   // the source is what gets saved, so start from it rather than from what this browser kept
-  S = { ...DEFAULTS, shapes: freshShapes() }; syncInputs(); syncShapeInputs(); applyColors(); layout(); setLook(S.eyeRest, Infinity); edSelect(edId);
+  S = { ...DEFAULTS, shapes: freshShapes(), states: structuredClone(DEFAULTS.states || {}) }; syncInputs(); syncShapeInputs(); applyColors(); layout(); setLook(S.eyeRest, Infinity); edSelect(edId);
   toProject = true; projState('Edit mode', 'Every change is written into cat-stretch.html');
 }).catch(() => {});
 
@@ -1378,6 +1477,24 @@ function sampleSpline(P, per = 7){
   }
   out.push(P[n-1].slice());
   return out;
+}
+// a tube bent tighter than it is thick folds into a sharp crease on the inside of the bend: such bends are eased
+// (each too-sharp point moves toward its neighbours' middle) until none is tighter than k times the radius r; gentle
+// curves are left as they are
+function roundBends(C, r, k = 1.4){
+  const R = k * r;
+  for (let it = 0; it < 30; it++){
+    let sharp = false;
+    for (let i = 1; i < C.length - 1; i++){
+      const a = C[i-1], b = C[i], c = C[i+1], ux = b[0] - a[0], uy = b[1] - a[1], vx = c[0] - b[0], vy = c[1] - b[1];
+      const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+      if (lu < 1e-6 || lv < 1e-6) continue;
+      const turn = Math.acos(clamp((ux*vx + uy*vy) / (lu * lv), -1, 1));
+      if (turn * R > (lu + lv) / 2){ C[i] = [(b[0] + (a[0] + c[0]) / 2) / 2, (b[1] + (a[1] + c[1]) / 2) / 2]; sharp = true; }
+    }
+    if (!sharp) break;
+  }
+  return C;
 }
 /* lower leg + paw as ONE outline, same thickness all the way to the toes:
    the outer side of the leg runs round the heel into the sole (round), the toes are round,
@@ -1513,7 +1630,7 @@ const MOVES = {
   walk:    { posture:'stand' },
   run:     { posture:'stand' },
   face:    { posture:'sit' },
-  belly:   { posture:'lie' },
+  belly:   { posture:'stand' },
   stand:   { posture:'stand' },
   sit:     { posture:'sit' },
   lie:     { posture:'lie' },
@@ -1552,7 +1669,8 @@ function turnSteps(pose, label){
 // where the cat is on screen: fraction of the screen width
 // how far the drawn cat reaches from its spot on screen, in drawing units (measured over every move, facing either
 // way): to the left and right of it, up from the floor (tail up), and up at the top of a jump on top of the jump's lift
-const REACH = { left:200, right:240, up:300, jump:320, hop:45, pad:6 };   // hop: the smallest jump; pad: screen pixels kept free
+const REACH = { left:200, right:240, up:400, jump:400, hop:45, pad:6 };   // up / jump: the editing grid's full height (whatever is
+                                                                          // placed inside it stays on screen); hop: the smallest jump; pad: screen pixels kept free
 // the cat is never drawn bigger than fits: across the screen, and above the floor with room left for a small jump
 function catScale(){
   const above = innerHeight * (1 - S.ground / 100) - REACH.pad;
@@ -1583,19 +1701,19 @@ function moveSteps(kind, ctx){
   ];
   if (kind === 'turn') return turnSteps(ctx.posture, 'Turning');
   if (kind === 'face'){
-    const label = 'Facing you', a = [{ to:'sitFront', dur:S.postureTime * 0.9, ease:'inOutCubic', label }, { to:'sitFront', dur:0.8, label }];
+    const label = 'Facing you', a = [{ to:'sitFront', via:'faceMid', dur:S.postureTime * 0.9, ease:'inOutCubic', label }, { to:'sitFront', dur:0.8, label }];
     for (let i = 0; i < 2; i++) a.push({ to:'sitFrontTiltA', dur:1.1, ease:'inOutSine', label }, { to:'sitFrontTiltA', dur:0.5, label },
                                        { to:'sitFrontTiltB', dur:1.4, ease:'inOutSine', label }, { to:'sitFrontTiltB', dur:0.5, label });
     a.push({ to:'sitFront', dur:0.9, ease:'inOutSine', label }, { to:'sitFront', dur:S.watchTime * 0.5, label },
-           { to:'sit', dur:S.postureTime * 0.9, ease:'inOutCubic', label:'Turning back' });
+           { to:'sit', via:'faceMid', dur:S.postureTime * 0.9, ease:'inOutCubic', label:'Turning back' });
     return a;
   }
   if (kind === 'belly'){
-    // rolls over onto its back, bats the air with the raised paw a few times, then rolls back
+    // from standing rolls over onto its back, bats the air with the raised paw a few times, then rolls back up onto its feet
     const label = 'Belly up', roll = S.postureTime * 1.3;
-    const a = [{ to:'belly', via:'bellyMid', dur:roll, ease:'inOutCubic', label:'Rolling over' }, { to:'belly', dur:1.2, label }];
+    const a = [{ to:'belly', via:'bellyMid', rise:'bellyDown', dur:roll, ease:'inOutCubic', label:'Rolling over' }, { to:'belly', dur:1.2, label }];
     for (let i = 0; i < 3; i++) a.push({ to:'bellyBat', dur:0.32, ease:'inOutSine', label }, { to:'belly', dur:0.4, ease:'inOutSine', label });
-    a.push({ to:'belly', dur:S.watchTime, label }, { to:'lie', via:'bellyMid', dur:roll, ease:'inOutCubic', label:'Rolling back' });
+    a.push({ to:'belly', dur:S.watchTime, label }, { to:'stand', via:'bellyMid', fall:'bellyDown', dur:roll, ease:'inOutCubic', label:'Rolling back' });
     return a;
   }
   if (kind === 'walk' || kind === 'run'){
@@ -1635,8 +1753,9 @@ function moveSteps(kind, ctx){
   if (kind === 'jump'){
     // pick a landing spot somewhere else on the floor
     let target, tries = 0;
-    const ct = S.jumpCursor ? cursorJumpTarget() : null;
-    if (ct && Math.abs(ct.x - ctx.x) > 0.02) target = ct.x;
+    const ct = ctx.target === undefined && S.jumpCursor ? cursorJumpTarget() : null;
+    if (ctx.target !== undefined) target = ctx.target;
+    else if (ct && Math.abs(ct.x - ctx.x) > 0.02) target = ct.x;
     else do { target = onScreen(0.1 + Math.random() * 0.8); } while (Math.abs(target - ctx.x) < 0.18 && ++tries < 30);
     const a = [];
     if (Math.sign(target - ctx.x) !== screenFacing(ctx.facing)) a.push(...turnSteps('stand', 'Turning to jump'));
@@ -1653,16 +1772,16 @@ function moveSteps(kind, ctx){
     const dur = 2 * Math.sqrt(2 * lift / JUMP_G);   // time in the air follows from the height, as under real gravity
     // the spine tilts with the path: as steep as the take-off (nose up), level at the top, as steep nose down to land
     const tilt = Math.min(70, Math.atan2(4 * lift, Math.max(units, 1)) * 180 / Math.PI);
-    const J = { jPush:0.12, jFly:dur, jLand:0.18, jTilt:tilt, jUp:0.4, jEnd:0.12 + dur + 0.18 + 0.04 + 0.38,
+    const J = { jPush:0.12, jFly:dur, jLand:0.18, jTilt:tilt, jUp:0.4, jEnd:0.12 + dur + 0.1 + 0.2,
                 jVx:units / dur, jCache:{} };   // jVx: forward speed in the air (cat units / s)   // jUp: share of the flight spent going up (quick up, slower down)
-    // push off with the hind legs (paws stay planted), fly, touch down front paws first,
-    // then fold softly over planted paws and rise. No paw slides after it touches the floor.
+    // push off with the hind legs (paws stay planted), fly, touch down front paws first; the landing pose comes right
+    // after (the back body still in the air) and the body comes on down into the stand without stopping (no hanging
+    // in the air), slowing only as it settles. No paw slides after it touches the floor.
     a.push({ to:'jumpPush', dur:0.12, ease:'inCubic', label:'Jumping', spine:'push', ...J, jT0:0 });
     // flight under gravity: steady speed forward, height a parabola in time (see flightHeight)
-    a.push({ to:'jumpReach', via:'jumpFly', dur, ease:'linear', label:'Jumping', toX:target, lift, flight:true, spine:'fly', ...J, jT0:0.12 });
-    a.push({ to:'jumpAbsorb', dur:0.18, ease:'outCubic', label:'Landing', spine:'land', ...J, jT0:0.12 + dur });
-    a.push({ to:'jumpAbsorb', dur:0.04, label:'Landing', spine:'after', ...J, jT0:0.3 + dur });
-    a.push({ to:'stand', dur:0.38, ease:'inOutSine', label:'Landing', spine:'after', ...J, jT0:0.34 + dur });
+    a.push({ to:'jumpReach', via:'jumpFly', rise:'jumpRise', dur, ease:'linear', label:'Jumping', toX:target, lift, flight:true, spine:'fly', ...J, jT0:0.12 });
+    a.push({ to:'jumpAbsorb', dur:0.1, ease:'linear', label:'Landing', spine:'land', ...J, jT0:0.12 + dur });
+    a.push({ to:'stand', dur:0.2, ease:'outSine', label:'Landing', spine:'land', ...J, jT0:0.22 + dur });
     return a;
   }
   return [];
@@ -1874,7 +1993,7 @@ function jumpTilt(s, T){
            : s.spine === 'land' ? 1 - sm((tau - tT) / (0.75 * A)) : 0;
   return { th, thR, thP, o, fx, kL, wr, airB, ws, tx:0, ty:0, piv: ss((tau - fA) / (fB - fA)),               // turning point: 0 = pelvis … 1 = chest (moves during the flip)
            wb: s.spine === 'push' ? 0 : sm((tau - P) / (0.1 * F)), // hind paws turn with the body once they leave the floor
-           wf: s.spine === 'land' || s.spine === 'after' ? 0 : 0.5 * (1 - sm((tau - tB) / (P + F - tB))) };   // front paws turn half as much (kept off the face); after the top they reach down for the floor
+           wf: s.spine === 'land' ? 0 : 0.5 * (1 - sm((tau - tB) / (P + F - tB))) };   // front paws turn half as much (kept off the face); after the top they reach down for the floor
 }
 // chest / pelvis offsets for the tilt (as gaitBody), and where the body turns
 function jumpBody(p, J){
@@ -2011,7 +2130,7 @@ function gaitReach(p){
 function compile(steps, startPose, kind, ends, startLift = 0){
   let from = startPose, t = 0, f = facing, x = worldX;
   const out = steps.map((s, i) => {
-    const st = { ...s, from, toPose: POSES[s.to], viaPose: s.via ? POSES[s.via] : null, start: t, x0: x,
+    const st = { ...s, from, toPose: POSES[s.to], viaPose: s.via ? POSES[s.via] : null, risePose: s.rise ? POSES[s.rise] : null, fallPose: s.fall ? POSES[s.fall] : null, start: t, x0: x,
                  drop: i === 0 ? startLift : 0 };
     if (s.toX !== undefined) x = s.toX;
     st.x1 = x;
@@ -2026,10 +2145,10 @@ function compile(steps, startPose, kind, ends, startLift = 0){
 function flightHeight(p, k = 0.5){ if (p < k){ const u = 1 - p / k; return 1 - u * u; } const v = (p - k) / (1 - k); return 1 - v * v; }
 // pose progress over such a flight: halfway (the mid-air pose) right at the top, smooth throughout
 function flightPose(p, k = 0.5){ const a = (0.5 - k * k) / (k - k * k); return a * p + (1 - a) * p * p; }
-function evalPlan(T){
-  const st = plan.steps;
+function evalPlan(T, P = plan){
+  const st = P.steps;
   if (!st.length) return { pose: livePose, step: null, facing, x: worldX, lift: 0 };
-  let f = plan.startFacing;
+  let f = P.startFacing;
   for (let i = 0; i < st.length; i++){
     const s = st[i], end = s.start + s.dur;
     if (T < end || i === st.length - 1){
@@ -2039,7 +2158,9 @@ function evalPlan(T){
       if (done) f = -f;
       const ht = (s.lift ? s.lift * flightHeight(p, s.jUp) : 0) + (s.drop ? s.drop * (1 - e) : 0);
       return {
-        pose: done && s.afterPose ? s.afterPose : s.viaPose ? arc(s.from, s.viaPose, s.toPose, e) : mix(s.from, s.toPose, e),
+        pose: done && s.afterPose ? s.afterPose : s.risePose && e < 0.5 ? arc(s.from, s.risePose, s.viaPose, e * 2)   // up through rise to via
+            : s.fallPose && e > 0.5 ? arc(s.viaPose, s.fallPose, s.toPose, e * 2 - 1)   // from via on through fall
+            : s.viaPose ? arc(s.from, s.viaPose, s.toPose, e) : mix(s.from, s.toPose, e),
         step: s, facing: f, x: s.x0 + (s.x1 - s.x0) * (s.gait ? (s.gait.D ? gaitDist(s.gait, p * s.dur) / s.gait.D : 1) : p), lift: ht,
       };
     }
@@ -2130,14 +2251,14 @@ const LOOKS = [
   ['deadpan',    'Deadpan',    3.5, true,  'lookDeadpan',    one(pts8(-8,0,0.25, 0,0,0, 8,0,0.25, 8,3,0, 8,8,1, 0,8,0, -8,8,1, -8,3,0)), mo({ dy:0.35, gaze:0.4 })],
   ['sideeye',    'Side-eye',   3,   true,  'lookSideeye',    one(pts8(-8,-1,0.25, 0,0,0, 8,1,0.25, 8,3,0, 8,8,1, 0,8,0, -8,8,1, -8,2,0)), mo({ dx:0.9, dy:0.3, gaze:0 })],
   ['suspicious', 'Suspicious', 3,   true,  'lookSuspicious', one(pts8(-8,-3,0.35, 0,-2,0, 8,0,0.35, 8,1,0, 8,4,0.6, 0,4,0, -8,4,0.6, -8,1,0)), mo({ dx:-0.55, dy:0.1, gaze:0 })],
-  ['sleepy',     'Sleepy',     4,   true,  'lookSleepy',     one(pts8(-8,2,0.3, 0,1,1, 8,2,0.3, 8,4,0, 8,8,1, 0,8,0, -8,8,1, -8,4,0)), mo({ dy:0.55, gaze:0.4 })],
-  ['worried',    'Worried',    3,   true,  'lookWorried',    one(pts8(-8,-1,0.4, 0,-4,0.3, 8,-8,0.8, 8,0,0, 8,8,1, 0,8,0, -8,8,1, -8,2,0)), mo({ dy:0.25 })],
-  ['pleading',   'Pleading',   3,   true,  'lookPleading',   one(pts8(-9,-4,0.5, 0,-8,0.4, 9,-10,0.8, 9,0,0, 9,9,1, 0,9,0, -9,9,1, -9,1,0), 1.42), mo({ dy:-0.25 })],
-  ['sad',        'Sad',        3.5, false, 'lookSad',        one(pts8(-9,0,1, 5,-3,0.95, 8,-5,0.6, 9,-1,1, 7,4,1, 1,6,1, -5,5,1, -9,3,0.95)), mo({ dy:0.55, gaze:0.3 })],
+  ['sleepy',     'Sleepy',     4,   true,  'lookSleepy',     one(pts8(-8,2,1, 0,1,1, 8,2,1, 8,3,0, 8,8,1, 0,8,0, -8,8,1, -8,3,0)), mo({ dy:0.55, gaze:0.4 })],
+  ['worried',    'Worried',    3,   true,  'lookWorried',    one(pts8(-5,-4,1, 4,-6,0, 8,-6,0.65, 8,-2,0, 8,5,1, 0,5,0, -9,5,0.8, -10,-2,0.7)), mo({ dy:0.25 })],
+  ['pleading',   'Pleading',   3,   true,  'lookPleading',   one(pts8(-9,-4,0.9, -4,-7,0.4, 9,-10,1, 9,0,0, 9,9,1, 0,9,0, -9,9,1, -10,1,0.2), 1.42), mo({ dy:-0.25 })],
+  ['sad',        'Sad',        3.5, false, 'lookSad',        one(pts8(-5,-1,1, 7,-6,1, 10,-4,0.6, 10,0,1, 7,4,1, 0,5,1, -6,4,1, -10,0,0.95)), mo({ dy:0.55, gaze:0.3 })],
   ['angry',      'Angry',      2.6, false, 'lookAngry',      one(pts8(-9,-6,0.5, -4,-4,0.2, 4,1,1, 8,3,0.3, 7,7,1, 0,7,0, -8,8,1, -9,0,0.05)), mo({ dy:0.25 })],
   ['cross',      'Cross-eyed', 2.6, true,  'lookCross',      one(pts8(-8,-8,1, 0,-8,0, 8,-8,1, 8,0,0, 8,8,1, 0,8,0, -8,8,1, -8,0,0)), () => [{ dx:0.95, dy:0.3, gaze:0 }, { dx:-0.95, dy:0.3, gaze:0 }]],
   ['fly',        'Fly hunt',   5.5, true,  'lookFly',        one(pts8(-8,-9,1, 0,-9,0, 8,-9,1, 8,0,0, 8,8,1, 0,8,0, -8,8,1, -8,0,0), 1.12), t => { const x = flyX(t), o = { dx:x, dy:-1.15 + 0.85*x*x, gaze:0 }; return [o, o]; }],
-  ['sleeping',   'Sleeping',   3,   false, null,             one(pts8(-7,0,0, -2,5,1, 7,0,0, 9,0,1, 5,2,0, 0,5,1, -6,2,0, -9,0,1)), mo({})],
+  ['sleeping',   'Sleeping',   3,   false, null,             one(pts8(-5,0,1, 1,1,1, 6,0,0, 7,0,1, 8,0,0.3, 2,3,1, -6,1,1, -8,-1,1)), mo({})],
   ['shifty',     'Who saw?',   3.4, true,  'lookShifty',     one(circ(8, 5, 7)), t => { const o = { dx:shiftyX(t), dy:0.2, gaze:0 }; return [o, o]; }],
 ].map(([id, label, hold, auto, key, shape, motion]) => ({ id, label, hold, auto, key, shape, motion }));
 const LOOK_BY = Object.fromEntries(LOOKS.map(L => [L.id, L]));
@@ -2258,12 +2379,19 @@ function addLife(src, life, dt){
       const one = twitch.n === 2 ? 0.24 : 0.32;     // a double flick is two quicker flicks in a row
       twitch.t += dt;
       if (twitch.t >= one * twitch.n){ twitch.t = -1; twitch.at = life + 4 + Math.random()*7; }
-      else pose.head.tw[twitch.side] = Math.sin(Math.PI * ((twitch.t % one) / one)) * 16;
+      else pose.head.tw[twitch.side] = Math.sin(Math.PI * ((twitch.t % one) / one)) * 26;
     }
+  }
+  // the cursor on an ear: that ear flicks hard a few times in a row, each flick a little smaller (see updateCursor)
+  if (earWig.t >= 0){
+    const k = Math.floor(earWig.t / EAR_WIG.one), u = (earWig.t % EAR_WIG.one) / EAR_WIG.one;
+    pose.head.tw[earWig.side] = Math.max(pose.head.tw[earWig.side], Math.sin(Math.PI * u) * EAR_WIG.deg * (1 - 0.15 * k));
   }
   return pose;
 }
 const twitch = { at: 5, t: -1, side: 0, n: 1 };
+const EAR_WIG = { one:0.15, n:4, deg:42, rest:0.4 };   // one flick (s), flicks in a row, how far out (°), pause before the next burst
+const earWig = { side: 0, t: -1, rest: 0 };
 
 /* ---------- tail follow-through: the tail trails behind body motion like a soft rope ---------- */
 let tailSim = null;
@@ -2304,7 +2432,7 @@ const els = {
   eyeClip: [document.querySelector('#eyeClip0 path'), document.querySelector('#eyeClip1 path')],
   vol: [...document.querySelectorAll('#vol .ve')], neck: $('neck'), massRib: $('massRib'), massPel: $('massPel'),
   massW: { waistR: $('massWR'), waistL: $('massWL') },
-  whiskers2: $('whiskers2'),
+  whiskers2: $('whiskers2'), silhouette: $('silhouette'), goo: $('goo'),
 };
 /* ---------- keeping crisp parts inside the cat ----------
    The head outline as a polygon (head units), pulled a little inward. Each ear is built as plain
@@ -2412,7 +2540,7 @@ function draw(p, ht){
   const bc = p.body.reduce((a, q) => [a[0] + q[0] / 8, a[1] + q[1] / 8], [0, 0]);
   const bl = Math.hypot(bc[0]-t0[0], bc[1]-t0[1]) || 1;
   const tr = p.skel && p.skel.joints.waistC, tailPts = [tr ? [tr[0], tr[1]] : [t0[0] + (bc[0]-t0[0]) / bl * 12, t0[1] + (bc[1]-t0[1]) / bl * 12], ...tp];   // grows from the middle between the hips (inside the body)
-  const tailR = LIMB.tail[0] * p.shape.tailThick, tailC = sampleSpline(tailPts).map(([x, y]) => [x, Math.min(y, FLOOR_Y - tailR)]);
+  const tailR = LIMB.tail[0] * p.shape.tailThick, tailC = roundBends(sampleSpline(tailPts, 10).map(([x, y]) => [x, Math.min(y, FLOOR_Y - tailR)]), tailR);   // round, never creased
   const tailD = taperPath(tailC, LIMB.tail[0] * p.shape.tailThick, LIMB.tail[1] * p.shape.tailThick, false), fr = clamp(p.fx.front, 0, 1);
   // the tail always melts into the body (soft-merge layer), also when it lies wrapped along the body
   els.tail.setAttribute('d', tailD); els.tail.setAttribute('opacity', 1);
@@ -2451,8 +2579,9 @@ function draw(p, ht){
       return [rb[0] + x * Math.cos(ra) - y * Math.sin(ra), rb[1] + x * Math.sin(ra) + y * Math.cos(ra), 0]; });
     const hc2 = j => { const c = hc(j); return [c[0], c[1], c[2]]; }, hips = [hc2('waistR'), hc2('waistL')];
     const lerpTo = (q, k) => [pc[0] + (q[0] - pc[0]) * k, pc[1] + (q[1] - pc[1]) * k, 0], kc = clamp(1 + Math.min(0, p.shape.spineCurve || 0) / 8, 0, 1) * Math.max(v, 1 - clamp((pc[1] + pc[5] - 205) / 15, 0, 1));   // side views: while the hips are up (lying / sitting keep their own lines)
-    els.massPel.setAttribute('d', 'M' + circlesHull([...hips, ...(kb > 0 ? [[pc[0], pc[1], Math.min(pc[2], pc[4]) * 0.9 * kb]] : []), ...ribPts.map(q => lerpTo(q, kc * (1 - nc))),
-      ...(nc ? ['shoulderR', 'shoulderL'].map(j => [pc[0] + (J[j][0] - pc[0]) * v, pc[1] + (J[j][1] - pc[1]) * v, J[j][2] * v * nc]) : [])]).map(fmt).join('L') + 'Z');   // facing you: shoulders and hips joined round
+    els.massPel.setAttribute('d', 'M' + circlesHull([...hips, ...(kb > 0 ? [[pc[0], pc[1], Math.min(pc[2], pc[4]) * 0.9 * kb]] : []), ...(nc < 1 ? ribPts.map(q => lerpTo(q, kc * (1 - nc))) : []),
+      ...(nc && v > 0 ? ['shoulderR', 'shoulderL'].map(j => [pc[0] + (J[j][0] - pc[0]) * v, pc[1] + (J[j][1] - pc[1]) * v, J[j][2] * v * nc]) : [])]).map(fmt).join('L') + 'Z');   // facing you: shoulders and hips joined round
+      // (side views leave them out: they would only be a point in the middle of the pelvis, a spike once the hips are dragged away from it)
     // the two waist halves (haunches): they shape the body only when it faces you (side views: the thighs do it)
     for (const j in els.massW){
       const c = p.skel.joints[j], e = els.massW[j], r = c[2] * clamp(p.skel.view || 0, 0, 1);
@@ -2530,12 +2659,25 @@ function draw(p, ht){
   els.shadow.setAttribute('ry', (5 * k).toFixed(2));
   els.shadow.setAttribute('opacity', 0);   // no floor
   if (skelShown) drawSkel(p);
+  // the soft merge only draws inside its filter region: round the editing grid (states and ghosts are drawn there) and,
+  // fitted every frame, wherever the parts reach beyond it (a jump, a stretch, the tail), with room for the blur
+  if (lastFluid >= 0.3){
+    const b = els.silhouette.getBBox();
+    fitFilter(els.goo, [Math.min(b.x, GRID.x), Math.min(b.y, GRID.y), Math.max(b.x + b.width, GRID.x + GRID.size), Math.max(b.y + b.height, GRID.y + GRID.size)], 3 * lastFluid + 8);
+  }
+}
+// a filter's region around box b ([x0, y0, x1, y1]) and m more on every side, rounded out to 20 units (it is only reset
+// when the cat outgrows it or comes back)
+function fitFilter(f, b, m){
+  const s = 20, v = [Math.floor((b[0] - m) / s) * s, Math.floor((b[1] - m) / s) * s];
+  v.push(Math.ceil((b[2] + m) / s) * s - v[0], Math.ceil((b[3] + m) / s) * s - v[1]);
+  ['x', 'y', 'width', 'height'].forEach((k, i) => { if (+f.getAttribute(k) !== v[i]) f.setAttribute(k, v[i]); });
 }
 /* ---------- skeleton overlay (Shape tab) ----------
    Pink: ribcage, pelvis, spine and tail. Blue: head. Purple: shoulder blade and front legs.
    Orange: hind legs. Far legs are fainter. Joints are dots. */
 const SK = { pink:'#d0679a', front:'#7d63c4', hind:'#d08a3c', head:'#5aa0bf' };
-let skelShown = false, skelEls = null, skelPts = {};
+let skelShown = false, skelEls = null, skelPts = {}, skelHead = null, skelTail = [], skelMove = null;
 // the grid leg points snap to: 400 × 400 drawing units around the cat, its bottom on the floor line
 const GRID = { x:0, y:CAT_BOX.floor - 400, size:400, step:10, snap:5 };
 function buildSkel(){
@@ -2581,10 +2723,37 @@ function buildSkel(){
     });
     E.dots[l].forEach((d, i) => { d.classList.add('grab'); d.setAttribute('pointer-events', 'all'); d.addEventListener('pointerdown', e => legDown(e, l, i)); });
   }
+  // head (blue): the dot in its middle moves it, the white dot on its edge turns it; tail (pink): its points move on their own
+  const handle = (attrs, down) => { const e = mk('circle', { stroke:'#fff', 'stroke-width':1.2, 'vector-effect':'non-scaling-stroke', class:'grab', 'pointer-events':'all', ...attrs }); e.addEventListener('pointerdown', down); return e; };
+  const tailDown = (e, k) => startDrag(e, { kx:'tail' + (k + 1) + 'x', ky:'tail' + (k + 1) + 'y', sy:1, q0: skelPts.t && skelPts.t[k], name:'Tail ' + (k + 1) });
+  E.tailDots = [0, 1, 2].map(k => handle({ r:3.4, fill:SK.pink }, e => tailDown(e, k)));
+  E.tags.t = [0, 1, 2].map(k => {   // numbered like the legs
+    const line = mk('path', { fill:'none', stroke:SK.pink, 'stroke-width':1, opacity:0.95, 'vector-effect':'non-scaling-stroke' });
+    const tag = mk('g', { class:'grab', 'pointer-events':'all' });
+    mk('circle', { r:8, stroke:SK.pink, 'stroke-width':1.5, style:`fill:${SK.pink}` }, tag);
+    mk('text', { 'text-anchor':'middle', dy:'0.35em', 'font-size':10, 'font-weight':700, style:'fill:#fff;font-family:var(--font-num)' }, tag).textContent = k + 1;
+    tag.addEventListener('pointerdown', e => tailDown(e, k));
+    return { line, tag };
+  });
+  E.headDot = handle({ r:4.5, fill:SK.head }, e => startDrag(e, { kx:'headX', ky:'headY', sy:-1, q0:skelHead, name:'Head' }));
+  E.tiltDot = handle({ r:3.6, fill:'#fff', stroke:SK.head, 'stroke-width':1.6 }, e => startDrag(e, { tilt:true, q0:skelHead, name:'Head tilt' }));
+  // the whole cat: a move handle in the middle of the body (the same size whatever the cat's size; on top of everything)
+  E.moveDot = mk('g', { class:'grab', 'pointer-events':'all' });
+  mk('circle', { r:12, fill:'#fff', stroke:'#1e201e', 'stroke-width':1.5 }, E.moveDot);
+  mk('path', { d:'M12 1l4 4h-3v6h6V8l4 4-4 4v-3h-6v6h3l-4 4-4-4h3v-6H5v3l-4-4 4-4v3h6V5H8z', fill:'#1e201e', transform:'translate(-8.5 -8.5) scale(0.71)' }, E.moveDot);
+  E.moveDot.addEventListener('pointerdown', e => startDrag(e, { kx:'catX', ky:'catY', sy:1, q0: skelMove, name:'Whole cat' }));
   E.rib.cross.setAttribute('display', 'none'); E.rib.dots.forEach(d => d.setAttribute('display', 'none'));
   for (const k of ['shape', 'cross']) E.pel[k].setAttribute('display', 'none');   // the hips place the back body: no pelvis circle to show
   E.pel.dots.forEach(d => d.setAttribute('display', 'none'));
   skelEls = E;
+}
+// the points a leg is dragged by (1 shoulder / hip, 2, 3, 4), the tail's (start, middle, tip) and the whole cat's
+// (the middle of the body, between chest and hips)
+function dragPoints(p){
+  const o = { t: [p.tail[0], p.tail[3], p.tail[5]] };
+  if (p.skel) o.c = [[(p.skel.rib[0] + p.skel.pel[0]) / 2, (p.skel.rib[1] + p.skel.pel[1]) / 2]];
+  for (const l in p.legs){ const hip = l[0] === 'b' && p.skel && p.skel.joints[LEG_JOINT[l]]; o[l] = [hip || p.legs[l][0], ...p.legs[l].slice(1)]; }
+  return o;
 }
 function drawSkel(p){
   if (!skelEls) buildSkel();
@@ -2612,18 +2781,20 @@ function drawSkel(p){
   // spine: tail tip → tail root → pelvis → waist → withers → neck → head
   const tail = p.tail.slice().reverse();
   E.spine.setAttribute('d', nc < 0.5 ? openCurve([...tail, ...sk.spine, hc]) : openCurve(tail) + openCurve([...sk.spine, hc]));   // facing you: the tail goes off to the side
+  const DP = dragPoints(p);
   for (const l in E.legs){
     // body anchor → (curved thigh / upper arm) → fold → paw
-    const [, kn, wr, toe] = p.legs[l], hip = l[0] === 'b' && sk.joints[LEG_JOINT[l]], h = hip || p.legs[l][0], pts = [h, kn, wr, toe];
+    const pts = DP[l], [h, kn, wr, toe] = pts;
     E.legs[l].setAttribute('d', 'M' + fmt(h) + 'L' + fmt(kn) + 'L' + fmt(wr) + 'L' + fmt(toe));
     E.folds[l].setAttribute('cx', kn[0].toFixed(1)); E.folds[l].setAttribute('cy', kn[1].toFixed(1)); E.folds[l].setAttribute('r', foldR(p, l).toFixed(1));
     E.dots[l].forEach((d, i) => { const q = pts[i]; d.setAttribute('cx', q[0].toFixed(1)); d.setAttribute('cy', q[1].toFixed(1)); });
     skelPts[l] = pts;
   }
+  skelPts.t = DP.t;   // tail: start, middle, tip
   // labels: a column beside the cat on each leg's side (side view: hind legs behind, front legs in front), each
   // leg's 1–4 together (higher leg first), spread so they never overlap; the same size whatever the cat's size
   const all = [...p.body, ...p.tail, ...Object.values(p.legs).flat(), [hc[0] - hr, hc[1]], [hc[0] + hr, hc[1]]];
-  const u = 1 / catScale(), r = 8 * u, gap = 2 * r + 3 * u, f = screenFacing(facing), mid = (sk.rib[0] + sk.pel[0]) / 2;
+  const u = 1 / viewScale, r = 8 * u, gap = 2 * r + 3 * u, f = screenFacing(facing), mid = (sk.rib[0] + sk.pel[0]) / 2;
   const cols = { L:[], R:[] }, lo = Math.min(...all.map(q => q[0])) - 3 * r, hi = Math.max(...all.map(q => q[0])) + 3 * r;
   for (const l of Object.keys(skelPts).sort((a, b) => skelPts[a][0][1] - skelPts[b][0][1]))
     skelPts[l].forEach((q, i) => cols[skelPts[l][0][0] < mid ? 'L' : 'R'].push({ l, i, q }));
@@ -2637,27 +2808,65 @@ function drawSkel(p){
       T.tag.setAttribute('transform', `translate(${x.toFixed(1)} ${o.y.toFixed(1)}) scale(${(u * f).toFixed(4)} ${u.toFixed(4)})`);   // numbers read the right way round
     }
   }
+  const place = (e, q) => { e.setAttribute('cx', q[0].toFixed(1)); e.setAttribute('cy', q[1].toFixed(1)); }, ra = p.head.rot * Math.PI / 180;
+  place(E.headDot, hc); place(E.tiltDot, [hc[0] + Math.sin(ra) * hr, hc[1] - Math.cos(ra) * hr]);
+  E.tailDots.forEach((d, k) => place(d, skelPts.t[k]));
+  skelMove = DP.c[0]; E.moveDot.setAttribute('transform', `translate(${fmt(skelMove)}) scale(${u.toFixed(4)})`);
+  skelHead = hc; skelTail = p.tail;
 }
 // dragging a leg point (Shape tab, skeleton shown, position held): only that point of that leg moves; it snaps
 // to the grid (hold Alt / Option to place it freely)
-const LEG_NAME = { fn:'Front near', ff:'Front far', bn:'Hind near', bf:'Hind far' };
+const LEG_NAME = { fn:'Front near', ff:'Front far', bn:'Hind near', bf:'Hind far', t:'Tail' };
 let legDrag = null;
 function legNote(text){ $('legNote').textContent = text; }
-function legDown(e, l, i){
+// what a drag or a slider changes: the position being edited, or the transition state picked in the right-hand panel
+function editShapeObj(){ return stateEdit ? (S.states[stateEdit] = S.states[stateEdit] || {}) : S.shapes[editGroup]; }
+const tiltAngle = (p, c) => Math.atan2(p[0] - c[0], c[1] - p[1]) * 180 / Math.PI;
+// D: kx / ky the values the drag moves (sy -1: that value counts up), q0 where the handle is drawn now; or tilt
+function startDrag(e, D){
   e.preventDefault(); e.stopPropagation();
   if (!holding){ legNote('Turn on “Hold this position while editing” to drag points.'); return; }
-  const sh = S.shapes[editGroup], p0 = toLocal($('skel'), e.clientX, e.clientY), q0 = skelPts[l] && skelPts[l][i];
-  if (!p0 || !q0) return;
+  const t = editShapeObj(), p0 = toLocal($('skel'), e.clientX, e.clientY);
+  if (!p0 || !D.q0) return;
   e.target.setPointerCapture(e.pointerId);
-  legDrag = { l, i, p0, q0: q0.slice(0, 2), o0: [sh[l + (i + 1) + 'x'], sh[l + (i + 1) + 'y']], moved:false };
+  const turn0 = D.paw && lastShown && lastShown.pawTurn ? lastShown.pawTurn[D.paw] * 180 / Math.PI : 0;   // the paw's whole turn now
+  legDrag = { ...D, p0, q0: D.q0.slice(0, 2), o0: D.tilt ? [t.headRot || 0, 0] : D.paw ? [t[D.paw + '4a'] || 0, turn0] : [t[D.kx] || 0, t[D.ky] || 0],
+              a0: D.tilt || D.paw ? tiltAngle(p0, D.q0) : 0, moved:false };
+  // ghosts shown: a leg point 1–3, a tail point or the whole cat snaps onto the same point of a ghost. Measured on this
+  // state held still (no breathing), so on the ghost means exactly on it
+  const m = D.kx && (/^([fb][nf])([1-3])x$/.exec(D.kx) || /^(t)ail([1-3])x$/.exec(D.kx) || (D.kx === 'catX' && [, 'c', '1']));
+  if (m && ghostOn.length && stateSel !== null){
+    const at = q => q[m[1]][m[2] - 1], { P, T } = stateMoment(TRANSITIONS[stateTr].states[stateSel]);
+    legDrag.still = at(dragPoints(poseAt(P, T)));
+    legDrag.snaps = ghostOn.map(G => ({ q: at(G.pts), name: G.name }));
+  }
+}
+function legDown(e, l, i){
+  if (i === 3) return startDrag(e, { paw:l, q0: skelPts[l] && skelPts[l][2], name: `${LEG_NAME[l]} 4` });   // turns round 3
+  startDrag(e, { kx: l + (i + 1) + 'x', ky: l + (i + 1) + 'y', sy:1, q0: skelPts[l] && skelPts[l][i], name: `${LEG_NAME[l]} ${i + 1}` });
 }
 addEventListener('pointermove', e => {
   const D = legDrag; if (!D) return;
   const p = toLocal($('skel'), e.clientX, e.clientY); if (!p) return;
+  const t = editShapeObj(); D.moved = true;
+  if (D.paw){   // the paw keeps its length; snap its whole turn, so a round angle stays round
+    const whole = D.o0[1] + tiltAngle(p, D.q0) - D.a0, snapped = e.altKey ? Math.round(whole) : Math.round(whole / 5) * 5;
+    t[D.paw + '4a'] = +(D.o0[0] + snapped - D.o0[1]).toFixed(1); legNote(`${D.name}: paw turned ${snapped}°`); return;
+  }
+  if (D.tilt){
+    const a = ((D.o0[0] + tiltAngle(p, D.q0) - D.a0 + 540) % 360) - 180;
+    t.headRot = e.altKey ? +a.toFixed(1) : Math.round(a); legNote(`Head tilt: ${t.headRot}°`); return;
+  }
+  const q = [D.q0[0] + p[0] - D.p0[0], D.q0[1] + p[1] - D.p0[1]];
+  const g = !e.altKey && D.snaps && D.snaps.reduce((b, s) => { const d = dist(s.q, q); return d < (b ? b.d : 9 / viewScale) ? { ...s, d } : b; }, null);
+  if (g){
+    t[D.kx] = +(D.o0[0] + g.q[0] - D.still[0]).toFixed(2); t[D.ky] = +(D.o0[1] + (g.q[1] - D.still[1]) * D.sy).toFixed(2);
+    legNote(`${D.name}: on ${g.name}`); return;
+  }
   const snap = v => e.altKey ? Math.round(v * 2) / 2 : Math.round(v / GRID.snap) * GRID.snap;
-  const x = snap(D.q0[0] + p[0] - D.p0[0]), y = snap(D.q0[1] + p[1] - D.p0[1]), sh = S.shapes[editGroup], k = D.l + (D.i + 1);
-  sh[k + 'x'] = +(D.o0[0] + x - D.q0[0]).toFixed(2); sh[k + 'y'] = +(D.o0[1] + y - D.q0[1]).toFixed(2); D.moved = true;
-  legNote(`${LEG_NAME[D.l]} ${D.i + 1}: x ${+(x - GRID.x).toFixed(1)}, y ${+(GRID.y + GRID.size - y).toFixed(1)}`);
+  const x = clamp(snap(q[0]), GRID.x, GRID.x + GRID.size), y = clamp(snap(q[1]), GRID.y, GRID.y + GRID.size);   // inside the grid
+  t[D.kx] = +(D.o0[0] + x - D.q0[0]).toFixed(2); t[D.ky] = +(D.o0[1] + (y - D.q0[1]) * D.sy).toFixed(2);
+  legNote(`${D.name}: x ${+(x - GRID.x).toFixed(1)}, y ${+(GRID.y + GRID.size - y).toFixed(1)}`);
 });
 const legUp = () => { if (legDrag && legDrag.moved) save(); legDrag = null; };
 addEventListener('pointerup', legUp); addEventListener('pointercancel', legUp);
@@ -2688,9 +2897,25 @@ function applyColors(){
   els.shadow.setAttribute('fill', S.shadowColor);
   document.documentElement.style.setProperty('--stage', WALL ? 'transparent' : S.bgColor);
 }
-function applyTransform(xFrac){
-  const W = innerWidth, H = innerHeight, s = catScale();
-  const x = onScreen(xFrac) * W, y = H - (S.ground/100) * H, f = screenFacing(facing);   // never drawn past an edge
+// editing (skeleton shown, position held) the view eases in until the whole grid fits on screen beside the panels,
+// so nothing placed inside it is cut off; a frozen jump is shown with its grid, wherever it is in the air
+let editView = 0, viewScale = 1, lastLift = 0;
+function editArea(){
+  const m = 28; let l = m, r = innerWidth - m;
+  if (!panel.hidden && innerWidth > 560) l = Math.max(l, panel.getBoundingClientRect().right + m);
+  const sp = $('statesPanel'); if (!sp.hidden && innerWidth > 560) r = Math.min(r, sp.getBoundingClientRect().left - m);
+  if (r - l < 240){ l = m; r = innerWidth - m; }   // no room beside the panels: the whole screen
+  return { x: l, y: m, w: r - l, h: innerHeight - 2 * m };
+}
+function applyTransform(xFrac, ht = lastLift){
+  const W = innerWidth, H = innerHeight, f = screenFacing(facing);
+  let s = catScale(), x = onScreen(xFrac) * W, y = H - (S.ground/100) * H;   // never drawn past an edge
+  if (editView > 0.001){
+    const A = editArea(), se = Math.min(A.w, A.h) / GRID.size, k = editView;
+    const gx = TURN_AXIS + f * (GRID.x + GRID.size / 2 - TURN_AXIS), gy = GRID.y + GRID.size / 2 - ht;   // the grid's middle on screen
+    x += (A.x + A.w / 2 - se * (gx - CAT_BOX.cx) - x) * k; y += (A.y + A.h / 2 - se * (gy - CAT_BOX.floor) - y) * k; s += (se - s) * k;
+  }
+  viewScale = s;
   cat.setAttribute('transform',
     `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${s.toFixed(4)}) translate(${-CAT_BOX.cx} ${-CAT_BOX.floor})` +
     ` translate(${TURN_AXIS} 0) scale(${f} 1) translate(${-TURN_AXIS} 0)`);
@@ -2709,7 +2934,8 @@ function layout(){
    Eyes: each pupil turns toward the cursor from its own eye, so near the face they cross.
    Nose: resting the cursor on the nose/mouth makes the cat lick it until the cursor moves.
    Jumps: when the cursor is within reach, jumps land with the head under it; resting it
-   nearby for a moment makes the cat pounce. */
+   nearby for a moment makes the cat pounce.
+   Tail: the cat never lets the cursor touch it, the tail swings out of the way (see dodgeTail). */
 const mouse = { x:0, y:0, inside:false, overPanel:false, moved:-1e9, still:0, restX:-1e9, restY:-1e9, pounced:false, w:0 };
 // touch: the last touch point acts like a resting cursor (tap the nose = licks, tap nearby = pounce)
 function onPointer(e){
@@ -2732,7 +2958,7 @@ function toLocal(el, x, y){
   const X = x - m.e, Y = y - m.f;
   return [(m.d * X - m.c * Y) / det, (-m.b * X + m.a * Y) / det];
 }
-const lick = { active:false, t:0, w:0, since:0 };
+const lick = { active:false, t:0, w:0, since:0, back:false };
 const LICK_T = 0.62;
 let mouthAt = [4, 18];
 function mouthHit(){
@@ -2748,14 +2974,90 @@ function cursorJumpTarget(){
   const dir = Math.sign(dx);
   return { x: onScreen((mouse.x - dir * 100 * s) / W), up: up / s };   // head lands under the cursor
 }
+// which ear the cursor is on (0 the far one, 1 the near one, −1 none); a few units round the ear count too
+function earAt(x, y){
+  for (const [k, e] of [[1, els.earR], [0, els.earL]]){
+    const q = toLocal(e, x, y); if (!q || !e.isPointInFill) continue;
+    for (const [dx, dy] of [[0, 0], [6, 0], [-6, 0], [0, 6], [0, -6]]) if (e.isPointInFill(new DOMPoint(q[0] + dx, q[1] + dy))) return k;
+  }
+  return -1;
+}
+/* the tail won't be touched: as the cursor comes near, the tail swings at once to the nearest bend that is well clear
+   of it, which is away from the cursor; cornered there, it whips across to the other side. It settles back once the
+   cursor has kept away a moment. Bent after the follow-through (followTail) with springs of its own, so it moves from
+   the first frame: the bend is spread along the tail (it curves round, never kinks), the root leads and the tip flows after. */
+const TAIL_DODGE = { near:12, clear:30, max:2.4, step:0.06, back:0.5, floor:0.04 };   // near: how close (units, to the tail's edge)
+  // the cursor may come; clear: how far the tail gets out of its way; max: the most it bends (radians, root to tip); back: seconds
+  // clear before it settles; floor: cost of each unit a bend would press into the floor (it lifts the tail instead of squashing it)
+const DODGE_W = [0, 0.28, 0.22, 0.18, 0.16, 0.16];   // share of the bend at each tail joint: spread along it, so it curves round
+const DODGE_RATE = [0, 26, 22, 19, 16, 14];          // how quickly each joint follows (critically damped: no overshoot, no wobble)
+const dodge = { to:0, free:0, a:[0, 0, 0, 0, 0, 0], v:[0, 0, 0, 0, 0, 0] };
+// the tail with joint i turned by A[i] (its share, see DODGE_W) on top of the joints before it; segment lengths kept
+function bendTail(P, A){
+  const out = [P[0]]; let ang = 0;
+  for (let i = 1; i < P.length; i++){
+    const vx = P[i][0] - P[i-1][0], vy = P[i][1] - P[i-1][1];
+    ang += DODGE_W[i] * A[i];
+    const c = Math.cos(ang), s = Math.sin(ang);
+    out.push([out[i-1][0] + vx*c - vy*s, out[i-1][1] + vx*s + vy*c]);
+  }
+  return out;
+}
+// how far point q is from the tail's edge; the half of the first segment against the rump doesn't count (it can't move away)
+function tailGap(P, q, r){
+  let d = Infinity;
+  for (let i = 0; i < P.length - 1; i++){
+    const a = i ? P[i] : [(P[0][0] + P[1][0]) / 2, (P[0][1] + P[1][1]) / 2], b = P[i+1];
+    const ex = b[0] - a[0], ey = b[1] - a[1], t = clamp(((q[0] - a[0]) * ex + (q[1] - a[1]) * ey) / (ex*ex + ey*ey || 1), 0, 1);
+    d = Math.min(d, Math.hypot(q[0] - a[0] - ex * t, q[1] - a[1] - ey * t));
+  }
+  return d - r;
+}
+function dodgeTail(tail, p, dt, now){
+  if (!S.dodgeTail || holding || legDrag){ dodge.to = dodge.free = 0; dodge.a.fill(0); dodge.v.fill(0); return tail; }   // editing: where the pose puts it
+  const r = LIMB.tail[0] * p.shape.tailThick, floor = FLOOR_Y - r, D = TAIL_DODGE;
+  const bent = a => bendTail(tail, DODGE_W.map(() => a));
+  const gap = (P, q) => tailGap(P.map(([x, y]) => [x, Math.min(y, floor)]), q, r);   // as drawn: on the floor, not in it
+  const q = mouse.inside && !mouse.overPanel && (!mouse.touch || now - mouse.moved < 6000) ? toLocal(els.tail, mouse.x, mouse.y) : null;   // a finger counts a while
+  if (q && gap(bent(dodge.to), q) < D.near){
+    // the cursor is on the tail (or where it is going): of the bends clear of it, the least move from here
+    const n = Math.round(D.max / D.step), from = dodge.a[1];
+    let best = null, cost = Infinity, far = dodge.to, farGap = -Infinity;
+    for (let k = -n; k <= n; k++){
+      const a = k * D.step, P = bent(a), g = gap(P, q);
+      const c = Math.abs(a - from) + 0.25 * Math.abs(a) + D.floor * P.reduce((s, [, y]) => s + Math.max(0, y - floor), 0);
+      if (g >= D.clear && c < cost){ cost = c; best = a; }
+      if (g > farGap){ farGap = g; far = a; }      // nowhere clear enough: as far from it as it gets
+    }
+    dodge.to = best ?? far; dodge.free = 0;
+  } else if (dodge.to){
+    dodge.free = !q || gap(bent(0), q) >= D.clear ? dodge.free + dt : 0;   // settles once the cursor keeps away from where it rests
+    if (dodge.free > D.back){ dodge.to = 0; dodge.free = 0; }
+  }
+  if (dt > 0){
+    const steps = Math.ceil(dt / (1/240)), h = dt / steps;
+    for (let s = 0; s < steps; s++) for (let i = 1; i < DODGE_RATE.length; i++){
+      const w = DODGE_RATE[i];
+      dodge.v[i] += ((dodge.to - dodge.a[i]) * w * w - dodge.v[i] * 2 * w) * h;
+      dodge.a[i] += dodge.v[i] * h;
+    }
+  }
+  return dodge.a.some(a => Math.abs(a) > 1e-4) ? bendTail(tail, dodge.a) : tail;
+}
 function updateCursor(dt, now){
   const active = mouse.inside && now - mouse.moved < 6000;
   mouse.w = clamp(mouse.w + (S.followCursor && active ? 1 : -1) * dt / 0.3, 0, 1);
+  // an ear wiggles while the cursor is on it: a burst of hard flicks, again after a short pause while it stays there
+  if (earWig.t >= 0){ earWig.t += dt; if (earWig.t >= EAR_WIG.one * EAR_WIG.n){ earWig.t = -1; earWig.rest = now + EAR_WIG.rest * 1000; } }
+  else if (active && !mouse.overPanel && now > earWig.rest){ const k = earAt(mouse.x, mouse.y); if (k >= 0){ earWig.side = k; earWig.t = 0; } }
   const idle = !!(curStep && curStep.idle) && plan.kind === 'idle';
-  // lick the cursor while it rests on the nose
+  // lick the cursor while it rests on the nose: when idle, and on its back (not while rolling over or back; the move
+  // waits while it licks, see frame)
+  lick.back = plan.kind === 'belly' && !!curStep && !curStep.via && (curStep.to === 'belly' || curStep.to === 'bellyBat');
+  const canLick = idle || lick.back;
   if (lick.active){
-    if (!idle || mouse.still > lick.since || !mouse.inside || !mouthHit()) lick.active = false;
-  } else if (S.lickCursor && idle && mouse.inside && !mouse.overPanel && now - mouse.still > 300 && mouthHit()){
+    if (!canLick || mouse.still > lick.since || !mouse.inside || !mouthHit()) lick.active = false;
+  } else if (S.lickCursor && canLick && mouse.inside && !mouse.overPanel && now - mouse.still > 300 && mouthHit()){
     lick.active = true; lick.since = now; lick.t = 0;
   }
   lick.w = clamp(lick.w + (lick.active ? 1 : -1) * dt / 0.25, 0, 1);
@@ -2784,12 +3086,12 @@ function frame(now){
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   refreshShapes();
   if (playing){
-    planT += dt * S.speed; life += dt;
+    if (!(lick.active && lick.back)) planT += dt * S.speed;   // licking the cursor on its back: it stays there
+    life += dt;
     if (planT >= plan.total){ livePose = evalPlan(plan.total).pose; onPlanEnd(); }
   }
   const r = evalPlan(planT);
   livePose = r.pose; curStep = r.step; facing = r.facing; lift = r.lift;
-  applyTransform(r.x);
   const G = curStep && curStep.gait ? curStep : null, gt = G ? clamp(planT - G.start, 0, G.dur) : 0;
   const lived = addLife(livePose, life, playing ? dt : 0);
   let shaped;
@@ -2814,7 +3116,12 @@ function frame(now){
   }
   const shown = solveLegs(shaped);
   shown.tail = followTail(shown.tail, playing ? dt : 0);
+  shown.tail = dodgeTail(shown.tail, shown, playing ? dt : 0, now);
   const lifted = r.lift + (G ? gaitLift(G.gait, gt) : 0);
+  const gv = stateSel !== null ? holding : plan === playGhost;   // ghosts: while a state is held, or its move plays
+  if (gv !== ghostVis){ ghostVis = gv; $('ghosts').toggleAttribute('hidden', !gv); }
+  editView += ((skelShown && (holding || gv && ghostOn.length) ? 1 : 0) - editView) * Math.min(1, dt * 6);   // a move played with its ghosts stays zoomed in
+  lastLift = lifted; applyTransform(r.x, lifted);
   draw(shown, lifted); lastShown = shown;
   updateCursor(playing ? dt : 0, now);
   updateStatus();
@@ -2839,7 +3146,7 @@ const fmtOut = {
   ...Object.fromEntries(['headSize','headWidth','eyeSize','earSize','legThick','tailThick','pawW','pawH','ribW','ribH','waistLen','waistH','pelW','pelH','neckW','tailLen','earBW','earBH','earFW','earFH','cheekRound','jawW','shoulderSpread','hipSpread','hipSize','thighW','kneeF','kneeB','kneeOut','hipW','hipLen','foldR'].map(k => [k, v => (+v).toFixed(2) + '×'])),
   eyeGap: v => v, eyeX: v => (v > 0 ? '+' : '') + v, eyeY: v => (v > 0 ? '+' : '') + v,
   ...Object.fromEntries(['earBX','earBY','earFX','earFY','cheekOut','cheekY','chinY','shoulderX','shoulderY','hipX','hipY','fPawX','fPawY','bPawX','bPawY','fMidX','fMidY','bMidX','bMidY','spineCurve'].map(k => [k, v => (v > 0 ? '+' : '') + v])),
-  headX: v => (v > 0 ? '+' : '') + v, headY: v => (v > 0 ? '+' : '') + v, fluid: v => (+v).toFixed(1), toeR: v => (+v).toFixed(2),
+  headX: v => (v > 0 ? '+' : '') + v, headY: v => (v > 0 ? '+' : '') + v, headRot: v => (v > 0 ? '+' : '') + v + '°', fluid: v => (+v).toFixed(1), toeR: v => (+v).toFixed(2),
 };
 function syncInputs(){
   for (const k in S){
@@ -2883,7 +3190,7 @@ document.querySelectorAll('.look').forEach(b => b.onclick = () => { const n = b.
 function markActive(kind){ document.querySelectorAll('.move').forEach(b => b.classList.toggle('active', b.dataset.kind === kind)); }
 
 $('fullBtn').onclick = () => { const d = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen?.())?.catch?.(() => {}); };
-$('resetBtn').onclick = () => { S = { ...DEFAULTS, shapes: freshShapes() }; syncShapeInputs(); save(); syncInputs(); applyColors(); layout(); toast('Back to defaults'); };
+$('resetBtn').onclick = () => { S = { ...DEFAULTS, shapes: freshShapes(), states: structuredClone(DEFAULTS.states || {}) }; syncShapeInputs(); save(); syncInputs(); applyColors(); layout(); toast('Back to defaults'); };
 $('copySvg').onclick = () => {
   const clone = svg.cloneNode(true);
   clone.setAttribute('width', innerWidth); clone.setAttribute('height', innerHeight);
@@ -2955,6 +3262,7 @@ function showTab(t){
     $('tabBtn-' + id).setAttribute('aria-selected', String(id === t));
   }
   UI.tab = t; saveUI(); syncSkel();
+  if (t !== 'shape' && stateTr && typeof closeTransition === 'function') closeTransition();   // the states panel belongs to the Shape tab
   const wasEditing = eyeEditing; eyeEditing = t === 'eyes';
   if (typeof holdPosition === 'function'){
     if (t === 'shape' && $('holdPose').checked) holdPosition(true);
@@ -2973,52 +3281,64 @@ const GROUP_CTRL = {
 };
 const CTRL_BASE = {};
 function groupControls(){
+  const eg = stateEdit ? (GROUP_OF[stateEdit] || MID_OF[stateEdit][1]) : editGroup;   // a state shows its position's controls
   for (const g in GROUP_CTRL) for (const k in GROUP_CTRL[g]){
     const el = $(k), lab = document.querySelector(`label[for="${k}"]`);
     CTRL_BASE[k] = CTRL_BASE[k] || [lab.textContent, el.min, el.max];
-    const [t, a, b] = (GROUP_CTRL[editGroup] || {})[k] || CTRL_BASE[k];
+    const [t, a, b] = (GROUP_CTRL[eg] || {})[k] || CTRL_BASE[k];
     lab.textContent = t; el.min = a; el.max = b;
   }
-  const has = (el, a) => el.dataset[a].split(' ').includes(editGroup);
+  const has = (el, a) => el.dataset[a].split(' ').includes(eg);
   document.querySelectorAll('#tab-shape [data-only]').forEach(el => { el.hidden = !has(el, 'only'); });
   document.querySelectorAll('#tab-shape [data-not]').forEach(el => { el.hidden = has(el, 'not'); });
 }
+function shapeView(){ return stateEdit ? withDelta(stateBase(stateEdit), S.states[stateEdit] || {}) : S.shapes[editGroup]; }
 function syncShapeInputs(){
-  const sh = S.shapes[editGroup];
+  const sh = shapeView();
   groupControls();   // ranges first, so a value outside the old range is not clipped
   for (const k in SHAPE_DEFAULT){
     const el = $(k); if (!el) continue;
     el.value = sh[k];
     const out = document.querySelector(`output[for="${k}"]`); if (out) out.textContent = fmtOut[k](sh[k]);
   }
-  document.querySelectorAll('.ptab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.group === editGroup)));
+  document.querySelectorAll('.ptab').forEach(b => b.setAttribute('aria-selected', String(!stateEdit && b.dataset.group === editGroup)));
+  const st = stateEdit && TRANSITIONS[stateTr].states.find(e => e[0] === stateEdit);
+  $('stateNote').hidden = !st;
+  if (st) $('stateNote').textContent = `Editing ${TRANSITIONS[stateTr].label}: ${st[1]}. Sliders and dragged points change this state only.`;
+  $('resetShape').textContent = stateEdit ? 'Reset this state' : 'Reset this position';
+  $('copyShape').hidden = !!stateEdit;
 }
 for (const k in SHAPE_DEFAULT){
   const el = $(k); if (!el) continue;
   el.addEventListener('input', () => {
-    S.shapes[editGroup][k] = +el.value;
+    if (stateEdit){ const d = editShapeObj(), v = +(+el.value - stateBase(stateEdit)[k]).toFixed(3); if (v) d[k] = v; else delete d[k]; }
+    else S.shapes[editGroup][k] = +el.value;
     const out = document.querySelector(`output[for="${k}"]`); if (out) out.textContent = fmtOut[k](+el.value);
     save();
   });
 }
 // hold the cat in the position being edited, so every change is visible
 let holdGroup = 'stand';
+// hold the cat in pose rep (reached from posture home, through via), so every change is visible
+function holdOn(rep, home, via, label){
+  worldX = evalPlan(planT).x;
+  const steps = []; let from = posture;
+  if (curStep && !curStep.idle){   // mid-move: settle first, like any interrupt
+    steps.push({ to: curStep.home, dur: 0.5, ease: 'inOutCubic', label: 'Settling', home: curStep.home });
+    from = curStep.home;
+  }
+  steps.push(...postureSteps(from, home));
+  steps.push({ to: rep, via, dur: S.trans, ease: 'inOutCubic', label, home }, { to: rep, dur: Infinity, label, home });
+  plan = compile(steps, structuredClone(livePose), 'edit', home, lift); planT = 0;
+  holding = true; markActive(null);
+  if (!playing) setPlaying(true);
+}
 function holdPosition(on, g = editGroup){
+  resumeState();
   if (on){
     holdGroup = g;
-    const rep = GROUP_POSE[g], home = GROUP_HOME[g], label = g === editGroup || !eyeEditing ? 'Editing ' + GROUP_LABEL[g] : 'Editing eyes';
-    worldX = evalPlan(planT).x;
-    const steps = []; let from = posture;
-    if (curStep && !curStep.idle){   // mid-move: settle first, like any interrupt
-      steps.push({ to: curStep.home, dur: 0.5, ease: 'inOutCubic', label: 'Settling', home: curStep.home });
-      from = curStep.home;
-    }
-    steps.push(...postureSteps(from, home));
-    steps.push({ to: rep, via: g === 'stretch' ? 'reach' : g === 'belly' ? 'bellyMid' : null, dur: S.trans, ease: 'inOutCubic', label, home },
-               { to: rep, dur: Infinity, label, home });
-    plan = compile(steps, structuredClone(livePose), 'edit', home, lift); planT = 0;
-    holding = true; markActive(null);
-    if (!playing) setPlaying(true);
+    holdOn(GROUP_POSE[g], GROUP_HOME[g], g === 'stretch' ? 'reach' : g === 'belly' ? 'bellyMid' : null,
+           g === editGroup || !eyeEditing ? 'Editing ' + GROUP_LABEL[g] : 'Editing eyes');
   } else if (holding){
     holding = false;
     worldX = evalPlan(planT).x;
@@ -3029,14 +3349,190 @@ function holdPosition(on, g = editGroup){
   }
 }
 function selectGroup(g){
+  leaveState();
   editGroup = g; UI.shapeGroup = g; saveUI(); syncShapeInputs();
   if ($('holdPose').checked && !$('tab-shape').hidden) holdPosition(true);
 }
 document.querySelectorAll('.ptab').forEach(b => b.onclick = () => selectGroup(b.dataset.group));
-$('holdPose').addEventListener('change', () => holdPosition($('holdPose').checked));
+$('holdPose').addEventListener('change', () => { if (!$('holdPose').checked) leaveState(); holdPosition($('holdPose').checked); });
 $('copyShape').onclick = () => { for (const g of SHAPE_GROUPS) S.shapes[g] = { ...S.shapes[editGroup] }; save(); toast('Shape copied to all positions'); };
-$('resetLegPts').onclick = () => { const sh = S.shapes[editGroup]; for (const k in sh) if (LEG_KEY.test(k)) sh[k] = 0; save(); legNote(GROUP_LABEL[editGroup] + ': leg points back where the pose puts them'); };
-$('resetShape').onclick = () => { S.shapes[editGroup] = { ...SHAPE_DEFAULT, ...SHAPE_PRESET[editGroup] }; save(); syncShapeInputs(); };
+$('resetLegPts').onclick = () => {
+  const t = editShapeObj(); for (const k in t) if (LEG_KEY.test(k) || TAIL_KEY.test(k) || k === 'catX' || k === 'catY'){ if (stateEdit) delete t[k]; else t[k] = 0; }
+  save(); legNote((stateEdit ? 'This state' : GROUP_LABEL[editGroup]) + ': points and the whole cat back where the pose puts them');
+};
+$('resetShape').onclick = () => {
+  if (stateEdit) delete S.states[stateEdit]; else S.shapes[editGroup] = { ...SHAPE_DEFAULT, ...SHAPE_PRESET[editGroup] };
+  save(); syncShapeInputs();
+};
+
+/* ---------- transition states (right-hand panel) ----------
+   Each move's key states: start and finish are the positions themselves; the states between belong to the move
+   (its own changes in S.states). Picking one holds it on the stage, where its points are dragged as usual. */
+const TRANSITIONS = {
+  sit:     { btn:'Sit down',  label:'Sit down / stand up', states:[['stand'], ['sitMid', 'Middle'], ['sit']] },
+  lie:     { btn:'Lie down',  label:'Lie down / sit up', states:[['sit'], ['lieMid', 'Middle'], ['lie']] },
+  stretch: { btn:'Stretch',   label:'Stretch', states:[['stand'], ['reach', 'Middle'], ['stretch']] },
+  belly:   { btn:'Roll over', label:'Roll onto the back', states:[['stand'], ['bellyDown', 'Going down'], ['bellyMid', 'Rolling'], ['belly']] },
+  face:    { btn:'Face me',   label:'Face me', states:[['sit'], ['faceMid', 'Middle'], ['front']] },
+  jump:    { btn:'Jump',      label:'Jump', states:[['stand'], ['jumpReady', 'Crouch'], ['jumpPush', 'Push off'], ['jumpRise', 'Rising'], ['jumpFly', 'In the air'],
+                                                  ['jumpReach', 'Reaching to land'], ['jumpAbsorb', 'Landing'], ['stand']] },
+  groom:   { btn:'Lick paw',  label:'Licking the paw', states:[['sit'], ['lickReady', 'Paw up'], ['lickDown', 'Lick down'], ['lickUp', 'Lick up'], ['sit']] },
+};
+let statePaused = false;   // a jump state is a frozen moment of a real jump
+function resumeState(){ if (statePaused){ statePaused = false; setPlaying(true); } }
+function leaveState(){
+  stateSel = null; playGhost = null; drawGhosts();
+  document.querySelectorAll('#stList .st').forEach(e => e.classList.remove('on'));
+  if (!stateEdit) return;
+  stateEdit = null; resumeState(); syncShapeInputs();
+}
+// a jump from where the cat is (or from standing), landing a quarter of the screen ahead
+function jumpRef(start, from){
+  const f = screenFacing(facing), [lo, hi] = xRange();
+  let t = clamp(worldX + f * 0.25, lo, hi); if (Math.abs(t - worldX) < 0.05) t = clamp(worldX - f * 0.25, lo, hi);
+  const steps = [...postureSteps(from, 'stand'), ...moveSteps('jump', { posture:'stand', facing, x: worldX, target: t })].map(s => ({ home:'stand', ...s }));
+  return compile(steps, start, 'jump', 'stand', 0);
+}
+// when a jump state shows in full: the top of the flight for the pose it flies through, else the end of its last step
+function phaseTime(P, name){
+  const ri = P.steps.find(s => s.rise === name && s.flight);   // on the way up: where the flight passes it
+  if (ri){ let a = 0, b = 1; for (let i = 0; i < 30; i++){ const m = (a + b) / 2; if (flightPose(m, ri.jUp) < 0.25) a = m; else b = m; } return ri.start + ri.dur * a; }
+  const fl = P.steps.find(s => s.via === name && s.flight);
+  if (fl) return fl.start + fl.dur * (fl.jUp || 0.5);
+  const st = [...P.steps].reverse().find(s => s.to === name && Number.isFinite(s.dur));
+  return st ? st.start + st.dur * 0.999 : 0;
+}
+// the plan and moment that show a state
+function stateMoment([name]){
+  if (SHAPE_GROUPS.includes(name)) return { P: compile([{ to: GROUP_POSE[name], dur: Infinity }], structuredClone(POSES[GROUP_POSE[name]]), 'edit', GROUP_HOME[name]), T: 0 };
+  if (/^jump/.test(name)){ const P = jumpRef(structuredClone(POSES.stand), 'stand'); return { P, T: phaseTime(P, name) }; }
+  return { P: compile([{ to: name, dur: Infinity }], structuredClone(POSES[name]), 'edit', 'stand'), T: 0 };
+}
+// what the stage would show at time T of plan P, without moving the real cat (the frame loop's steps, still)
+function poseAt(P, T){
+  const r = evalPlan(T, P), lived = addLife(r.pose, 0, 0), J = r.step && r.step.spine ? jumpTilt(r.step, T) : null;
+  if (!J) return solveLegs(applyShape(lived));
+  const again = structuredClone(lived);
+  lived.gaitBody = jumpBody(lived, J); let shaped = applyShape(lived); jumpPaws(shaped, J);
+  const [nx, ny] = jumpFront(shaped, J);
+  if (J.kL > 0){ J.tx = nx * J.kL; J.ty = ny * J.kL; again.gaitBody = jumpBody(again, J); shaped = applyShape(again); jumpPaws(shaped, J); jumpFront(shaped, J); }
+  return solveLegs(shaped);
+}
+// previews: each state is drawn on the stage between two frames (never seen there) and copied into its window
+let snapTimer = 0;
+function refreshSnaps(){ clearTimeout(snapTimer); snapTimer = setTimeout(drawSnaps, 120); }
+function drawSnaps(){
+  if (!stateTr) return;
+  refreshShapes();
+  const was = skelShown; skelShown = false;
+  document.querySelectorAll('#stList .st').forEach(sec => {
+    const { P, T } = stateMoment(TRANSITIONS[stateTr].states[+sec.dataset.i]), pose = poseAt(P, T);
+    draw(pose, 0);
+    const g = catBody.cloneNode(true); g.removeAttribute('transform');
+    g.querySelectorAll('#skel, #ghosts').forEach(e => e.remove());
+    g.querySelectorAll('[id]').forEach(e => e.removeAttribute('id')); g.removeAttribute('id');
+    sec.querySelector('.snap').replaceChildren(g);
+    // its ghost: the shape without the face, and its points
+    const gs = mk('g', { class:'gShape', filter:'url(#ghostLine)' });
+    for (const id of ['silhouette', 'ears', 'lowerLegs']) gs.appendChild($(id).cloneNode(true));
+    gs.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    snapGhost[+sec.dataset.i] = { shape: gs, pts: dragPoints(pose) };
+  });
+  skelShown = was;
+  drawGhosts();
+  // one frame around the cat for all of them (same scale, so the states compare), grid lines every 50 units
+  const box = [Infinity, Infinity, -Infinity, -Infinity];
+  document.querySelectorAll('#stList .snap').forEach(g => { const b = g.getBBox(); if (b.width){ box[0] = Math.min(box[0], b.x); box[1] = Math.min(box[1], b.y); box[2] = Math.max(box[2], b.x + b.width); box[3] = Math.max(box[3], b.y + b.height); } });
+  if (!Number.isFinite(box[0])) return;
+  const w = Math.max(box[2] - box[0], box[3] - box[1]) + 40, x0 = (box[0] + box[2] - w) / 2, y0 = (box[1] + box[3] - w) / 2;
+  let grid = ''; for (let v = Math.ceil(x0 / 50) * 50; v <= x0 + w; v += 50) grid += `M${v} ${y0}V${y0 + w}`;
+  for (let v = Math.ceil(y0 / 50) * 50; v <= y0 + w; v += 50) grid += `M${x0} ${v}H${x0 + w}`;
+  document.querySelectorAll('#stList .stView').forEach(v => { v.setAttribute('viewBox', `${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${w.toFixed(1)}`); v.querySelector('.stGrid').setAttribute('d', grid); });
+}
+/* ghosts: while a state is held, the move's start and finish are drawn over the cat as outlines with their leg and
+   tail points, so the state can be lined up with them; while the move plays (Play) too. A move that starts and ends
+   in the same position (the jump) shows the states before and after the held one instead. */
+const GHOST_COL = ['#62e3a0', '#ffd23f'];
+const stName = ([name, label]) => label || GROUP_LABEL[name];
+// the two states shown as ghosts for state i (null: the move playing); −1 none
+function ghostRefs(i){
+  const L = TRANSITIONS[stateTr].states, last = L.length - 1, loop = L[0][0] === L[last][0];
+  const r = i === null ? (loop ? [-1, -1] : [0, last]) : loop ? [i - 1, i + 1] : [0, last];
+  return r.map(j => j === i || j > last ? -1 : j);
+}
+function drawGhosts(){
+  const box = $('ghosts'); box.replaceChildren(); ghostOn = [];
+  if (!stateTr || (stateSel === null && !playGhost)) return;
+  ghostRefs(stateSel).forEach((j, k) => {
+    if (j >= 0 && snapGhost[j] && !UI['ghostOff' + k]) ghostOn.push({ k, ...snapGhost[j], name: stName(TRANSITIONS[stateTr].states[j]) });
+  });
+  for (const G of [...ghostOn].reverse()){   // the start on top
+    const g = mk('g', { style:`color:${GHOST_COL[G.k]}` }, box);
+    g.appendChild(G.shape.cloneNode(true));
+    for (const l in G.pts){
+      const q = G.pts[l], op = l[1] === 'f' ? 0.6 : 1;   // far legs fainter, as in the skeleton
+      if (l !== 't' && l !== 'c') mk('path', { d: 'M' + q.map(fmt).join('L'), fill:'none', stroke:'currentColor', 'stroke-width':1.5, 'stroke-dasharray':'4 3', 'vector-effect':'non-scaling-stroke', opacity:op }, g);
+      for (const c of q) mk('circle', { cx: c[0].toFixed(1), cy: c[1].toFixed(1), r:5.5, fill:'none', stroke:'currentColor', 'stroke-width':2, 'vector-effect':'non-scaling-stroke', opacity:op }, g);
+    }
+  }
+}
+function openTransition(id){
+  leaveState(); stateTr = id; snapGhost = [];
+  const T = TRANSITIONS[id], last = T.states.length - 1, loop = T.states[0][0] === T.states[last][0];
+  $('ghost0Name').textContent = loop ? 'Previous' : 'Start'; $('ghost1Name').textContent = loop ? 'Next' : 'Finish';
+  let grid = ''; for (let v = 0; v <= GRID.size; v += 50) grid += `M${GRID.x + v} ${GRID.y}V${GRID.y + GRID.size}M${GRID.x} ${GRID.y + v}H${GRID.x + GRID.size}`;
+  $('stTitle').textContent = T.label; $('statesPanel').hidden = false;
+  $('stList').innerHTML = T.states.map(([name, label], i) => `<section class="st" data-i="${i}">
+      <p class="sub">${label || (i === last ? 'Finish' : 'Start') + ' · ' + GROUP_LABEL[name]}</p>
+      <svg class="stView" viewBox="${GRID.x} ${GRID.y} ${GRID.size} ${GRID.size}" role="button" aria-label="Edit this state"><path class="stGrid" d="${grid}"/><g class="snap"></g></svg>
+      ${label ? `<div class="actions"><button class="btn" type="button" data-streset="${name}">Reset this state</button></div>`
+              : `<p class="hint">The ${GROUP_LABEL[name]} position itself: changing it changes ${GROUP_LABEL[name]} everywhere.</p>`}
+    </section>`).join('');
+  document.querySelectorAll('#stList .stView').forEach(v => v.onclick = () => selectState(+v.closest('.st').dataset.i));
+  document.querySelectorAll('[data-streset]').forEach(b => b.onclick = () => {
+    delete S.states[b.dataset.streset]; save(); if (stateEdit === b.dataset.streset) syncShapeInputs();
+  });
+  drawSnaps();
+}
+function closeTransition(){
+  leaveState(); stateTr = null; $('statesPanel').hidden = true;
+  if (!$('tab-shape').hidden) selectGroup(editGroup);
+}
+function selectState(i){
+  const [name, label] = TRANSITIONS[stateTr].states[i];
+  if (!$('holdPose').checked) $('holdPose').checked = true;
+  if (!S.showSkel){ S.showSkel = true; $('showSkel').checked = true; syncSkel(); }
+  if (!label) selectGroup(name);   // start / finish: the position itself
+  else {
+    stateEdit = name; syncShapeInputs(); resumeState();
+    if (/^jump/.test(name)){   // a frozen moment of a real jump (tilt, height and planted paws as they really are)
+      plan = jumpRef(structuredClone(livePose), posture); planT = phaseTime(plan, name);
+      holding = true; markActive(null); setPlaying(false); statePaused = true;
+    } else holdOn(name, GROUP_HOME[TRANSITIONS[stateTr].states[0][0]], null, `Editing ${TRANSITIONS[stateTr].btn}: ${label}`);
+  }
+  document.querySelectorAll('#stList .st').forEach(e => e.classList.toggle('on', +e.dataset.i === i));
+  stateSel = i; drawGhosts();
+}
+$('trBtns').innerHTML = Object.entries(TRANSITIONS).map(([id, T]) => `<button class="btn" type="button" data-tr="${id}">${T.btn}</button>`).join('');
+document.querySelectorAll('[data-tr]').forEach(b => b.onclick = () => openTransition(b.dataset.tr));
+$('stClose').onclick = closeTransition;
+[0, 1].forEach(k => {
+  const c = $('ghost' + k); c.checked = !UI['ghostOff' + k]; c.nextElementSibling.style.background = GHOST_COL[k];
+  c.onchange = () => { UI['ghostOff' + k] = !c.checked; saveUI(); drawGhosts(); };
+});
+// play the whole move once from its start (the panel stays open; pick a state again to hold it)
+$('stPlay').onclick = () => {
+  const id = stateTr; if (!id) return;
+  leaveState(); holding = false;
+  if (id === 'sit' || id === 'lie'){
+    const [a, b] = id === 'sit' ? ['stand', 'sit'] : ['sit', 'lie'];
+    plan = compile([...postureSteps(posture, a), { to: GROUP_POSE[a], dur: 0.5, label: 'Ready', home: a }, ...postureSteps(a, b), { to: GROUP_POSE[b], dur: 1, label: TRANSITIONS[id].label, home: b }],
+                   structuredClone(livePose), 'play', b, lift);
+    planT = 0; markActive(null);
+  } else startMove(id, true);
+  if (!playing) setPlaying(true);
+  playGhost = plan; drawGhosts();   // the start and finish stay on show while it plays
+};
 /* ---------- Eyes tab: edit each emotion's eyes on a 20 × 20 grid ---------- */
 const NS = 'http://www.w3.org/2000/svg';
 let edId = LOOK_BY[UI.edLook] ? UI.edLook : 'round', edSel = null, edDrag = null;
@@ -3179,7 +3675,7 @@ requestAnimationFrame(frame);
 // settings.json next to the page (e.g. in the GitHub repo) is used when it is newer than what this browser saved
 function useSettings(j){
   const legacy = Object.fromEntries(Object.keys(SHAPE_DEFAULT).filter(k => k in j).map(k => [k, j[k]]));
-  S = { ...DEFAULTS, ...j, shapes: freshShapes(j.shapes || Object.fromEntries(SHAPE_GROUPS.map(g => [g, legacy]))) };
+  S = { ...DEFAULTS, ...j, shapes: freshShapes(j.shapes || Object.fromEntries(SHAPE_GROUPS.map(g => [g, legacy]))), states: structuredClone(j.states || DEFAULTS.states || {}) };
   if (oldFluid(j) !== null) S.fluid = oldFluid(j);
   for (const k of Object.keys(SHAPE_DEFAULT)) delete S[k];
   save(true); syncInputs(); syncShapeInputs(); applyColors(); layout(); setLook(S.eyeRest, Infinity); edSelect(edId);
@@ -3193,7 +3689,7 @@ if (location.protocol.startsWith('http')){
 // test hook: catDebug.pose('lie') freezes on a named pose
 window.catDebug = {
   pose(name){ setPlaying(false); plan = compile([{ to:name, dur:Infinity, label:name, home:'sit', idle:true }], POSES[name], 'idle', 'sit'); planT = 0; },
-  POSES, doMove, setLook, gaitLeg, get gaitDbg(){ return gaitDbg; }, get plan(){ return plan; }, get step(){ return curStep; }, get planT(){ return planT; }, get shown(){ return lastShown; }, get settings(){ return S; }, look, mouse, lick, cursorJumpTarget, get state(){ return { posture, facing, worldX, label: curStep && curStep.label }; },
+  POSES, doMove, setLook, gaitLeg, get gaitDbg(){ return gaitDbg; }, get plan(){ return plan; }, get step(){ return curStep; }, get planT(){ return planT; }, get shown(){ return lastShown; }, get settings(){ return S; }, look, mouse, lick, dodge, cursorJumpTarget, get state(){ return { posture, facing, worldX, label: curStep && curStep.label }; },
 };
 </script>
 
