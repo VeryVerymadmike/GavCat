@@ -54,6 +54,15 @@ html.wallpaper #skel,html.wallpaper #ghosts{display:none!important}
 .stView{width:100%;aspect-ratio:1;display:block;background:var(--stage);border:1px solid var(--line);border-radius:10px;cursor:pointer}
 .st.on .stView{outline:2px solid var(--accent);outline-offset:1px}
 .stGrid{fill:none;stroke:#fff;stroke-opacity:.2;stroke-width:1;vector-effect:non-scaling-stroke}
+.jCurve{width:100%;display:block;background:var(--stage);border:1px solid var(--line);border-radius:10px;touch-action:none;user-select:none}
+.jCurve .floor{stroke:#fff;stroke-opacity:.4;stroke-width:1.5}
+.jCurve .arc{fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round}
+.jCurve .topLine{stroke:#ffd23f;stroke-width:1.2;stroke-dasharray:3 3}
+.jTop{cursor:ew-resize}.jTop path{fill:#ffd23f;stroke:#1e201e;stroke-width:1}
+.jMark{cursor:grab}.jMark circle{fill:#1e201e;stroke:#fff;stroke-width:1.5}
+.jMark text{fill:#fff;font:700 10px var(--font-num);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.jMark.fixed{cursor:pointer}.jMark.fixed circle{fill:#fff;stroke:#1e201e}.jMark.fixed text{fill:#1e201e}
+.jMark.on circle{stroke:#ffd23f;stroke-width:3}
 .gsw{width:10px;height:10px;border-radius:50%;flex:none;box-shadow:0 0 0 1px var(--shade)}
 .proj.err{color:#b4483c}
 .btn{font:500 13px/1 var(--font-ui);color:var(--ink);background:var(--field);border:1px solid var(--line);
@@ -282,10 +291,8 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
     <summary>Eye looks</summary>
     <div class="group">
       <div class="row"><label for="eyeRest">Resting look</label><select id="eyeRest"></select><span></span></div>
-      <div class="chips"><label class="chip"><input type="checkbox" id="eyeAuto">Change looks by itself</label></div>
-      <div class="chips" id="lookChips"></div>
-      <div class="row"><label for="lookGap">Change every</label><input type="range" id="lookGap" min="2" max="30" step="1"><output for="lookGap"></output></div>
-      <p class="hint">Watch always uses Fly hunt. Looks pause while the cat gets ready to jump.</p>
+      <div class="chips"><label class="chip"><input type="checkbox" id="eyeAuto">Moods from the cursor</label></div>
+      <p class="hint">Moods: Suspicious while the cursor rests in one place for a moment (until it moves, at most 12 s; not right after a happy face). Happy while the cursor is on the cat and 3 s after. Sad when the cursor hasn't been on the cat for 5 minutes, until it is. Otherwise the resting look. Watch always uses Fly hunt. Looks pause while the cat gets ready to jump.</p>
     </div>
   </details>
 
@@ -298,9 +305,11 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
         <label class="chip"><input type="checkbox" id="jumpCursor">Jumps go to the cursor</label>
         <label class="chip"><input type="checkbox" id="pounce">Pounces when the cursor rests nearby</label>
         <label class="chip"><input type="checkbox" id="dodgeTail">Keeps its tail away from the cursor</label>
+        <label class="chip"><input type="checkbox" id="playBelly">Plays with the cursor on its back</label>
+        <label class="chip"><input type="checkbox" id="pawCursor">Paws at or looks up to a cursor too close to jump to</label>
       </div>
-      <div class="row"><label for="jumpReach">Jump to cursor</label><input type="range" id="jumpReach" min="1.5" max="8" step="0.5"><output for="jumpReach"></output></div>
-      <p class="hint">Jump to cursor: how far away the cursor may be (in cat lengths) for the cat to jump to it. As the desktop wallpaper (the Gav Mac app) the cat sees the cursor whenever it is over the bare desktop; in Plash only in Browsing Mode.</p>
+      <div class="row"><label for="jumpReach">Jump to cursor</label><input type="range" id="jumpReach" min="2.5" max="8" step="0.5"><output for="jumpReach"></output></div>
+      <p class="hint">Jump to cursor: how far away the cursor may be (in cat lengths) for the cat to jump to it; it has to be at least 2 cat lengths away, so the jump never comes out cramped. Closer, while it rests, watches or sits facing you, its head leans toward the cursor; resting under its head, it lifts a front paw and reaches for it carefully, as if testing what it is. On its back it plays: with the cursor above it, all four paws reach for it like a dangled ball of yarn; beside it and on the belly the legs turn toward it (the tail curls in over the belly); move the cursor around it and the lower legs knead while the tail sways; it stays on its back while you play. As the desktop wallpaper (the Gav Mac app) the cat sees the cursor whenever it is over the bare desktop; in Plash only in Browsing Mode.</p>
     </div>
   </details>
 
@@ -319,7 +328,8 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <div class="row"><label for="runSpeed">Run speed</label><input type="range" id="runSpeed" min="0.4" max="2.5" step="0.05"><output for="runSpeed"></output></div>
       <div class="row"><label for="jumpPrep">Jump crouch</label><input type="range" id="jumpPrep" min="0.3" max="4" step="0.1"><output for="jumpPrep"></output></div>
       <div class="row"><label for="jumpHeight">Jump height</label><input type="range" id="jumpHeight" min="0.3" max="2.5" step="0.05"><output for="jumpHeight"></output></div>
-      <p class="hint">Run speed: faster runs take quicker, longer strides with longer flights. Jump crouch: how long the cat crouches and wiggles its rump before it jumps. Jump height: how high it flies (1× = normal; farther jumps go higher, never past the top of the screen; higher jumps stay longer in the air and tilt steeper, up to 70°).</p>
+      <div class="row"><label for="jumpTop">Jump top</label><input type="range" id="jumpTop" min="0.3" max="0.5" step="0.01"><output for="jumpTop"></output></div>
+      <p class="hint">Run speed: faster runs take quicker, longer strides with longer flights. Jump crouch: how long the cat crouches and wiggles its rump before it jumps. Jump height: how high it flies (1× = normal; farther jumps go higher, never past the top of the screen; higher jumps stay longer in the air and tilt steeper, up to 70°). Jump top: how far into the flight the cat is at its highest; earlier leaves a longer, gentler way forward and down to the landing (50% = up and down alike).</p>
     </div>
   </details>
 
@@ -503,9 +513,16 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
     <button class="btn primary" id="stPlay" type="button" title="Play this move once">Play</button>
     <button class="btn icon" id="stClose" type="button" title="Close">×</button>
   </div>
-  <p class="hint">Click a state to hold it on the stage, then drag its points there. Start and finish are the positions themselves.</p>
+  <p class="hint" id="stHint">Click a state to hold it on the stage, then drag its points there. Start and finish are the positions themselves.</p>
   <div class="chips"><label class="chip"><input type="checkbox" id="ghost0"><span class="gsw"></span><span id="ghost0Name">Start</span></label><label class="chip"><input type="checkbox" id="ghost1"><span class="gsw"></span><span id="ghost1Name">Finish</span></label></div>
   <p class="hint">Ghosts: outlines and points of the start and finish over the held state, and while the move plays. A dragged point snaps onto the same point of a ghost (hold Alt / Option to place it freely).</p>
+  <div id="stCurve" class="st" hidden>
+    <p class="sub">Flight path</p>
+    <svg class="jCurve" id="jCurve" viewBox="0 0 300 160" role="group" aria-label="The jump's path with its key positions"></svg>
+    <p class="hint" id="jCurveVal" hidden></p>
+    <p class="hint" id="jCurveNote">Drag a number along the path to set where in the flight the cat has that pose; the poses flow smoothly from one to the next. 1 Crouch and 6 Landing sit where the cat leaves the floor and lands. The yellow mark is the top of the jump: drag it to make the top come earlier or later. Click a number to hold that moment on the stage.</p>
+    <div class="actions"><button class="btn" type="button" id="jKeysReset">Reset timing</button></div>
+  </div>
   <div id="stList"></div>
 </aside>
 
@@ -926,7 +943,9 @@ function solveLegs(p){
     // Middle joint sliders: only the elbow / hock moves; shoulder / hip, paw and its direction stay
     const mx = l[0] === 'f' ? sh.fMidX : sh.bMidX, my = l[0] === 'f' ? sh.fMidY : sh.bMidY;
     // leg points dragged in the skeleton view: 1, 2 and 3 each move on their own, 3 carrying the paw; 4 turns round 3
-    // at the paw's length (an older save that moved 4 by itself keeps that direction as its turn). 3 and 4 stay above the floor
+    // at the paw's length (an older save that moved 4 by itself keeps that direction as its turn). 3 and 4 stay above the
+    // floor; so does 2, by its own thickness (counting the whole-cat move, see shiftPose): a knee pushed into the floor rests
+    // on it instead of being cut off at the floor line
     const rest = CAT_BOX.floor - 0.5 - rP, put = (q, i, floor) => {
       const dx = sh[l + i + 'x'] || 0, dy = sh[l + i + 'y'] || 0;
       return dx || dy ? [q[0] + dx, floor && dy > 0 ? Math.min(q[1] + dy, Math.max(q[1], rest)) : q[1] + dy] : q;
@@ -935,7 +954,8 @@ function solveLegs(p){
     const vx = qx * len + ox, vy = qy * len + oy, turn = (ox || oy ? Math.atan2(qx * vy - qy * vx, qx * vx + qy * vy) : 0) + (sh[l + '4a'] || 0) * Math.PI / 180;
     const toe = [w3[0] + (qx * Math.cos(turn) - qy * Math.sin(turn)) * len, w3[1] + (qx * Math.sin(turn) + qy * Math.cos(turn)) * len];
     (p.pawTurn = p.pawTurn || {})[l] = turn;
-    p.legs[l] = [put(h, 1), put(mx || my ? [kn[0] + mx, kn[1] - my] : kn, 2), w3, [toe[0], Math.min(toe[1], Math.max(w3[1], rest))]];
+    const k2 = put(mx || my ? [kn[0] + mx, kn[1] - my] : kn, 2);
+    p.legs[l] = [put(h, 1), [k2[0], Math.min(k2[1], FLOOR_Y - foldR(p, l) - (sh.catY || 0))], w3, [toe[0], Math.min(toe[1], Math.max(w3[1], rest))]];
   }
   return shiftPose(p);
 }
@@ -1000,7 +1020,7 @@ function tailPoints(T, lenK = 1){
 const GROUP_OF = { stand:'stand', standSpun:'stand', walk:'stand', run:'stand', sit:'sit', sitSpun:'sit', sitWatch:'sit', lickReady:'sit', lickDown:'sit', lickUp:'sit',
   lie:'lie', lieAwake:'lie', stretch:'stretch', stretchLook:'stretch', sitFront:'front', sitFrontTiltA:'front', sitFrontTiltB:'front', belly:'belly', bellyBat:'belly',
   jumpReady:'jump', jumpWiggle:'jump', jumpPush:'jump', jumpRise:'jump', jumpFly:'jump', jumpReach:'jump', jumpAbsorb:'jump',
-  bellyDown:'stand' };   // (going down: the Stand controls; its shape, see ARC_OF)
+  bellyDown:'stand', runLand:'stand', runGather:'stand', runPush:'stand', runFly:'stand', runStart:'stand', runLanding:'stand', runStop:'stand' };   // (going down: the Stand controls; its shape, see ARC_OF; the run's key moments, see RUN_KEYS)
 const MID_OF = { sitMid:['stand', 'sit'], lieMid:['sit', 'lie'], reach:['stand', 'stretch'], bellyMid:['lie', 'belly'], faceMid:['sit', 'front'] };   // in-between poses blend both
 // a pose a move passes on its way between two others: its shape is where the move passes too [from, via, to, when]
 const ARC_OF = { bellyDown:['stand', 'bellyMid', 'belly', 0.25] };
@@ -1310,9 +1330,9 @@ const WALL = new URLSearchParams(location.search).has('wallpaper');
 document.documentElement.classList.toggle('wallpaper', WALL);
 const DEFAULTS = {
   speed:1, idleTime:5, postureTime:1.0, turnTime:1.0, trans:0.9, holdStretch:2.4, watchTime:4, licks:6, napTime:10,
-  jumpPrep:1.4, jumpHeight:1,
-  followCursor:true, lickCursor:true, jumpCursor:true, pounce:true, dodgeTail:true, jumpReach:4,
-  eyeRest:'round', eyeAuto:true, lookGap:7, lookSoft:true, lookSquint:true, lookCross:true, lookFly:true, lookShifty:true,
+  jumpPrep:1.4, jumpHeight:1, jumpTop:0.3,
+  followCursor:true, lickCursor:true, jumpCursor:true, pounce:true, dodgeTail:true, playBelly:true, pawCursor:true, jumpReach:4,
+  eyeRest:'round', eyeAuto:true,
   auto:true, useStretch:true, useWatch:true, useGroom:true, useNap:true, useJump:true, useWalk:true, useRun:true, useFace:true, useBelly:true,
   walkSpeed:1, runSpeed:1, runStride:0.46,
   blink:true, breathe:true, sway:true, closeEyes:true, turnBack:false,
@@ -1343,17 +1363,15 @@ for (let i = 1; i <= 3; i++){ SHAPE_DEFAULT['tail' + i + 'x'] = 0; SHAPE_DEFAULT
 // tuned settings, built in: a new browser (or a fresh copy of this file) starts from these;
 // what a browser saved, or a newer settings.json, still wins
 Object.assign(DEFAULTS, {
-  speed:1, idleTime:1, postureTime:1, turnTime:1, trans:0.9, holdStretch:2.4, watchTime:1, licks:2, napTime:2,
-  jumpPrep:0.9, jumpHeight:1.7, followCursor:true, lickCursor:true, jumpCursor:true, pounce:true, dodgeTail:true,
-  jumpReach:8, eyeRest:"round", eyeAuto:true, lookGap:7, lookSoft:true, lookSquint:true, lookCross:true,
-  lookFly:true, lookShifty:true, auto:true, useStretch:true, useWatch:true, useGroom:true, useNap:true,
-  useJump:true, useWalk:true, useRun:true, useFace:true, useBelly:true, walkSpeed:1.25, runSpeed:2.5,
-  runStride:0.54, blink:true, breathe:true, sway:true, closeEyes:true, turnBack:false, catColor:"#191a19",
-  eyeColor:"#ffe499", tongueColor:"#ee736d", bgColor:"#8f938b", shadowColor:"#6f6a4b", size:11, posX:5, ground:8,
-  flip:false, showSkel:true, fluid:2.3, lookSurprised:true, lookHappy:true, lookSly:true, lookWink:true,
-  lookSkeptic:true, lookBored:true, lookDeadpan:true, lookSideeye:true, lookSuspicious:true, lookSleepy:true,
-  lookWorried:true, lookPleading:true, lookSad:false, lookAngry:true,
-  states:{"sitMid": {"bf4x": 3.65, "bf4y": 21.84, "bf3x": 0.44, "bf3y": 27.39, "bn4x": 6.34, "bn4y": 19.07, "bn3x": 2.88, "bn3y": 29.01, "bn1x": -11.12, "bn1y": 1.34, "bf1x": -4.22, "bf1y": 7.5, "bn2x": 44.87, "bn2y": -21.9, "bf2x": 40.63, "bf2y": -23.93, "ff1x": -24.54, "ff1y": -2.56, "fn1x": -24.61, "fn1y": -3.16, "ff2x": -14.15, "ff2y": 4.04, "ff3x": -15.38, "ff3y": 1.18, "ff4x": -15.72, "ff4y": 1.18, "fn3x": -12.23, "fn3y": 1.18, "fn4x": -10.03, "fn4y": 1.18, "fn2x": -22.08, "fn2y": 4.24, "headX": -20.98, "headY": -4.22}, "lieMid": {"bf4x": 11.94, "bf4y": 26.1, "bf3x": 10.84, "bf3y": 26.1, "bn4x": 12.12, "bn4y": 21, "bn3x": 6.02, "bn3y": 21, "fn4x": 1.44, "fn4y": 25.77, "fn3x": 4.24, "fn3y": 19.59, "ff3x": 1.81, "ff3y": 11.17, "ff4x": -3.55, "ff4y": 16.13, "fn2x": -1.32, "fn2y": 17.03, "ff2x": -13.91, "ff2y": 22.88}, "reach": {"ff2x": -11.02, "ff2y": 6.97, "fn2x": -9.84, "fn2y": 11.01, "ff1x": -1.96, "ff1y": 6.42, "fn1x": -7.08, "fn1y": 13.08, "headX": 3.21, "headY": -7.35, "bn1x": -2.99, "bn1y": -8.5, "bf1x": -0.49, "bf1y": -8.5}, "bellyMid": {"bn1x": -5.22, "bn1y": -5.22, "bf1x": 16.06, "bf1y": 16.08, "bn4x": -8.18, "bn4y": -27.63, "bn3x": 25.78, "bn3y": -48.95, "bn2x": 2.57, "bn2y": -22.36, "t2x": -26.16, "t2y": -3.02, "t3x": -31.5, "t3y": -6.04, "t1x": -8.22, "t1y": -8.95, "t4x": -33.91, "t4y": -0.44, "t5x": -39.25, "t5y": 3.4, "bf2x": -20.99, "bf2y": 0.8, "bf3x": -2.05, "bf3y": -44.26, "fn2x": -10.51, "fn2y": -16.63, "bn4a": 64.4, "fn1x": -5.98, "fn1y": -16.6, "ff1x": -9, "ff1y": 19.53, "ff2x": 3.95, "ff2y": -13.46, "fn3x": -66.12, "fn3y": -21.5, "headX": 12.59, "headY": -6.17, "headRot": 43, "spineCurve": -20, "catX": -10.31, "catY": -18.25}, "faceMid": {"fn1x": -5.21, "fn1y": -18.11, "ff1x": -0.17, "ff1y": 13.49, "fn2x": -3.42, "fn2y": -17.1, "fn4x": -2.94, "fn4y": 2.36, "fn3x": -11.7, "fn3y": 1.18, "ff4x": -3.63, "ff4y": 14.09, "ff3x": -2.11, "ff3y": 14.09, "ff2x": -2.85, "ff2y": 5.91, "bf2x": -3.72, "bf2y": -2.49, "bn1x": -0.24, "bn1y": -1.18, "bn2x": -22.79, "bn2y": -27.15, "bn4x": -10.76, "bn4y": 1.49, "bn3x": -4.59, "bn3y": 1.49}, "jumpReady": {"bn1x": 0, "bn1y": 5, "bf1x": 0, "bf1y": 5, "bf2x": 5, "bf2y": -5, "fn1x": -15, "fn1y": -10, "headX": -32.38, "headY": 9.77, "spineCurve": -5.5}, "jumpPush": {"bn1x": 13.54, "bn1y": 65.06, "bf1x": 18.52, "bf1y": 60, "ff1x": 38.52, "ff1y": 42.01, "fn1x": 27.92, "fn1y": 62.02, "bf2x": 26.43, "bf2y": 12.6, "bn2x": 9.98, "bn2y": 21.25, "ff2x": 83.96, "ff2y": 51.43, "fn2x": 63.2, "fn2y": 55.34, "fn3x": 39.95, "fn3y": 43.79, "ff3x": 62.03, "ff3y": 29.22, "fn4x": 10.46, "fn4y": 73.86, "ff4x": 42.05, "ff4y": 59.08, "headX": 13.2, "headY": -18.02, "headRot": -3, "spineCurve": -3, "t1x": -7.66, "t1y": -3.23, "ff4a": -153, "fn4a": -180.3}, "jumpFly": {"fn1x": 2.92, "fn1y": -89.72, "ff1x": -9.4, "ff1y": -71.58, "ff2x": -27.47, "ff2y": 17.05, "fn2x": 5.38, "fn2y": 8.26, "fn3x": -69.1, "fn3y": 22.7, "fn4x": -64.34, "fn4y": 46.38, "ff3x": -95.66, "ff3y": 31.98, "ff4x": -40.9, "ff4y": 39.48, "headX": -42.47, "headY": -5.52, "t1x": 8.11, "t1y": -42.52, "t2x": 0.92, "t2y": -36.49, "t4x": -0.18, "t4y": 23.74, "t5x": 2.32, "t5y": 57.08, "t3x": 0.53, "t3y": -10.55, "bn1x": 9.52, "bn1y": -111.01, "bf1x": 24.52, "bf1y": -121.01, "tail1x": 6.37, "tail1y": -163.49, "tail2x": 15.93, "tail2y": 1.44, "tail3x": 29.27, "tail3y": 0.83, "bn2x": -1.78, "bn2y": -89.73, "bf2x": 17.55, "bf2y": -107.58, "bf3x": -6.69, "bf3y": -104.56, "bn3x": -10.64, "bn3y": -76.46, "ff4a": 40.8, "fn4a": -9.4, "bn4a": -193.3, "headRot": 6, "spineCurve": 28}, "jumpReach": {"bf1x": -81.56, "bf1y": 45.37, "bn1x": -81.6, "bn1y": 40.38, "bn2x": -110.2, "bn2y": 65.16, "bn3x": -139.3, "bn3y": 23.71, "bn4x": -136.14, "bn4y": 18.06, "bf2x": -68.79, "bf2y": 35.45, "bf3x": -112.17, "bf3y": -7.49, "bf4x": -113.98, "bf4y": -13.15, "t1x": -1.77, "t1y": -6.75, "t2x": -34.8, "t2y": 30.12, "t3x": -50.78, "t3y": 54.86, "t4x": -82.04, "t4y": 85.79, "t5x": -134.25, "t5y": 101.48, "ff1x": 5.42, "ff1y": -18.72, "fn1x": -31.7, "fn1y": -45.62, "fn2x": 27.85, "fn2y": 19.3, "ff2x": 27.24, "ff2y": 20.27, "headX": -78.39, "headY": -12.24, "headRot": -27, "tail1x": -113.13, "tail1y": 30.7, "tail2x": -7.94, "tail2y": -35.38, "tail3x": 25.02, "tail3y": -47.26, "spineCurve": -3}, "jumpAbsorb": {"bn1x": 2, "bn1y": -34, "bf1x": 7, "bf1y": -34, "bf2x": -5.14, "bf2y": -67.9, "bf3x": -35.94, "bf3y": -73.51, "bf4x": -13.74, "bf4y": -18.51, "bn2x": -9.53, "bn2y": -75.03, "bn3x": -31.82, "bn3y": -78.51, "bn4x": -19.62, "bn4y": -23.51, "headX": -29.32, "headY": -21.02, "ff2x": 17.95, "ff2y": 19.24, "fn2x": 8.56, "fn2y": 23.04, "fn1x": -14.12, "fn1y": 0.47, "spineCurve": 17.5, "tail1x": -19.3, "tail1y": -63.6, "tail2x": 32.56, "tail2y": -92.04, "tail3x": 10.08, "tail3y": -80.27}, "jumpRise": {"tail1x": -45.4, "tail1y": -15.82, "tail2x": 18.24, "tail2y": 13.51, "tail3x": 12.6, "tail3y": 28.02, "bn2x": 25.63, "bn2y": -15.17, "bn4a": -68.7, "bn3x": 55.62, "bn3y": -12.58, "bf3x": 22.45, "bf3y": 3.9, "bf4a": 362.4, "bf2x": 10.76, "bf2y": -1.94, "bf1x": -29.53, "bf1y": 19.16, "bn1x": -29.53, "bn1y": 29.16, "headX": -34.21, "headY": 33.2, "fn1x": -3.54, "fn1y": -1.83, "ff1x": 1.83, "ff1y": -8.86, "ff2x": 54.95, "ff2y": 2.54, "fn2x": 35.09, "fn2y": 13.84, "fn3x": 35.37, "fn3y": 21.45, "ff3x": 41.56, "ff3y": 14.53, "fn4a": -565, "ff4a": -177.7, "spineCurve": 27.5, "headRot": 21}, "lickReady": {"fn2x": -30.86, "fn2y": 15.65, "fn1x": 11, "fn1y": -4, "fn3x": 7.8, "fn3y": -13, "fn4a": -62.3, "ff1x": -12, "ff1y": -7, "ff2x": 20.53, "ff2y": 33.85, "ff3x": 14.66, "ff3y": 6.18, "ff4a": -242.3}, "lickDown": {"fn2x": 0.79, "fn2y": -2.51, "fn4a": -267.7, "fn3x": -10, "fn3y": -1, "headRot": -7, "headX": -1.32, "headY": -7.65}, "bellyDown": {"bn2x": 10.08, "bn2y": 17.94, "bn3x": 22.39, "bn3y": 55.85, "bf3x": 6.49, "bf3y": 10.01, "bf4a": 152.2, "bn4a": 181.5, "bn1x": -8.84, "bn1y": 13.22, "bf1x": -8.95, "bf1y": 9.65, "bf2x": -24.41, "bf2y": 4.68, "fn1x": -14.04, "fn1y": -13.42, "ff1x": -23.97, "ff1y": -15.36, "fn3x": -4.25, "fn3y": 30.19, "ff3x": -1.71, "ff3y": 11.16, "catX": 9.39, "catY": 15.56}}
+  speed:1, idleTime:4, postureTime:1, turnTime:1, trans:0.9, holdStretch:2.4, watchTime:4, licks:2, napTime:2,
+  jumpPrep:0.9, jumpHeight:1.7, jumpTop:0.47, followCursor:true, lickCursor:true, jumpCursor:true, pounce:true,
+  dodgeTail:true, playBelly:true, pawCursor:true, jumpReach:7, eyeRest:"round", eyeAuto:true, auto:true,
+  useStretch:true, useWatch:true, useGroom:true, useNap:true, useJump:true, useWalk:true, useRun:true,
+  useFace:true, useBelly:true, walkSpeed:1.25, runSpeed:2.5, runStride:0.54, blink:true, breathe:true, sway:true,
+  closeEyes:true, turnBack:false, catColor:"#191a19", eyeColor:"#ffe499", tongueColor:"#ee736d",
+  bgColor:"#8f938b", shadowColor:"#6f6a4b", size:11, posX:5, ground:8, flip:false, showSkel:true, fluid:2.3,
+  states:{"sitMid": {"bf4x": 3.65, "bf4y": 21.84, "bf3x": 0.44, "bf3y": 27.39, "bn4x": 6.34, "bn4y": 19.07, "bn3x": 2.88, "bn3y": 29.01, "bn1x": -11.12, "bn1y": 1.34, "bf1x": -4.22, "bf1y": 7.5, "bn2x": 44.87, "bn2y": -21.9, "bf2x": 40.63, "bf2y": -23.93, "ff1x": -24.54, "ff1y": -2.56, "fn1x": -24.61, "fn1y": -3.16, "ff2x": -14.15, "ff2y": 4.04, "ff3x": -15.38, "ff3y": 1.18, "ff4x": -15.72, "ff4y": 1.18, "fn3x": -12.23, "fn3y": 1.18, "fn4x": -10.03, "fn4y": 1.18, "fn2x": -22.08, "fn2y": 4.24, "headX": -20.98, "headY": -4.22}, "lieMid": {"bf4x": 11.94, "bf4y": 26.1, "bf3x": 10.84, "bf3y": 26.1, "bn4x": 12.12, "bn4y": 21, "bn3x": 6.02, "bn3y": 21, "fn4x": 1.44, "fn4y": 25.77, "fn3x": 4.24, "fn3y": 19.59, "ff3x": 1.81, "ff3y": 11.17, "ff4x": -3.55, "ff4y": 16.13, "fn2x": -1.32, "fn2y": 17.03, "ff2x": -13.91, "ff2y": 22.88, "ff1x": -18.33, "ff1y": 6.18, "catX": 26.3, "catY": -0.88}, "reach": {"ff2x": -11.02, "ff2y": 6.97, "fn2x": -9.84, "fn2y": 11.01, "ff1x": -1.96, "ff1y": 6.42, "fn1x": -7.08, "fn1y": 13.08, "headX": 3.21, "headY": -7.35, "bn1x": -2.99, "bn1y": -8.5, "bf1x": -0.49, "bf1y": -8.5}, "bellyMid": {"bn1x": -5.22, "bn1y": -5.22, "bf1x": 21.86, "bf1y": 9.08, "bn4x": -8.18, "bn4y": -27.63, "bn3x": 25.78, "bn3y": -48.95, "bn2x": 2.57, "bn2y": -22.36, "t2x": -26.16, "t2y": -3.02, "t3x": -31.5, "t3y": -6.04, "t1x": -8.22, "t1y": -8.95, "t4x": -33.91, "t4y": -0.44, "t5x": -39.25, "t5y": 3.4, "bf2x": -37.69, "bf2y": 6.3, "bf3x": -2.05, "bf3y": -44.26, "fn2x": -28, "fn2y": -71.38, "bn4a": 64.4, "fn1x": -5.98, "fn1y": -16.6, "ff1x": -23.99, "ff1y": 24.78, "ff2x": -6.04, "ff2y": 9.29, "fn3x": -41.11, "fn3y": -66.25, "headX": 12.59, "headY": -6.17, "headRot": 43, "spineCurve": -20, "catX": -10.31, "catY": -18.25, "fn4a": -102.7, "ff3x": -24.56, "ff3y": 3, "ff4a": -181.9}, "faceMid": {"fn1x": -5.21, "fn1y": -18.11, "ff1x": -0.17, "ff1y": 13.49, "fn2x": -3.42, "fn2y": -17.1, "fn4x": -2.94, "fn4y": 2.36, "fn3x": -11.7, "fn3y": 1.18, "ff4x": -3.63, "ff4y": 14.09, "ff3x": -2.11, "ff3y": 14.09, "ff2x": -2.85, "ff2y": 5.91, "bf2x": -3.72, "bf2y": -2.49, "bn1x": -0.24, "bn1y": -1.18, "bn2x": -22.79, "bn2y": -27.15, "bn4x": -10.76, "bn4y": 1.49, "bn3x": -4.59, "bn3y": 1.49}, "jumpReady": {"bn1x": 0, "bn1y": 5, "bf1x": 0, "bf1y": 5, "bf2x": 5, "bf2y": -5, "fn1x": -15, "fn1y": -10, "headX": -32.38, "headY": 9.77, "spineCurve": -5.5}, "jumpPush": {"bn1x": 10.27, "bn1y": 57.29, "bf1x": 10.29, "bf1y": 52.28, "ff1x": 52.74, "ff1y": 35.23, "fn1x": 15.13, "fn1y": 54.16, "bf2x": 17.61, "bf2y": 10.91, "bn2x": 15.25, "bn2y": 26.68, "ff2x": 78.73, "ff2y": 49.6, "fn2x": 56.58, "fn2y": 47.75, "fn3x": 48.16, "fn3y": 58.18, "ff3x": 56.64, "ff3y": 49.38, "fn4x": 10.46, "fn4y": 73.86, "ff4x": 42.05, "ff4y": 59.08, "headX": 13.2, "headY": -18.02, "headRot": -3, "spineCurve": 5, "t1x": -7.66, "t1y": -3.23, "ff4a": -153, "fn4a": -180.3, "catX": 17.72, "catY": -2.3, "bn3x": -17.83, "bn3y": 2.29, "bf3x": -17.5, "bf3y": 2.29, "tail1x": -19.59, "tail1y": 22.95}, "jumpFly": {"fn1x": 2.92, "fn1y": -89.72, "ff1x": -9.4, "ff1y": -71.58, "ff2x": -27.47, "ff2y": 17.05, "fn2x": -10.18, "fn2y": 10.24, "fn3x": -84.89, "fn3y": 15.58, "fn4x": -64.34, "fn4y": 46.38, "ff3x": -95.66, "ff3y": 31.98, "ff4x": -40.9, "ff4y": 39.48, "headX": -42.47, "headY": -5.52, "t1x": 8.11, "t1y": -42.52, "t2x": 0.92, "t2y": -36.49, "t4x": -0.18, "t4y": 23.74, "t5x": 2.32, "t5y": 57.08, "t3x": 0.53, "t3y": -10.55, "bn1x": 9.52, "bn1y": -111.01, "bf1x": 24.52, "bf1y": -121.01, "tail1x": 6.37, "tail1y": -163.49, "tail2x": 15.93, "tail2y": 1.44, "tail3x": 29.27, "tail3y": 0.83, "bn2x": -1.78, "bn2y": -89.73, "bf2x": 8.41, "bf2y": -121.6, "bf3x": -5.51, "bf3y": -118.42, "bn3x": -10.64, "bn3y": -76.46, "ff4a": 40.8, "fn4a": -9.4, "bn4a": -193.3, "headRot": 6, "spineCurve": 28}, "jumpReach": {"bf1x": -64.4, "bf1y": 35.49, "bn1x": -69.36, "bn1y": 35.46, "bn2x": -110.2, "bn2y": 65.16, "bn3x": -122.35, "bn3y": 8.55, "bn4x": -136.14, "bn4y": 18.06, "bf2x": -66.02, "bf2y": 47.82, "bf3x": -96.89, "bf3y": -2.17, "bf4x": -113.98, "bf4y": -13.15, "t1x": -1.77, "t1y": -6.75, "t2x": -34.8, "t2y": 30.12, "t3x": -50.78, "t3y": 54.86, "t4x": -82.04, "t4y": 85.79, "t5x": -134.25, "t5y": 101.48, "ff1x": 5.42, "ff1y": -18.72, "fn1x": -31.7, "fn1y": -45.62, "fn2x": 27.85, "fn2y": 19.3, "ff2x": 27.24, "ff2y": 20.27, "headX": -59.2, "headY": -16.86, "headRot": -27, "tail1x": -93.53, "tail1y": 6.38, "tail2x": 17.31, "tail2y": -15.92, "tail3x": 55.2, "tail3y": -49.23, "spineCurve": -20.5}, "jumpAbsorb": {"bn1x": 16.23, "bn1y": -34.13, "bf1x": 26.23, "bf1y": -34.13, "bf2x": -5.96, "bf2y": -79.68, "bf3x": -23.15, "bf3y": -91.64, "bf4x": -13.74, "bf4y": -18.51, "bn2x": -1.43, "bn2y": -100.63, "bn3x": -28.15, "bn3y": -63.37, "bn4x": -19.62, "bn4y": -23.51, "headX": -51.8, "headY": -25.6, "ff2x": 17.95, "ff2y": 19.24, "fn2x": 8.56, "fn2y": 23.04, "fn1x": -14.12, "fn1y": 0.47, "spineCurve": 17.5, "tail1x": -4, "tail1y": -79.5, "tail2x": 32.56, "tail2y": -92.04, "tail3x": 10.08, "tail3y": -80.27}, "jumpRise": {"tail1x": -64.44, "tail1y": -8.25, "tail2x": 39.77, "tail2y": 22.37, "tail3x": 44.79, "tail3y": 64.69, "bn2x": 31.74, "bn2y": 9.01, "bn4a": -68.7, "bn3x": 55.62, "bn3y": -12.58, "bf3x": 22.45, "bf3y": 3.9, "bf4a": 362.4, "bf2x": 26.19, "bf2y": 26.58, "bf1x": -40.28, "bf1y": 25.11, "bn1x": -29.53, "bn1y": 29.16, "headX": -23.4, "headY": 34.57, "fn1x": -3.7, "fn1y": -11.14, "ff1x": -2.46, "ff1y": -17.68, "ff2x": 54.95, "ff2y": 2.54, "fn2x": 35.09, "fn2y": 13.84, "fn3x": 34.04, "fn3y": 47.72, "ff3x": 41.08, "ff3y": 26.28, "fn4a": -565, "ff4a": -177.7, "spineCurve": 27.5, "headRot": -20, "catX": 40.91, "catY": -5.87}, "lickReady": {"fn2x": -30.86, "fn2y": 15.65, "fn1x": 11, "fn1y": -4, "fn3x": 7.8, "fn3y": -13, "fn4a": -62.3, "ff1x": -12, "ff1y": -7, "ff2x": 20.53, "ff2y": 33.85, "ff3x": 14.66, "ff3y": 6.18, "ff4a": -242.3}, "lickDown": {"fn2x": 0.79, "fn2y": -2.51, "fn4a": -267.7, "fn3x": -10, "fn3y": -1, "headRot": -7, "headX": -1.32, "headY": -7.65}, "bellyDown": {"bn2x": 4.35, "bn2y": 24.13, "bn3x": 39.79, "bn3y": 6.8, "bf3x": -11.33, "bf3y": -21.23, "bf4a": 152.2, "bn4a": 181.5, "bn1x": -18.19, "bn1y": -22.47, "bf1x": -51.4, "bf1y": -13.91, "bf2x": -43, "bf2y": -35.73, "fn1x": -17.66, "fn1y": -32.91, "ff1x": -23.97, "ff1y": -15.36, "fn3x": -12.77, "fn3y": -23.31, "ff3x": -23.89, "ff3y": -26.78, "catX": 14.96, "catY": 42.31, "headX": 0.2, "headY": 12.43, "headRot": 20, "fn4a": 60.8, "fn2x": -19.46, "fn2y": -22.28, "ff2x": 21.86, "ff2y": -21.06, "tail1x": 1.08, "tail1y": -13.99}, "runStart": {"bn2x": 36.46, "bn2y": 33.8, "bn4a": -90.2, "bn3x": -11.27, "bn3y": -6.06, "bf2x": 18.46, "bf2y": -6.56, "bn1x": -0.86, "bn1y": -31.41, "bf4a": -37.8, "bf1x": -5.47, "bf1y": -23.73, "fn1x": -38.84, "fn1y": -9.95, "ff1x": -28, "ff1y": -9.42, "ff3x": 6.97, "ff3y": -12.24, "ff2x": 58.82, "ff2y": -11.95, "headX": -6.32, "headY": 13.26, "ff4a": -2, "fn4a": -252.2, "fn3x": -63.44, "fn3y": -0.99, "fn2x": 12.81, "fn2y": -15.19, "bf3x": 12.38, "bf3y": -12.15, "spineCurve": 7.5, "tail1x": -4.35, "tail1y": -20.4, "tail2x": 11.1, "tail2y": 35.07, "tail3x": 0.48, "tail3y": 48.56}, "runLand": {"ff4a": -36.8, "bn1x": 13.7, "bn1y": -21.13, "bf1x": 8.7, "bf1y": -26.13, "bn2x": -5.53, "bn2y": -48.31, "bn3x": -15.96, "bn3y": -27.23, "bf3x": 23.72, "bf3y": -9.7, "bf2x": 25.51, "bf2y": -28.18, "bf4a": -66.3, "bn4a": -22.7, "tail1x": -4.27, "tail1y": -17.79, "tail3x": 5.45, "tail3y": -56.05, "tail2x": 16, "tail2y": 5.04, "headX": -4.77, "headY": -29.19, "spineCurve": 14, "fn1x": -20.39, "fn1y": 1.46}, "runGather": {"bn1x": -6.64, "bn1y": 10.91, "tail1x": -9.14, "tail1y": 8.8, "bn4a": 17.5, "bf3x": -1.93, "bf3y": 26.18, "bf4a": 95.6, "bn3x": -4.77, "bn3y": 1.49, "bn2x": 2.37, "bn2y": -4.23, "bf2x": 2.04, "bf2y": -3.33, "bf1x": 8.36, "bf1y": 10.91, "fn3x": -4.39, "fn3y": 5.78, "fn2x": -16.49, "fn2y": 32.95, "ff2x": -17.85, "ff2y": 20.17, "ff1x": -15.65, "ff1y": 1.73, "fn1x": -36.59, "fn1y": -2.34, "ff3x": 15.02, "ff3y": 1.27, "ff4a": -158.7, "fn4a": -208.4, "headRot": -3, "headX": -18.95, "headY": -9.84}, "runPush": {"bn2x": 49.42, "bn2y": 35.02, "bn3x": 11.79, "bn3y": 8.71, "bn1x": 8.1, "bn1y": 0.63, "tail1x": -4.62, "tail1y": -6.16, "bf2x": 49.39, "bf2y": 16.63, "bn4a": 298.6, "bf4a": 38.9, "bf3x": -1.87, "bf3y": 6.49, "bf1x": 8.1, "bf1y": 0.63, "spineCurve": -2, "fn1x": -30.59, "fn1y": -5.65, "ff4a": -42.7, "fn4a": 62.8, "fn3x": -19.08, "fn3y": -17.5, "fn2x": -4.3, "fn2y": -8.17, "headX": -4.63, "headY": -4.42, "ff1x": -14.46, "ff1y": -5.2, "ff3x": 17.99, "ff3y": -8.68, "ff2x": 5.81, "ff2y": 8.15}, "runFly": {"catX": -6.32, "catY": -17.97, "fn1x": -18.71, "fn1y": 2.88, "fn2x": 32.77, "fn2y": -23.47, "fn3x": 25.13, "fn3y": -20.93, "ff2x": 68.94, "ff2y": -8.01, "ff3x": 82.04, "ff3y": -0.71, "ff4a": -156.2, "fn4a": -86.2, "bn2x": 58.13, "bn2y": 15.86, "bn3x": -84.09, "bn3y": 10.88, "bf2x": 6.18, "bf2y": 42.85, "bf3x": -34.31, "bf3y": -12.05, "bf4a": -249, "bn4a": -178.5, "bn1x": -16.68, "bn1y": -2.93, "spineCurve": 15.5, "headX": -6.01, "headY": -18.82, "tail1x": -14.69, "tail1y": 13.68, "bf1x": -16.68, "bf1y": -2.93}, "runLanding": {"bn3x": 5.25, "bn3y": 13.57, "bn4a": 82.7, "bf4a": -57.6, "bn1x": 13.33, "bn1y": -16.65, "bf1x": 16.65, "bf1y": -16.63, "bn2x": 15.39, "bn2y": -29.87, "tail1x": 8.47, "tail1y": -16.44, "tail3x": -1.38, "tail3y": -22.28, "tail2x": 10.64, "tail2y": 3.35, "spineCurve": -13}, "runStop": {"ff1x": -5, "ff1y": -15, "fn1x": -16.14, "fn1y": -11.2, "headX": -0.84, "headY": 5.7, "spineCurve": 6.5}},
+  jumpKeys:{"push": 0.07, "rise": 0.29, "fly": 0.62, "reach": 0.94}
 });
 const SHAPE_GROUPS = ['stand', 'sit', 'lie', 'stretch', 'jump', 'front', 'belly'];
 const GROUP_LABEL = { stand:'Stand', sit:'Sit', lie:'Lie', stretch:'Stretch', jump:'Jump', front:'Front', belly:'Belly up' };
@@ -1371,21 +1389,25 @@ function migrateShape(g){
 }
 // tuned shape for each position (built in; "Reset this position" goes back to it)
 const SHAPE_PRESET = {
-  stand: { headSize:1.09, headWidth:0.97, headX:13, headY:-4, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:-3, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, ff1x:-0.54, ff1y:-1.2, ff2x:-4.99, ff2y:2.57, ff3x:-6.93, ff3y:1.18, ff4x:-4.73, ff4y:1.18, bn1x:-3.3, bn1y:-2.5, bn2x:-3.58, bn2y:3.75, bn3x:1.06, bn3y:1.49, bf1x:-3.3, bf1y:-2.5, bf2x:3.3, bf2y:0.71 },
-  sit: { headSize:1.09, headWidth:0.97, headX:13, headY:2, ribW:1.03, ribH:0.67, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:2, shoulderX:6.5, shoulderY:-3.5, hipSpread:1.62, hipX:5.5, hipY:1, hipSize:0.69, fPawX:1.5, fPawY:-17, bPawX:-16.5, bPawY:-3.5, fMidX:-11, fMidY:14, bMidX:9, bMidY:25.5, spineCurve:-2, thighW:1.72, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.94, foldR:1.24, fn1x:-22.02, fn1y:-20.1, fn2x:7.81, fn2y:-8.28, ff1x:28.98, ff1y:-20.1, ff2x:30.57, ff2y:-12.1, ff3x:12.7, ff3y:1.18, ff4x:15.59, ff4y:1.18, bn1x:3.79, bn1y:2.32, bn2x:-10.08, bn2y:-7.99, bf2x:-9.58, bf2y:-3.9 },
-  lie: { headSize:1.09, headWidth:0.97, headX:5, headY:10, ribW:0.89, ribH:0.62, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.09, toeR:0.61, legThick:1.16, tailThick:0.82, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.21, shoulderX:2, shoulderY:-7, hipSpread:1.52, hipX:3.5, hipY:-1, hipSize:0.77, fPawX:15.5, fPawY:-20, bPawX:8.5, bPawY:-12.5, fMidX:-30, fMidY:-7.5, bMidX:30, bMidY:30, spineCurve:18.5, thighW:2.38, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.9, foldR:1.19, fn1x:-21.32, fn1y:-5.66, fn2x:-27.7, fn2y:3.36, ff1x:23.36, ff1y:-10.66, ff2x:7.38, ff2y:-6.88, ff3x:15.41, ff3y:-3.51, ff4x:17.64, ff4y:-3.44, bn1x:31.8, bn1y:-4, bn2x:21.44, bn2y:-3.98, bn3x:-2.89, bn3y:-9.73, bn4x:4.31, bn4y:-9.73, bf1x:11.8, bf1y:1, bf2x:44.78, bf2y:-3.63, bf3x:36.15, bf3y:-9.32, bf4x:43.35, bf4y:-9.32, t1x:-6.08, t1y:-4.83, t2x:8.96, t2y:-6.7, t3x:11.03, t3y:-7.67, t4x:10.25, t4y:-4.32, t5x:12.42, t5y:7.41 },
-  stretch: { headSize:1.09, headWidth:0.97, headX:-2, headY:17, ribW:0.74, ribH:1.15, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:2, shoulderX:-5.5, shoulderY:-20, hipSpread:1.07, hipX:17.5, hipY:4, hipSize:0.96, fPawX:15.5, fPawY:-20, bPawX:6, bPawY:-7.5, fMidX:4.5, fMidY:-9.5, bMidX:10.5, bMidY:4, spineCurve:-18, thighW:2.33, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.18, foldR:1.09, fn1x:-24.61, fn1y:3.29, fn2x:-8.52, fn2y:-10.41, ff1x:-13.71, ff1y:7.8, ff2x:-12.13, ff2y:2.3, bn1x:3.74, bn1y:17, bn2x:-11.03, bn2y:-13.76, bf1x:8.74, bf1y:17, bf2x:-21.33, bf2y:-12.86 },
-  jump: { headSize:1.09, headWidth:0.97, headX:13, headY:8, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.16, shoulderX:20, shoulderY:-6, hipSpread:1.5, hipX:20, hipY:17, hipSize:0.86, fPawX:9.5, fPawY:-7.5, bPawX:-5, bPawY:-17.5, fMidX:-20.5, fMidY:4.5, bMidX:-7, bMidY:15.5, spineCurve:-3, thighW:2.18, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.13, fn1x:-28.52, fn1y:-13.58, fn2x:-10.09, fn2y:-11.19, ff1x:-32.64, ff1y:-18.58, ff2x:-23.73, ff2y:-16.87, bn1x:-25.3, bn1y:-33, bn2x:-16.75, bn2y:-14.99, bf1x:-25.3, bf1y:-33, bf2x:-29.65, bf2y:-14.29 },
+  stand: { headSize:1.09, headWidth:0.97, headX:14.16, headY:-4.84, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.77, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.2, eyeGap:20, eyeX:0, eyeY:-3, earSize:0.97, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.73, jawW:1.23, chinY:-6, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:1.5, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, fn1x:-21.14, fn1y:-1.2, ff1x:-0.54, ff1y:-1.2, ff2x:-4.99, ff2y:2.57, ff3x:-6.93, ff3y:1.18, ff4x:-4.73, ff4y:1.18, bn1x:-3.3, bn1y:-2.5, bn2x:-3.58, bn2y:3.75, bn3x:1.06, bn3y:1.49, bf1x:-3.3, bf1y:-2.5, bf2x:3.3, bf2y:0.71, headRot:5 },
+  sit: { headSize:1.09, headWidth:0.97, headX:12.68, headY:-6.63, ribW:1.03, ribH:0.67, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:2, shoulderX:6.5, shoulderY:-3.5, hipSpread:1.62, hipX:5.5, hipY:1, hipSize:0.69, fPawX:1.5, fPawY:-17, bPawX:-16.5, bPawY:-3.5, fMidX:-11, fMidY:14, bMidX:9, bMidY:25.5, spineCurve:-2, thighW:1.72, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.94, foldR:1.24, fn1x:-5.65, fn1y:-16.35, fn2x:17.81, fn2y:11.72, ff1x:15.35, ff1y:-16.35, ff2x:30.57, ff2y:-12.1, ff3x:12.7, ff3y:1.18, ff4x:15.59, ff4y:1.18, bn1x:3.79, bn1y:2.32, bn2x:-10.08, bn2y:-7.99, bf2x:-9.58, bf2y:-3.9, catX:-1.37, catY:-3.75 },
+  lie: { headSize:1.09, headWidth:0.97, headX:5, headY:10, ribW:0.89, ribH:0.62, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.09, toeR:0.61, legThick:1.16, tailThick:0.82, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.21, shoulderX:2, shoulderY:-7, hipSpread:1.52, hipX:3.5, hipY:-1, hipSize:0.77, fPawX:15.5, fPawY:-20, bPawX:8.5, bPawY:-12.5, fMidX:-30, fMidY:-7.5, bMidX:30, bMidY:30, spineCurve:18.5, thighW:2.38, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.9, foldR:1.19, fn1x:-21.32, fn1y:-5.66, fn2x:-27.7, fn2y:3.36, ff1x:23.36, ff1y:-10.66, ff2x:7.38, ff2y:-6.88, ff3x:15.41, ff3y:-3.51, ff4x:17.64, ff4y:-3.44, bn1x:31.8, bn1y:-4, bn2x:26.44, bn2y:11.02, bn3x:-2.89, bn3y:5.27, bn4x:4.31, bn4y:-9.73, bf1x:11.8, bf1y:1, bf2x:44.78, bf2y:16.37, bf3x:36.15, bf3y:0.68, bf4x:43.35, bf4y:-9.32, bn4a:45, bf4a:38.7, catX:49.01, catY:5.5, t1x:-6.08, t1y:-4.83, t2x:8.96, t2y:-6.7, t3x:11.03, t3y:-7.67, t4x:10.25, t4y:-4.32, t5x:12.42, t5y:7.41, tail1x:-18.8, tail1y:-3.1 },
+  stretch: { headSize:1.09, headWidth:0.97, headX:-2, headY:17, ribW:0.74, ribH:1.15, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:2, shoulderX:-5.5, shoulderY:-20, hipSpread:1.07, hipX:17.5, hipY:4, hipSize:0.96, fPawX:15.5, fPawY:-20, bPawX:6, bPawY:-7.5, fMidX:4.5, fMidY:-9.5, bMidX:10.5, bMidY:4, spineCurve:-18, thighW:2.33, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.18, foldR:1.09, fn1x:-24.61, fn1y:3.29, fn2x:-8.52, fn2y:-10.41, ff1x:-13.71, ff1y:7.8, ff2x:-12.13, ff2y:2.3, bn1x:3.74, bn1y:17, bn2x:-6.03, bn2y:-18.76, bf1x:8.74, bf1y:17, bf2x:-26.33, bf2y:-12.86, bf3x:-10.96, bf3y:1.49 },
+  jump: { headSize:1.09, headWidth:0.97, headX:13, headY:8, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.16, shoulderX:20, shoulderY:-6, hipSpread:1.5, hipX:20, hipY:17, hipSize:0.86, fPawX:9.5, fPawY:-7.5, bPawX:-5, bPawY:-17.5, fMidX:-20.5, fMidY:4.5, bMidX:-7, bMidY:15.5, spineCurve:-3, thighW:2.18, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.13, fn1x:-28.52, fn1y:-13.58, fn2x:-10.09, fn2y:-11.19, ff1x:-32.64, ff1y:-18.58, ff2x:-23.73, ff2y:-16.87, bn1x:-20.3, bn1y:-48, bn2x:-26.75, bn2y:-29.99, bn3x:-2.64, bn3y:-8.51, bf1x:-25.3, bf1y:-43, bf2x:-29.65, bf2y:-24.29, bf3x:-10.12, bf3y:-13.51, bn4a:-34.2, bf4a:-37, tail1x:-23.51, tail1y:-24.47 },
   front: { headSize:1.09, headWidth:0.97, headX:2, headY:-8, ribW:0.6, ribH:0.6, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.67, shoulderX:10, shoulderY:-4.5, hipSpread:0.9, hipX:7.5, hipY:-15, hipSize:0.77, fPawX:10, fPawY:-7, bPawX:2.5, bPawY:-20, fMidX:5.5, fMidY:-1, bMidX:10.5, bMidY:30, spineCurve:0, thighW:1.25, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.24, fn1x:5.06, fn1y:-24.5, fn2x:4.17, fn2y:-16.2, fn3x:-10.78, fn3y:2.36, fn4x:-18.44, fn4y:1.18, ff1x:-6.7, ff1y:-24.5, ff2x:-6.32, ff2y:-11.02, ff3x:-15.86, ff3y:6.18, ff4x:-13.2, ff4y:1.18, bn1x:0.15, bn1y:-13.6, bn2x:-17.87, bn2y:-4.95, bn3x:6.01, bn3y:2.98, bn4x:-1.65, bn4y:2.98, bf1x:-1.79, bf1y:-13.6, bf2x:2.27, bf2y:-27.32, bf3x:-27.65, bf3y:2.98, bf4x:-14.99, bf4y:2.98 },
-  belly: { headSize:1.09, headWidth:0.97, headX:-16.64, headY:-30.51, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.39, eyeGap:19.5, eyeX:0, eyeY:-3.5, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:0, cheekY:-9, cheekRound:0.88, jawW:0.66, chinY:-6, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:1.03, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:15.5, thighW:1.46, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, fn1x:43.48, fn1y:70.97, fn2x:5.85, fn2y:84.06, fn3x:19.44, fn3y:91.5, fn4x:-30.27, fn4y:-4.58, ff1x:-15.36, ff1y:19.03, ff2x:-38.94, ff2y:-11.71, ff3x:-35.8, ff3y:-12.5, ff4x:4.18, ff4y:19.58, bn1x:28.85, bn1y:9.49, bn2x:9.32, bn2y:10.21, bn3x:57.77, bn3y:-32.88, bn4x:57.69, bn4y:-35.66, bf1x:17.4, bf1y:27.3, bf2x:-22.49, bf2y:27.24, bf3x:-89.26, bf3y:-18.15, bf4x:-32.99, bf4y:-26.7, fn4a:-1.5, ff4a:-187.9, bf4a:325.6, headRot:-37, catX:1.59, catY:30.5 },
+  belly: { headSize:1.02, headWidth:0.97, headX:-117.35, headY:-55.93, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.17, eyeGap:18, eyeX:5.5, eyeY:2, earSize:1.02, earBW:1.8, earBH:0.98, earBX:-0.5, earBY:-2, earFW:1.8, earFH:1.01, earFX:-0.5, earFY:0, cheekOut:-2, cheekY:-9, cheekRound:0.88, jawW:0.4, chinY:-5, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:1.03, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:7, thighW:1.46, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, fn1x:41.89, fn1y:85.47, fn2x:89.26, fn2y:108.56, fn3x:122.85, fn3y:131, fn4x:-30.27, fn4y:-4.58, ff1x:-26.95, ff1y:23.53, ff2x:-40.53, ff2y:-2.21, ff3x:-17.39, ff3y:17, ff4x:4.18, ff4y:19.58, bn1x:37.26, bn1y:18.99, bn2x:45.73, bn2y:14.71, bn3x:94.18, bn3y:-3.38, bn4x:57.69, bn4y:-35.66, bf1x:27.4, bf1y:27.3, bf2x:-32.49, bf2y:39.43, bf3x:-99.26, bf3y:1.85, bf4x:-32.99, bf4y:-26.7, fn4a:-286.9, ff4a:-187.9, bf4a:222.1, headRot:-31, catX:1.59, catY:25.5, tail1x:23.04, tail1y:3.75, tail2x:-5.91, tail2y:-40.76, tail3x:10.9, tail3y:-57.1 },
 };
 const freshShapes = (from = {}) => Object.fromEntries(SHAPE_GROUPS.map(g => [g, { ...SHAPE_DEFAULT, ...SHAPE_PRESET[g], ...migrateShape(from[g]) }]));
 const oldFluid = j => j && !('fluid' in j) && j.shapes && j.shapes.stand && 'fluid' in j.shapes.stand ? j.shapes.stand.fluid : null;
 const KEY = 'cat-stretch-v2', UI_KEY = 'cat-stretch-ui';
+// the random look mix is gone (moods come from the cursor): its settings are dropped from older saves
+const oldLookKey = k => k === 'lookGap' || /^look[A-Z]/.test(k);
+for (const k in DEFAULTS) if (oldLookKey(k)) delete DEFAULTS[k];
 let S = { ...DEFAULTS };
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
 if (saved) Object.assign(S, saved);
+for (const k in S) if (oldLookKey(k)) delete S[k];
 S.states = structuredClone(S.states || {});   // transition states: { pose: its own changes on top of its position }
 // earlier versions stored one shape for every position; carry those values over to all positions
 const legacyShape = saved ? Object.fromEntries(Object.keys(SHAPE_DEFAULT).filter(k => k in saved).map(k => [k, saved[k]])) : {};
@@ -1769,8 +1791,8 @@ function moveSteps(kind, ctx){
     const dur = 2 * Math.sqrt(2 * lift / JUMP_G);   // time in the air follows from the height, as under real gravity
     // the spine tilts with the path: as steep as the take-off (nose up), level at the top, as steep nose down to land
     const tilt = Math.min(70, Math.atan2(4 * lift, Math.max(units, 1)) * 180 / Math.PI);
-    const J = { jPush:0.12, jFly:dur, jLand:0.18, jTilt:tilt, jUp:0.4, jEnd:0.12 + dur + 0.1 + 0.2,
-                jVx:units / dur, jCache:{} };   // jVx: forward speed in the air (cat units / s)   // jUp: share of the flight spent going up (quick up, slower down)
+    const J = { jPush:0.12, jFly:dur, jLand:0.18, jTilt:tilt, jUp:S.jumpTop, jEnd:0.12 + dur + 0.1 + 0.2,
+                jVx:units / dur, jH:lift, jKeys:jumpKeys(), jCache:{} };   // jVx: forward speed in the air (cat units / s)   // jUp: share of the flight spent going up (quick up, slower down)
     // push off with the hind legs (paws stay planted), fly, touch down front paws first; the landing pose comes right
     // after (the back body still in the air) and the body comes on down into the stand without stopping (no hanging
     // in the air), slowing only as it settles. No paw slides after it touches the floor.
@@ -1943,6 +1965,54 @@ function runStretch(G, c){
   const u = rel(c);
   return u < U ? 1 - 2 * ss(u / U) : -1 + 2 * ss((u - U) / (1 - U));
 }
+/* run: its key moments (right-hand panel, Run). What is dragged into one of the stride's moments is added to the running
+   cat at that moment of every stride and flows smoothly on to the next moment round the stride, fading in and out with
+   the speed. Each sits on an event of the stride itself, so it stays on that event at any run speed. Setting off,
+   Landing and Stopping come in once each: while the cat speeds up, as its front paws land for the last time (slowing
+   down), and as its body comes to a stop and its paws take their last steps. */
+const RUN_KEYS = [['runLand', 'Front paws land'], ['runGather', 'Hind paws land'], ['runPush', 'Push off'], ['runFly', 'In the air']];
+const RUN_ENDS = [['runStart', 'Setting off'], ['runLanding', 'Landing'], ['runStop', 'Stopping']];
+// when in the stride each one is (0 = the near front paw lands … 1)
+function runKeyPhases(G){
+  const m = x => ((x % 1) + 1) % 1;
+  return { runLand: 0, runGather: m(G.lead.bn + 1 - G.duty.b), runPush: m(G.lead.bf), runFly: G.surgeAt };
+}
+// the last landing: the first time the front paws come down after the cat starts slowing (halfway through slowing
+// down if a stride is longer than that)
+function runLandAt(G){
+  const a = G.stop - G.Ta, k = Math.ceil(a / G.Tc - 1e-9) * G.Tc;
+  return k < G.stop - 0.1 * G.Ta ? k : a + G.Ta / 2;
+}
+// how much of Setting off, Landing and Stopping is in at time t of the trip: all of it at its own moment (halfway
+// through speeding up; the last landing; the body coming to a stop), none at full speed nor at either end of the trip.
+// Eased in and out softly, Landing handing over to Stopping
+function runEnds(G, t){
+  const ss = v => { v = clamp(v, 0, 1); return v * v * v * (v * (6 * v - 15) + 10); }, h = G.Ta / 2, L = runLandAt(G);
+  const rise = (a, b) => ss((t - a) / (b - a)), fall = (a, b) => 1 - ss((t - a) / (b - a));
+  return [t < h ? rise(0, h) : fall(h, G.Ta), t < L ? rise(L - G.Tc / 2, L) : fall(L, G.stop), t < G.stop ? rise(L, G.stop) : fall(G.stop, G.T)];
+}
+// the key moments' changes at time t of the trip, added to p's shape. Smooth through every stride moment: each one's
+// slope points from the moment before it to the moment after
+function runKeys(p, G, t){
+  if (G.kind !== 'run') return;
+  const sp = G.V ? baseSpeed(G, t) / G.V : 0, keys = new Set();
+  for (const [k] of [...RUN_KEYS, ...RUN_ENDS]) for (const v in S.states[k] || {}) keys.add(v);
+  if (!keys.size) return;
+  const [ws, wl, we] = runEnds(G, t), dS = S.states.runStart || {}, dL = S.states.runLanding || {}, dE = S.states.runStop || {};
+  const m = x => ((x % 1) + 1) % 1, at = runKeyPhases(G), c = m(t / G.Tc);
+  const K = RUN_KEYS.map(([k]) => ({ c: at[k], d: S.states[k] || {} })).sort((a, b) => a.c - b.c), n = K.length;
+  let i = n - 1; while (i > 0 && K[i].c > c) i--;
+  if (K[0].c > c) i = n - 1;
+  const A = K[i], B = K[(i + 1) % n], P = K[(i + n - 1) % n], N = K[(i + 2) % n];
+  const h = Math.max(m(B.c - A.c), 1e-3), u = clamp(m(c - A.c) / h, 0, 1), hA = Math.max(m(B.c - P.c), 1e-3), hB = Math.max(m(N.c - A.c), 1e-3);
+  const u2 = u * u, u3 = u2 * u, w0 = 2 * u3 - 3 * u2 + 1, w1 = u3 - 2 * u2 + u, w2 = -2 * u3 + 3 * u2, w3 = u3 - u2;
+  const d = {};
+  for (const k of keys){
+    const v = q => q.d[k] || 0, sA = (v(B) - v(P)) / hA, sB = (v(N) - v(A)) / hB;
+    d[k] = sp * (w0 * v(A) + w1 * h * sA + w2 * v(B) + w3 * h * sB) + ws * (dS[k] || 0) + wl * (dL[k] || 0) + we * (dE[k] || 0);
+  }
+  p.shape = withDelta(p.shape, d);
+}
 // jump: the spine line (pelvis → chest) follows the path. It rears up as the front paws leave the floor (turning
 // around the pelvis, hind paws still pushing), is steepest just after take-off, levels out at the top, dives nose
 // down as steep while the front paws come down (turning around the chest now), and levels again on the landing.
@@ -1951,15 +2021,18 @@ function jumpTilt(s, T){
   const sm = v => { v = clamp(v, 0, 1); return v * v * (3 - 2 * v); };
   const P = s.jPush, F = s.jFly, A = s.jLand, th0 = s.jTilt, top = P + (s.jUp ?? 0.5) * F;
   const tau = s.jT0 + clamp(T - s.start, 0, s.dur), tT = P + F;   // time since the push started; touchdown
-  // steep up soon after take-off, held while rising, turned over the top (over about a third of the flight, so it
-  // carries well forward while turning), held steep down to the floor
   // around the top everything eases in and out very softly (smootherstep: starts and ends with no jolt)
   const ss = v => { v = clamp(v, 0, 1); return v * v * v * (v * (6 * v - 15) + 10); };
-  // the turn over the top starts right after the cat has reared up (no pause) and builds very gently on the
-  // way up, crossing level at the top
   const t1 = P + 0.1 * F, tA = top - 0.2 * F, tB = top + 0.24 * F, fA = t1, fB = Math.min(2 * top - t1, tT - 0.1 * F);
-  const thAt = u => u < t1 ? th0 * ss(u / t1) : u < fB ? th0 * (1 - 2 * ss((u - fA) / (fB - fA)))
-           : u < P + F ? -th0 : -th0 * (1 - sm((u - P - F) / (0.75 * A)));
+  // the spine points where the cat is flying: reared up during the push, then along the path, which turns over the top
+  // only as fast as the cat really does (level for a while at the top, tipping nose down gently at first and steepest
+  // at touchdown), so after the top it glides on forward rather than diving. Never steeper than the take-off angle.
+  // The path turns faster on the way up than on the way down (an early top): around the top one hands over to the
+  // other softly, so the turn slows down smoothly instead of all at once
+  const H = s.jH || 0, U = Math.max((s.jVx || 0) * F, 1), k = s.jUp ?? 0.5, cU = 2 * H / (k * k * U), cD = 2 * H / ((1 - k) * (1 - k) * U), w = 0.08;
+  const pathAt = v => { const b = ss((v - k + w) / (2 * w)); return clamp(Math.atan(cU * (k - v) * (1 - b) - cD * (v - k) * b) * 180 / Math.PI, -th0, th0); };
+  const thL = -pathAt(1);                                          // nose down at touchdown
+  const thAt = u => u < t1 ? pathAt(0.1) * ss(u / t1) : u < P + F ? pathAt((u - P) / F) : -thL * (1 - sm((u - P - F) / (0.75 * A)));
   // the spine bends instead of turning stiffly: the chest leads the turn and the pelvis follows a moment later,
   // so the back arches over the top like a wave (no bend left by the landing)
   const lead = 0.03 * F * (1 - sm((tau - fB) / (tT - fB))), th = thAt(tau), thR = thAt(tau + lead), thP = thAt(tau - lead);
@@ -2082,7 +2155,7 @@ function gaitNeed(G){
   for (let i = 0; i < n; i++){
     const t = i / NEED_HZ, p = structuredClone(POSES[G.kind]);
     p.shape = POSES[G.kind].shape; p.tail = tailPoints(p.tail);
-    gaitBody(p, G, t, true);
+    runKeys(p, G, t); gaitBody(p, G, t, true);
     applyShape(p); gaitPaws(p, G, t);
     const r = gaitReach(p); raw[0][i] = r[0]; raw[1][i] = r[1];
   }
@@ -2124,8 +2197,8 @@ function gaitReach(p){
   const soft = v => { const m = Math.max(...v), b = 0.6; return m + Math.log(v.reduce((a, x) => a + Math.exp(b * (x - m)), 0)) / b - Math.log(v.length) / b; };
   return [Math.max(0, soft(pairs.f)), Math.max(0, soft(pairs.b))];
 }
-function compile(steps, startPose, kind, ends, startLift = 0){
-  let from = startPose, t = 0, f = facing, x = worldX;
+function compile(steps, startPose, kind, ends, startLift = 0, x0 = worldX){
+  let from = startPose, t = 0, f = facing, x = x0;
   const out = steps.map((s, i) => {
     const st = { ...s, from, toPose: POSES[s.to], viaPose: s.via ? POSES[s.via] : null, risePose: s.rise ? POSES[s.rise] : null, fallPose: s.fall ? POSES[s.fall] : null, start: t, x0: x,
                  drop: i === 0 ? startLift : 0 };
@@ -2134,7 +2207,7 @@ function compile(steps, startPose, kind, ends, startLift = 0){
     st.afterPose = s.after ? POSES[s.after] : null;
     t += s.dur; from = st.afterPose || st.toPose; if (s.flipAfter) f = -f; return st;
   });
-  return { steps: out, total: t, kind, ends, startFacing: facing, endFacing: f, startX: worldX, endX: x };
+  return { steps: out, total: t, kind, ends, startFacing: facing, endFacing: f, startX: x0, endX: x };
 }
 // height over the flight (0..1): a throw under gravity, a parabola in time on each side of the top.
 // Fastest leaving the floor, slowest at the top, fastest again just before touchdown. k = when the top is
@@ -2142,6 +2215,22 @@ function compile(steps, startPose, kind, ends, startLift = 0){
 function flightHeight(p, k = 0.5){ if (p < k){ const u = 1 - p / k; return 1 - u * u; } const v = (p - k) / (1 - k); return 1 - v * v; }
 // pose progress over such a flight: halfway (the mid-air pose) right at the top, smooth throughout
 function flightPose(p, k = 0.5){ const a = (0.5 - k * k) / (k - k * k); return a * p + (1 - a) * p * p; }
+// the jump's key positions: where in the flight (share of it, 0 take-off … 1 touchdown) the cat has each pose. Set by
+// dragging them along the path in the Jump panel (see drawJumpCurve); unset, these
+const JUMP_KEYS0 = { push:0, rise:0.14, fly:0.3, reach:1 };
+const jumpKeys = () => ({ ...JUMP_KEYS0, ...(S.jumpKeys || {}) });
+// pose progress over the flight (0 push off … 0.25 rising … 0.5 in the air … 1 reaching to land) at flight share p: a
+// smooth curve through the key positions that never runs backwards (slopes inside: harmonic means of the neighbouring
+// ones), holding the push-off pose until its position and the landing reach from its position on
+function jumpPoseAt(p, K){
+  const X = [K.push, K.rise, K.fly, K.reach], Y = [0, 0.25, 0.5, 1];
+  if (p <= X[0]) return 0;
+  if (p >= X[3]) return 1;
+  const d = [0, 1, 2].map(i => (Y[i + 1] - Y[i]) / Math.max(X[i + 1] - X[i], 1e-4));
+  const m = [X[0] > 0 ? 0 : d[0], 2 / (1 / d[0] + 1 / d[1]), 2 / (1 / d[1] + 1 / d[2]), X[3] < 1 ? 0 : d[2]];
+  const i = p < X[1] ? 0 : p < X[2] ? 1 : 2, h = X[i + 1] - X[i], t = (p - X[i]) / h, t2 = t * t, t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * Y[i] + (t3 - 2 * t2 + t) * h * m[i] + (-2 * t3 + 3 * t2) * Y[i + 1] + (t3 - t2) * h * m[i + 1];
+}
 function evalPlan(T, P = plan){
   const st = P.steps;
   if (!st.length) return { pose: livePose, step: null, facing, x: worldX, lift: 0 };
@@ -2150,7 +2239,7 @@ function evalPlan(T, P = plan){
     const s = st[i], end = s.start + s.dur;
     if (T < end || i === st.length - 1){
       const p = s.dur === Infinity ? 1 : clamp((T - s.start) / (s.dur || 1), 0, 1);
-      const e = s.flight && s.jUp ? flightPose(p, s.jUp) : ease[s.ease || 'linear'](p);
+      const e = s.flight && s.jKeys ? jumpPoseAt(p, s.jKeys) : s.flight && s.jUp ? flightPose(p, s.jUp) : ease[s.ease || 'linear'](p);
       const done = s.flipAfter && p >= 1;
       if (done) f = -f;
       const ht = (s.lift ? s.lift * flightHeight(p, s.jUp) : 0) + (s.drop ? s.drop * (1 - e) : 0);
@@ -2234,20 +2323,21 @@ function shiftyX(t){
   }
   return 0;
 }
-// id, label, seconds shown, in the automatic mix by default, setting key, eye shapes, pupil motion
+// id, label, seconds a Show-now button shows it, (in the automatic mix, setting key: from the old random mix, unused; kept
+// because tools/bake_in.py finds edited eyes by this layout), eye shapes, pupil motion
 const LOOKS = [
   ['round',      'Round',      3,   false, null,             one(pts8(-8,-8,1, 0,-8,0, 8,-8,1, 9,0,0.1, 8,8,1, 0,8,0, -8,8,1, -9,0,0.1)), mo({})],
-  ['soft',       'Soft',       4,   true,  'lookSoft',       one(pts8(-8,-9,1, 0,-9,0, 8,-9,1, 8,0,0, 8,1,0.3, 0,1,0, -8,1,0.3, -8,0,0), 1.05), mo({ dy:-0.65 })],
+  ['soft',       'Soft',       4,   true,  'lookSoft',       one(pts8(-8,-9,1, 0,-9,0, 8,-9,1, 8,-1,0, 8,1,0.8, 0,0,1, -8,1,0.8, -8,-1,0), 1.05), mo({ dy:-0.65 })],
   ['surprised',  'Surprised',  2.6, true,  'lookSurprised',  one(pts8(-8,-10,1, 0,-10,0, 8,-10,1, 8,0,0, 8,9,1, 0,9,0, -8,9,1, -8,0,0), 0.89), mo({})],
-  ['happy',      'Happy',      3.5, true,  'lookHappy',      one(pts8(-7,-7,1, 0,-7,0, 7,-7,1, 9,-1,0, 10,3,0.45, 0,0,1, -10,3,0.45, -9,-1,0), 1.4), mo({ dy:-0.15 })],
+  ['happy',      'Happy',      3.5, true,  'lookHappy',      one(pts8(-8,-7,1, 0,-7,0, 8,-7,1, 9,-2,0, 10,3,0.55, 0,2,1, -10,3,0.55, -9,-2,0), 1.4), mo({ dy:-0.15 })],
   ['sly',        'Sly',        3.2, true,  'lookSly',        one(pts8(-9,-3,0.25, 0,-4,1, 9,-3,0.25, 10,0,0.6, 9,3,0.25, 0,3,0, -9,3,0.25, -10,0,0.6)), mo({ dx:0.55, dy:0.05, gaze:0 })],
-  ['wink',       'Wink',       1.8, true,  'lookWink',       two(pts8(-7,0,0, 0,4,1, 7,0,0, 8,1,1, 7,2,0, 0,6,1, -7,2,0, -8,1,1), circ(8, 9, 8), 0), mo({})],
-  ['skeptic',    'Skeptical',  3,   true,  'lookSkeptic',    two(pts8(-8,-6,0.5, 0,-2,0.2, 8,2,0.3, 8,3,0, 8,6,0.8, 0,6,0, -8,6,0.8, -8,0,0), circ(8, 10, 8)), mo({})],
+  ['wink',       'Wink',       1.8, true,  'lookWink',       two(pts8(-9,0,0, 0,1,1, 10,0,0, 10,0,1, 5,2,0, 0,4,1, -5,2,0, -10,0,1), pts8(-8,-9,1, 0,-9,0, 8,-9,1, 8,0,0, 8,8,1, 0,8,0, -8,8,1, -8,0,0), 0, 1), mo({})],
+  ['skeptic',    'Skeptical',  3,   true,  'lookSkeptic',    two(pts8(-8,-6,0.5, -2,-2,1, 6,0,0.3, 10,1,0.35, 6,6,0.8, 0,6,0, -6,6,0.8, -8,0,0), pts8(-8,-10,1, 0,-10,0, 8,-10,1, 8,0,0, 8,8,1, 0,8,0, -8,8,1, -8,0,0)), mo({})],
   ['squint',     'One squint', 3.5, true,  'lookSquint',     two(circ(7, 4, 5), circ(8, 9, 9), 0.9, 1.02), mo({})],
-  ['bored',      'Bored',      4,   true,  'lookBored',      one(pts8(-8,0,0.3, 0,0,0, 8,-1,0.3, 8,2,0, 8,6,0.9, 0,6,0, -8,6,0.9, -8,2,0)), mo({ dx:0.35, dy:0.15, gaze:0 })],
-  ['deadpan',    'Deadpan',    3.5, true,  'lookDeadpan',    one(pts8(-8,0,0.25, 0,0,0, 8,0,0.25, 8,3,0, 8,8,1, 0,8,0, -8,8,1, -8,3,0)), mo({ dy:0.35, gaze:0.4 })],
+  ['bored',      'Bored',      4,   true,  'lookBored',      one(pts8(-8,-1,0.85, 0,-1,0, 8,-1,0.7, 8,2,0, 8,6,0.9, 0,6,0, -8,6,0.9, -8,2,0)), mo({ dx:0.35, dy:0.15, gaze:0 })],
+  ['deadpan',    'Deadpan',    3.5, true,  'lookDeadpan',    one(pts8(-8,0,0.6, 0,0,1, 8,0,0.6, 8,3,0, 8,8,1, 0,8,0, -8,8,1, -8,3,0)), mo({ dy:0.35, gaze:0.4 })],
   ['sideeye',    'Side-eye',   3,   true,  'lookSideeye',    one(pts8(-8,-1,0.25, 0,0,0, 8,1,0.25, 8,3,0, 8,8,1, 0,8,0, -8,8,1, -8,2,0)), mo({ dx:0.9, dy:0.3, gaze:0 })],
-  ['suspicious', 'Suspicious', 3,   true,  'lookSuspicious', one(pts8(-8,-3,0.35, 0,-2,0, 8,0,0.35, 8,1,0, 8,4,0.6, 0,4,0, -8,4,0.6, -8,1,0)), mo({ dx:-0.55, dy:0.1, gaze:0 })],
+  ['suspicious', 'Suspicious', 3,   true,  'lookSuspicious', one(pts8(-7,-3,1, 0,-3,1, 7,-3,1, 10,-1,0.55, 10,3,0.45, 0,3,1, -10,3,0.4, -10,-1,0.55)), mo({ dx:-0.55, dy:0.1, gaze:0 })],
   ['sleepy',     'Sleepy',     4,   true,  'lookSleepy',     one(pts8(-8,2,1, 0,1,1, 8,2,1, 8,3,0, 8,8,1, 0,8,0, -8,8,1, -8,3,0)), mo({ dy:0.55, gaze:0.4 })],
   ['worried',    'Worried',    3,   true,  'lookWorried',    one(pts8(-5,-4,1, 4,-6,0, 8,-6,0.65, 8,-2,0, 8,5,1, 0,5,0, -9,5,0.8, -10,-2,0.7)), mo({ dy:0.25 })],
   ['pleading',   'Pleading',   3,   true,  'lookPleading',   one(pts8(-9,-4,0.9, -4,-7,0.4, 9,-10,1, 9,0,0, 9,9,1, 0,9,0, -9,9,1, -10,1,0.2), 1.42), mo({ dy:-0.25 })],
@@ -2259,12 +2349,10 @@ const LOOKS = [
   ['shifty',     'Who saw?',   3.4, true,  'lookShifty',     one(circ(8, 5, 7)), t => { const o = { dx:shiftyX(t), dy:0.2, gaze:0 }; return [o, o]; }],
 ].map(([id, label, hold, auto, key, shape, motion]) => ({ id, label, hold, auto, key, shape, motion }));
 const LOOK_BY = Object.fromEntries(LOOKS.map(L => [L.id, L]));
-for (const L of LOOKS) if (L.key){ if (!(L.key in DEFAULTS)) DEFAULTS[L.key] = L.auto; if (!(L.key in S)) S[L.key] = L.auto; }
 if (!LOOK_BY[S.eyeRest]) S.eyeRest = 'round';
-// panel: one button per look, resting-look menu, and which looks join the automatic mix
+// panel: one button per look, resting-look menu
 document.getElementById('lookBtns').innerHTML = LOOKS.filter(L => L.id !== 'sleeping').map(L => `<button class="btn look" type="button" data-look="${L.id}">${L.label}</button>`).join('');
 document.getElementById('eyeRest').innerHTML = LOOKS.filter(L => L.id !== 'sleeping').map(L => `<option value="${L.id}">${L.label}</option>`).join('');
-document.getElementById('lookChips').innerHTML = LOOKS.filter(L => L.key).map(L => `<label class="chip"><input type="checkbox" id="${L.key}">${L.label}</label>`).join('');
 // the eye shapes of an emotion (edited ones from the Eyes tab win), resolved to [left eye, right eye]
 function lookShape(id){
   const d = (S.eyeLooks && S.eyeLooks[id]) || (LOOK_BY[id] || LOOK_BY.round).shape, e0 = d.eyes[0];
@@ -2276,23 +2364,23 @@ function lookParams(name, t){
 }
 const mixEye = (a, b, k) => mix(a, b, k);
 let eyeEditing = false;   // the Eyes tab holds the emotion being edited
-const look = { cur:'round', prev:'round', k:1, t:0, start:0, prevStart:0, until:Infinity, next:6 };
+const look = { cur:'round', prev:'round', k:1, t:0, start:0, prevStart:0, until:Infinity };
+// moods (Moods from the cursor): happy while the cursor is on the cat and a little after, sad once it hasn't been there
+// for a long while (until it is), suspicious while it rests in one place a moment; otherwise the resting look. Worked out
+// in updateCursor
+const FEEL = { pet:0.3, happy:3, sad:300, sus:0.8, susEnd:12 };   // seconds: on the cat before it counts, happy after it,
+  // sad when nobody did that for, the cursor resting before it looks suspicious, and how long it keeps that up
+const feel = { on:0, petted:-1e9, look:null };   // on: how long the cursor has been on the cat; petted: when it last was (ms)
 function setLook(name, hold){
   if (name !== look.cur){ look.prev = look.cur; look.prevStart = look.start; look.cur = name; look.start = look.t; look.k = 0; }
   look.until = hold === Infinity ? Infinity : look.t + hold;
-  if (name === S.eyeRest) look.next = look.t + S.lookGap * (0.6 + 0.8 * Math.random());
   document.querySelectorAll('.look').forEach(b => b.classList.toggle('active', b.dataset.look === name));
-}
-function pickLook(){
-  const pool = LOOKS.filter(L => L.key && L.id !== S.eyeRest && S[L.key]).map(L => L.id);
-  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
 }
 function updateLook(pose, dt){
   look.t += dt; look.k = Math.min(1, look.k + dt / 0.35);
-  if (look.cur !== S.eyeRest && look.t > look.until && !eyeEditing) setLook(S.eyeRest, Infinity);
-  else if (look.cur === S.eyeRest && S.eyeAuto && !eyeEditing && look.t > look.next && pose.eye.lid < 0.6){
-    const n = pickLook(); if (n) setLook(n, LOOK_BY[n].hold * (0.8 + 0.4 * Math.random()));
-  }
+  // the mood, else the resting look: as soon as either changes, or once a look shown with its button is over
+  const rest = feel.look || S.eyeRest;
+  if (look.cur !== rest && (look.until === Infinity || look.t > look.until) && !eyeEditing) setLook(rest, Infinity);
   const A = lookParams(look.prev, look.t - look.prevStart), Bp = lookParams(look.cur, look.t - look.start);
   const k = smooth(look.k), mood = clamp(pose.eye.mood, 0, 1), hunt = clamp(pose.eye.hunt, 0, 1);
   const F = hunt > 0 ? lookParams('fly', life) : null;
@@ -2330,7 +2418,8 @@ function shutAt(P){
   return `translate(${((x0 + x1) / 2 * EYE_G).toFixed(2)} ${(y * EYE_G - 1).toFixed(2)}) scale(${Math.max(0.3, (x1 - x0) / 16).toFixed(3)} 1)`;
 }
 /* ---------- small life: breathing, tail, blinks ---------- */
-let blinkAt = 2 + Math.random()*3, blinkT = -1, swayPhase = 0, wagPhase = 0;
+const BLINK = { gap:[3, 5], one:0.16, twice:0.5 };   // seconds between blinks (from … to), one blink, how often it blinks twice
+let blinkAt = 2 + Math.random()*2, blinkT = -1, blinkN = 1, swayPhase = 0, wagPhase = 0;
 const TAIL_WEIGHT = [0, 0.35, 0.8, 1, 1, 1];
 function addLife(src, life, dt){
   const pose = structuredClone(src);
@@ -2356,11 +2445,13 @@ function addLife(src, life, dt){
   }
   let blink = 0;
   if (S.blink){
-    if (blinkT < 0 && life > blinkAt) blinkT = 0;
+    // steady blinks, every one of them for every look (closing morphs whatever eyes it shows into the closed ones); about
+    // every other one is a double blink
+    if (blinkT < 0 && life > blinkAt){ blinkT = 0; blinkN = Math.random() < BLINK.twice ? 2 : 1; }
     if (blinkT >= 0){
-      blinkT += dt; const p = blinkT / 0.18;
-      if (p >= 1){ blinkT = -1; blinkAt = life + 2.5 + Math.random()*4.5; }
-      else blink = Math.sin(Math.PI * p);
+      blinkT += dt; const p = blinkT / BLINK.one;
+      if (p >= blinkN){ blinkT = -1; blinkAt = life + BLINK.gap[0] + Math.random() * (BLINK.gap[1] - BLINK.gap[0]); }
+      else blink = Math.sin(Math.PI * (p % 1));
     }
   }
   if (pose.eye.lid < 0.9) pose.eye.lid = Math.max(pose.eye.lid, blink);
@@ -2384,11 +2475,15 @@ function addLife(src, life, dt){
     const k = Math.floor(earWig.t / EAR_WIG.one), u = (earWig.t % EAR_WIG.one) / EAR_WIG.one;
     pose.head.tw[earWig.side] = Math.max(pose.head.tw[earWig.side], Math.sin(Math.PI * u) * EAR_WIG.deg * (1 - 0.15 * k));
   }
+  pose.eye.shy = eyeShy.map(s => s.lid);   // the cursor on an eye shuts that one only (see updateCursor)
   return pose;
 }
 const twitch = { at: 5, t: -1, side: 0, n: 1 };
 const EAR_WIG = { one:0.15, n:4, deg:42, rest:0.4 };   // one flick (s), flicks in a row, how far out (°), pause before the next burst
 const earWig = { side: 0, t: -1, rest: 0 };
+const EYE_SHY = { r:10, one:0.12, shut:0.08, open:0.15 };   // r: how near the eye's centre counts (eye units); one quick blink,
+  // shutting after the blinks, opening once the cursor leaves (s)
+const eyeShy = [0, 1].map(() => ({ t: -1, n: 2, lid: 0 }));
 
 /* ---------- tail follow-through: the tail trails behind body motion like a soft rope ---------- */
 let tailSim = null;
@@ -2609,14 +2704,15 @@ function draw(p, ht){
     e.setAttribute('transform', `translate(${((p.eye.cx + (i ? sh.eyeGap : -sh.eyeGap)) * hw + sh.eyeX * turnK).toFixed(2)} ${(-sh.eyeY).toFixed(2)}) scale(${sh.eyeSize})`);
     // the emotion's 8-dot eye; closing (blink, sleep) morphs it into the Sleeping eye. An eye drawn
     // with no height at all shows as the curved closed-eye line instead
-    const L = p.look ? p.look[i] : EYE0, P = lid > 0 ? mix(L.pts, sleepEyes[i].pts, lid) : L.pts, d = roundedPath(P, EYE_G);
+    const li = Math.max(lid, p.eye.shy ? p.eye.shy[i] : 0);   // this eye's own lid: the cursor may have shut it
+    const L = p.look ? p.look[i] : EYE0, P = li > 0 ? mix(L.pts, sleepEyes[i].pts, li) : L.pts, d = roundedPath(P, EYE_G);
     const shutK = clamp((0.6 - eyeOpen(P)) / 0.6, 0, 1), closed = shutK;   // only a (nearly) flat eye turns into the line
     els.eyeWhite[i].setAttribute('d', d); els.eyeClip[i].setAttribute('d', d);
     els.eyeOpen[i].setAttribute('opacity', (1 - closed).toFixed(2));
     const pu = e.querySelector('.pupil');
     pu.setAttribute('r', (p.eye.pr * L.pr).toFixed(2));
-    pu.setAttribute('opacity', (1 - clamp((lid - 0.55) / 0.35, 0, 1)).toFixed(2));   // the pupil goes as the eye closes
-    let px = (p.eye.lx * L.gaze + L.dx) * 3.4, py = 0.4 + 1.6 * clamp(lid / 0.5, 0, 1) + (p.eye.ly * L.gaze + L.dy) * 2;
+    pu.setAttribute('opacity', (1 - clamp((li - 0.55) / 0.35, 0, 1)).toFixed(2));   // the pupil goes as the eye closes
+    let px = (p.eye.lx * L.gaze + L.dx) * 3.4, py = 0.4 + 1.6 * clamp(li / 0.5, 0, 1) + (p.eye.ly * L.gaze + L.dy) * 2;
     if (mouse.w > 0.001){
       const q = toLocal(e, mouse.x, mouse.y);
       if (q){
@@ -2947,6 +3043,8 @@ function onPointer(e){
 addEventListener('pointermove', onPointer, { passive: true });
 addEventListener('pointerdown', onPointer, { passive: true });
 document.documentElement.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') mouse.inside = false; });
+// the cursor is over the stage (not the panel); a finger counts a while after it touched
+const cursorHere = now => mouse.inside && !mouse.overPanel && (!mouse.touch || now - mouse.moved < 6000);
 addEventListener('blur', () => { mouse.inside = false; });
 // screen point → an element's own coordinates
 function toLocal(el, x, y){
@@ -2962,11 +3060,13 @@ function mouthHit(){
   const q = toLocal(els.face, mouse.x, mouse.y);
   return !!q && Math.hypot((q[0] - mouthAt[0]) / 1.25, q[1] - mouthAt[1]) < (mouse.touch ? 24 : 15);   // a finger is less exact
 }
+const JUMP_MIN = 2;   // a jump to the cursor (or a pounce) only when it is at least this many cat lengths away, sideways from
+  // the cat's middle: closer, the jump comes out cramped
 function cursorJumpTarget(){
   if (!mouse.inside || mouse.overPanel) return null;
   const W = innerWidth, s = catScale(), catPx = 230 * s, dx = mouse.x - worldX * W;   // one cat length ≈ 230 units
   const floorY = innerHeight - (S.ground / 100) * innerHeight, up = floorY - mouse.y;
-  if (Math.abs(dx) < catPx * 0.62 || Math.abs(dx) > catPx * S.jumpReach) return null;
+  if (Math.abs(dx) < catPx * JUMP_MIN || Math.abs(dx) > catPx * S.jumpReach) return null;
   if (up < -catPx * 0.4 || up > catPx * S.jumpReach * 0.8) return null;
   const dir = Math.sign(dx);
   return { x: onScreen((mouse.x - dir * 100 * s) / W), up: up / s };   // head lands under the cursor
@@ -2979,6 +3079,14 @@ function earAt(x, y){
   }
   return -1;
 }
+// which eye the cursor is on (0, 1, −1 none): a round spot a little bigger than the open eye, so it stays put as the eye shuts
+function eyeAt(x, y){
+  let k = -1, best = EYE_SHY.r;
+  els.eyes.forEach((e, i) => { const q = toLocal(e, x, y), d = q ? Math.hypot(q[0], q[1]) : Infinity; if (d < best){ best = d; k = i; } });
+  return k;
+}
+// is the cursor on the cat (body, head, ears, legs, tail; not its shadow)
+function catAt(x, y){ const el = document.elementFromPoint(x, y); return !!(el && el.closest && el.closest('#catBody')); }
 /* the tail won't be touched: as the cursor comes near, the tail swings at once to the nearest bend that is well clear
    of it, which is away from the cursor; cornered there, it whips across to the other side. It settles back once the
    cursor has kept away a moment. Bent after the follow-through (followTail) with springs of its own, so it moves from
@@ -3041,16 +3149,200 @@ function dodgeTail(tail, p, dt, now){
   }
   return dodge.a.some(a => Math.abs(a) > 1e-4) ? bendTail(tail, dodge.a) : tail;
 }
+/* on its back the cat plays with the cursor. Above it, all four paws go for it like a ball of yarn dangled over the cat
+   (each as far as the leg reaches, to the side of the ball facing it): the paw moves after the legs are solved and the leg
+   bends to it at its own lengths (knee pointing the same way), so nothing stretches. Beside it and on the belly the legs
+   turn toward it, a little at the hip or shoulder (point 1) and more at the knee or elbow (point 2), and the tail curls in
+   over the belly; while the cursor moves, the lower legs knead slowly round point 2 and the tail sways. No leg goes into
+   the floor. It stays on its back while you play (see frame). */
+const BELLY_PLAY = { near:150, belly:36, ball:10, lag:14, turn1:0.5, turn2:0.75, knead:0.08, hz:1.8, tail:0.1, tailHz:1.2, curl:0.35 };
+  // near / belly: how close the cursor counts (units from the line through pelvis and ribcage); ball: its radius; lag: how
+  // quickly the point the paws follow catches up with the cursor (a critically damped spring: quick, never overshooting,
+  // no sudden starts; 1/s); turn1 / turn2: how far a leg turns toward the
+  // cursor at point 1 / point 2 (radians, at most); knead: how far the lower legs swing while the cursor moves, hz how
+  // quick; tail: how far the tail sways, tailHz how quick; curl: how far it curls in over the belly (radians)
+const romp = { w:0, near:0, up:0, hug:0, joy:0, a:null, va:[0, 0], hold:false, sway:null };   // a: the point the paws follow (cat units), trailing the cursor
+const onBack = () => plan.kind === 'belly' && !!curStep && !curStep.via && (curStep.to === 'belly' || curStep.to === 'bellyBat');   // not rolling
+function bellyPlay(p, dt, now){
+  const on = S.playBelly && onBack() && !holding && !legDrag, B = BELLY_PLAY;
+  const toward = (v, to, s) => v < to ? Math.min(to, v + dt / s) : Math.max(to, v - dt / s);
+  romp.w = toward(romp.w, on ? 1 : 0, 0.3);
+  const q = on && cursorHere(now) ? toLocal(els.tail, mouse.x, mouse.y) : null;
+  let d = Infinity, up = 0;
+  if (q && p.skel){
+    const a = p.skel.pel, b = p.skel.rib, ex = b[0] - a[0], ey = b[1] - a[1];
+    const t = clamp(((q[0] - a[0]) * ex + (q[1] - a[1]) * ey) / (ex*ex + ey*ey || 1), 0, 1);
+    d = Math.hypot(q[0] - a[0] - ex * t, q[1] - a[1] - ey * t);
+    up = clamp((Math.min(...p.body.map(v => v[1])) - q[1]) / 25, 0, 1);   // above the top of the body
+    if (!romp.a){ romp.a = q.slice(); romp.va = [0, 0]; }
+    const n = Math.ceil(dt / (1/240)), hs = dt / (n || 1), k = B.lag;
+    for (let s = 0; s < n; s++) for (const j of [0, 1]){ romp.va[j] += ((q[j] - romp.a[j]) * k * k - romp.va[j] * 2 * k) * hs; romp.a[j] += romp.va[j] * hs; }
+  }
+  const moving = d < B.near && now - mouse.moved < 150 ? 1 : 0;
+  romp.near = toward(romp.near, clamp((B.near - d) / 40, 0, 1), 0.25);
+  romp.up = toward(romp.up, up, 0.25);
+  romp.hug = toward(romp.hug, d < B.belly ? 1 : 0, 0.25);
+  romp.joy = toward(romp.joy, moving, moving > romp.joy ? 0.2 : 0.6);
+  romp.hold = on && (romp.hug > 0.5 || romp.joy > 0.5 || romp.near * romp.up > 0.5 && now - mouse.moved < 4000);   // a ball held still: a while
+  const W = smooth(romp.w), A = romp.a, near = smooth(romp.near), h = smooth(romp.hug), joy = smooth(romp.joy), upK = smooth(romp.up);
+  romp.sway = null;
+  if (W < 1e-3 || !A || near + joy < 1e-3) return;
+  const reachW = W * near * upK * (1 - h), focus = W * Math.max(near * (1 - upK), h);
+  const spin = (c, q, a) => { const co = Math.cos(a), s = Math.sin(a), x = q[0] - c[0], y = q[1] - c[1]; return [c[0] + x * co - y * s, c[1] + x * s + y * co]; };
+  // which way, and how much, o → q turns toward o → A: the sine of the angle between them, so it never flips over
+  const toA = (o, q) => Math.sin(Math.atan2(A[1] - o[1], A[0] - o[0]) - Math.atan2(q[1] - o[1], q[0] - o[0]));
+  Object.keys(p.legs).forEach((l, i) => {
+    const leg0 = p.legs[l], [hip, kn0, wr0] = leg0, toe0 = leg0[3] || wr0;
+    // a leg lying on the floor never goes into it (it would be cut off at the floor line): of each move, only as much
+    // as keeps the knee, paw and toe above it (or no lower than they are)
+    const kLow = Math.max(kn0[1], FLOOR_Y - foldR(p, l)), wLow = Math.max(wr0[1], FLOOR_Y - 12), tLow = Math.max(toe0[1], FLOOR_Y - 2);
+    const fits = L => L[1][1] <= kLow && L[2][1] <= wLow && L[3][1] <= tLow;
+    const most = f => { const all = f(1); if (fits(all)) return all; let lo = 0, hi = 1; for (let n = 0; n < 14; n++){ const s = (lo + hi) / 2; if (fits(f(s))) lo = s; else hi = s; } return f(lo); };
+    let leg = [hip, kn0, wr0, toe0];
+    if (reachW > 1e-3){
+      const [, kn, wr, toe] = leg, gx = A[0] - hip[0], gy = A[1] - hip[1], gl = Math.hypot(gx, gy) || 1;
+      const mx = (A[0] - gx / gl * B.ball - wr[0]) * reachW, my = (A[1] - gy / gl * B.ball - wr[1]) * reachW;
+      const L1 = dist(hip, kn), L2 = dist(kn, wr), far = Math.min(L1 + L2 - 0.01, Math.max(dist(hip, wr), 0.95 * (L1 + L2)));   // reaching out, a leg keeps a little bend
+      const side = Math.sign((wr[0] - hip[0]) * (kn[1] - hip[1]) - (wr[1] - hip[1]) * (kn[0] - hip[0])) || 1;   // the way the knee points
+      leg = most(s => {   // the paw moved share s of the way, the leg bent to it
+        const t = [wr[0] + mx * s, wr[1] + my * s], D = dist(hip, t) || 1, dd = clamp(D, Math.abs(L1 - L2) + 0.5, far);
+        const ux = (t[0] - hip[0]) / D, uy = (t[1] - hip[1]) / D, a = (L1*L1 - L2*L2 + dd*dd) / (2 * dd), ht = Math.sqrt(Math.max(0, L1*L1 - a*a)) * side;
+        const k2 = [hip[0] + ux * a - uy * ht, hip[1] + uy * a + ux * ht], w2 = [hip[0] + ux * dd, hip[1] + uy * dd];
+        const turn = Math.atan2(w2[1] - k2[1], w2[0] - k2[0]) - Math.atan2(wr[1] - kn[1], wr[0] - kn[0]);   // the paw keeps its angle to the lower leg
+        return [hip, k2, w2, spin(w2, [w2[0] + toe[0] - wr[0], w2[1] + toe[1] - wr[1]], turn)];
+      });
+    }
+    if (focus + joy > 1e-3){
+      // turned toward the cursor: the whole leg round point 1, then the lower leg round point 2, each as far as the floor
+      // lets it on its own; only a paw up in the air kneads (one lying on the floor would bump into it)
+      const air = clamp((FLOOR_Y - 12 - wr0[1]) / 20, 0, 1), sway = W * joy * air * B.knead * Math.sin(2 * Math.PI * B.hz * life + i * 1.9);
+      const [, kn, wr, toe] = leg, a1 = focus * B.turn1 * toA(hip, wr);
+      leg = most(s => [hip, spin(hip, kn, a1 * s), spin(hip, wr, a1 * s), spin(hip, toe, a1 * s)]);
+      const [, k, w, t] = leg, a2 = focus * B.turn2 * toA(k, w) + sway;
+      leg = most(s => [hip, k, spin(k, w, a2 * s), spin(k, t, a2 * s)]);
+    }
+    p.legs[l] = leg;
+  });
+  if (h > 1e-3) p.tail = bendTail(p.tail, DODGE_W.map(() => W * B.curl * h));   // curls in, with the tail's follow-through
+  // the sway goes on after the follow-through (see frame), so its springs don't make it wobble
+  if (joy > 1e-3) romp.sway = DODGE_W.map((_, i) => W * B.tail * joy * Math.sin(2 * Math.PI * B.tailHz * life - i * 0.7));
+}
+/* a cursor near the cat while it rests (idle, watching, or sitting facing you), but too close for a jump (see JUMP_MIN).
+   Its head follows the cursor: it leans and stretches toward it (the neck stretching with it), the nose tipping up toward
+   a cursor above it or down toward one below; facing you, it tilts its head to the cursor's side, curious. Above its
+   head, the chest rises a little toward it too (see leanUp). Resting under its head (in front of it, in a side view), the
+   cursor gets a paw: the front paw on its side lifts and taps it, touching it, drawing back a little and touching it
+   again, as if testing what it is; the paw goes back down when the cursor leaves, or once it has had enough. Meanwhile
+   it stays where it is (see frame). The leg bends to the paw at its own lengths (the elbow down, toward the back or,
+   facing you, the outside), after the legs are solved. */
+const PAW_TEST = { rest:0.25, up:0.35, down:0.35, enough:6, lag:10, reach:0.85, back:12, curl:0.7, near:1.5, lean:12, tilt:10, side:8, look:0.3, rise:7 };
+  // rest: how long the cursor rests before the paw comes up; up / down: how long it takes to rise / settle; enough: how
+  // long it keeps at it (s); lag: how quickly paw and head follow a moving cursor (1/s); reach: how far the leg stretches
+  // (share of its length); back: how far the paw draws back between taps (units, see TAP); curl: how far the paw bends
+  // down at the wrist (radians); near: how close to the head the cursor counts for the head (cat lengths); lean: how far
+  // the head goes toward it (units); tilt: how far the nose tips up or down, side: how far the head tilts facing you (°);
+  // look: how long the head takes to turn to it or back (s); rise: how far the chest rises toward a cursor above the head (units)
+// one tap: out to touch it (quick, easing out), a moment on it, back a little (slower), a pause; then again. [s, out 0 … 1]
+const TAP = [[0, 0], [0.16, 1], [0.28, 1], [0.58, 0], [0.95, 0]];
+function tapAt(t){
+  const u = t % TAP[TAP.length - 1][0];
+  for (let i = 1; i < TAP.length; i++){ const [t0, a] = TAP[i-1], [t1, b] = TAP[i]; if (u <= t1) return a + (b - a) * smooth((u - t0) / (t1 - t0)); }
+  return 0;
+}
+// the cursor above the head (see testPaw): the chest rises a little toward it with the head, the shoulders (the front
+// legs' point 1) going with it and the front paws staying where they are. Done to the pose before it is shaped, so the
+// skin, the neck and the front legs follow the ribcage
+function leanUp(p){
+  const hw = smooth(pawTest.hw), A = pawTest.a && [pawTest.a[0] - (p.shape.catX || 0), pawTest.a[1] - (p.shape.catY || 0)];   // (the cursor as the pose sees it, see shiftPose)
+  if (!A || hw < 1e-3 || !p.rib) return p;
+  const k = hw * clamp((p.head.y + HEAD_DROP - A[1]) / 60, 0, 1);   // only for a cursor above the head
+  if (k < 1e-3) return p;
+  const gx = A[0] - p.rib[0], gy = A[1] - p.rib[1], gl = Math.hypot(gx, gy) || 1, dx = gx / gl * PAW_TEST.rise * k, dy = gy / gl * PAW_TEST.rise * k;
+  p.rib = [p.rib[0] + dx, p.rib[1] + dy, ...p.rib.slice(2)];
+  p.head.x += dx; p.head.y += dy;
+  p.legStretch = Math.max(p.legStretch || 1, 1 + 0.08 * k);   // the front legs straighten under the rising chest, paws staying put
+  return p;
+}
+const pawTest = { on:false, w:0, hw:0, a:null, va:[0, 0], since:0, done:-1, hold:false, leg:'fn' };
+const CALM_STEPS = new Set(['sitWatch', 'sitFront', 'sitFrontTiltA', 'sitFrontTiltB']);   // watching, sitting facing you (not on the way in or out)
+function testPaw(p, dt, now){
+  const B = PAW_TEST, calm = !!curStep && (curStep.idle && plan.kind === 'idle' || !curStep.via && CALM_STEPS.has(curStep.to));
+  const q = S.pawCursor && calm && cursorHere(now) && !lick.active && !holding && !legDrag && p.skel && p.legs.fn && p.legs.ff ? toLocal(els.tail, mouse.x, mouse.y) : null;
+  const v = clamp(p.fx.view, 0, 1), mid = p.skel ? (p.skel.rib[0] + p.skel.pel[0]) / 2 : 0, hy = p.head.y + HEAD_DROP, chin = hy + 40 * HEAD_SCALE * p.shape.headSize;
+  // closer than a jump and not on the cat (a front paw reaching it doesn't count, nor, for the head, the head rising into it)
+  const el = q && document.elementFromPoint(mouse.x, mouse.y), onCat = !!(el && el.closest && el.closest('#catBody')) && !/-f[nf]$/.test(el.id);
+  const close = !!q && Math.abs(q[0] - mid) < JUMP_MIN * 230;
+  // the paw: the near front one in a side view; facing you, the one on the cursor's side (kept while it reaches). The cursor
+  // under the head, above the floor, in front of the shoulder (side view) or not far to its side (facing you)
+  if (q && !pawTest.on && !pawTest.w) pawTest.leg = v < 0.5 || Math.abs(q[0] - p.legs.fn[0][0]) <= Math.abs(q[0] - p.legs.ff[0][0]) ? 'fn' : 'ff';
+  const l = pawTest.leg, leg = p.legs[l];
+  const there = close && !onCat && q[1] > chin - 10 && q[1] < FLOOR_Y - 5 && (v < 0.5 ? q[0] > leg[0][0] + 20 : Math.abs(q[0] - leg[0][0]) < 230);
+  const sees = close && !(onCat && !el.closest('#ears, #head, #face')) && dist(q, [p.head.x, hy]) < B.near * 230 && (v > 0.5 || q[0] > p.head.x - 40);
+  if (pawTest.on && (!there || now - pawTest.since > B.enough * 1000)){ pawTest.on = false; pawTest.done = mouse.still; }
+  else if (!pawTest.on && there && now - mouse.still > B.rest * 1000 && mouse.still !== pawTest.done){ pawTest.on = true; pawTest.since = now; }
+  pawTest.w = clamp(pawTest.w + (pawTest.on ? dt / B.up : -dt / B.down), 0, 1);
+  pawTest.hw = clamp(pawTest.hw + (sees || pawTest.on ? 1 : -1) * dt / B.look, 0, 1);
+  pawTest.hold = pawTest.on || pawTest.w > 0 || pawTest.hw > 0 && now - mouse.moved < 3000;   // the head alone: while the cursor moves about
+  if (q && (sees || pawTest.on)){
+    if (!pawTest.a){ pawTest.a = q.slice(); pawTest.va = [0, 0]; }
+    const n = Math.ceil(dt / (1/240)), hs = dt / (n || 1), k = B.lag;   // critically damped: gentle, no overshoot
+    for (let s = 0; s < n; s++) for (const j of [0, 1]){ pawTest.va[j] += ((q[j] - pawTest.a[j]) * k * k - pawTest.va[j] * 2 * k) * hs; pawTest.a[j] += pawTest.va[j] * hs; }
+  }
+  const w = smooth(pawTest.w), hw = smooth(pawTest.hw), A = pawTest.a;
+  if (!A || w + hw < 1e-3){ if (!pawTest.on && !pawTest.w && !pawTest.hw) pawTest.a = null; return; }
+  // the head: toward the cursor, nose up or down to it (facing you: tilted to its side)
+  if (hw > 1e-3){
+    const gx = A[0] - p.head.x, gy = A[1] - hy, gl = Math.hypot(gx, gy) || 1, lean = Math.min(B.lean, gl * 0.15) * hw;
+    p.head.rot += hw * ((1 - v) * B.tilt * clamp(gy / 80, -1, 1) + v * B.side * clamp(gx / 120, -1, 1));
+    p.head.x += gx / gl * lean; p.head.y += gy / gl * lean;
+  }
+  if (w < 1e-3) return;
+  const [sh, kn, wr] = leg, toe = leg[3] || wr, L1 = dist(sh, kn), L2 = dist(kn, wr), pawLen = dist(wr, toe);
+  // where the paw goes: toward the cursor, tapping it (its tip on it, then drawn back a little), as far as the leg stretches
+  const gx = A[0] - sh[0], gy = A[1] - sh[1], gl = Math.hypot(gx, gy) || 1, ux0 = gx / gl, uy0 = gy / gl;
+  const len = Math.max(0, Math.min(gl - pawLen * 0.8 - B.back * (1 - tapAt((now - pawTest.since) / 1000)), B.reach * (L1 + L2)));
+  const T = [wr[0] + (sh[0] + ux0 * len - wr[0]) * w, wr[1] + (sh[1] + uy0 * len - wr[1]) * w];
+  const D = dist(sh, T) || 1, dd = clamp(D, Math.abs(L1 - L2) + 0.5, L1 + L2 - 0.01), ux = (T[0] - sh[0]) / D, uy = (T[1] - sh[1]) / D;
+  const a = (L1*L1 - L2*L2 + dd*dd) / (2 * dd), px = -uy, py = ux;
+  // the elbow goes down and back (facing you: down and out), flattening smoothly where that turns over
+  const out = Math.sign(sh[0] - mid) || 1, ex = -0.45 * (1 - v) + 0.45 * out * v, bend = clamp((px * ex + py * 0.89) / 0.2, -1, 1);
+  const ht = Math.sqrt(Math.max(0, L1*L1 - a*a)) * bend;
+  const k2 = [sh[0] + ux * a + px * ht, sh[1] + uy * a + py * ht], w2 = [sh[0] + ux * dd, sh[1] + uy * dd];
+  // the paw: from where it was toward the lower leg's line, bent down at the wrist (whichever way the leg points)
+  const lx = w2[0] - k2[0], ly = w2[1] - k2[1], ll = Math.hypot(lx, ly) || 1, cu = B.curl * clamp(lx / ll / 0.3, -1, 1), c = Math.cos(cu), s = Math.sin(cu);
+  const upP = [w2[0] + (lx * c - ly * s) / ll * pawLen, w2[1] + (lx * s + ly * c) / ll * pawLen], was = [w2[0] + toe[0] - wr[0], w2[1] + toe[1] - wr[1]];
+  p.legs[l] = [sh, k2, w2, [was[0] + (upP[0] - was[0]) * w, Math.min(FLOOR_Y - 2, was[1] + (upP[1] - was[1]) * w)]];
+}
 function updateCursor(dt, now){
   const active = mouse.inside && now - mouse.moved < 6000;
   mouse.w = clamp(mouse.w + (S.followCursor && active ? 1 : -1) * dt / 0.3, 0, 1);
   // an ear wiggles while the cursor is on it: a burst of hard flicks, again after a short pause while it stays there
   if (earWig.t >= 0){ earWig.t += dt; if (earWig.t >= EAR_WIG.one * EAR_WIG.n){ earWig.t = -1; earWig.rest = now + EAR_WIG.rest * 1000; } }
   else if (active && !mouse.overPanel && now > earWig.rest){ const k = earAt(mouse.x, mouse.y); if (k >= 0){ earWig.side = k; earWig.t = 0; } }
+  // an eye shuts while the cursor is on it: 2 or 3 quick blinks, then it stays shut until the cursor leaves (a finger counts a while)
+  const here = cursorHere(now);
+  const onEye = here ? eyeAt(mouse.x, mouse.y) : -1;
+  eyeShy.forEach((s, i) => {
+    if (i !== onEye){ s.t = -1; s.lid = Math.max(0, s.lid - dt / EYE_SHY.open); return; }
+    if (s.t < 0){ s.t = 0; s.n = s.lid > 0.5 ? 0 : Math.random() < 0.5 ? 2 : 3; }   // back on it before it opened: shut again, no blinks
+    s.t += dt;
+    const b = s.t / EYE_SHY.one;
+    s.lid = b < s.n ? Math.sin(Math.PI * (b % 1)) : Math.max(s.lid, clamp((s.t - s.n * EYE_SHY.one) / EYE_SHY.shut, 0, 1));
+  });
+  // the mood the eyes show (see FEEL): happy beats sad beats suspicious
+  const onCat = here && catAt(mouse.x, mouse.y);
+  feel.on = onCat ? feel.on + dt : 0;
+  if (feel.on >= FEEL.pet) feel.petted = now;
+  feel.look = !S.eyeAuto ? null
+    : now - feel.petted < FEEL.happy * 1000 ? 'happy'
+    : now - Math.max(feel.petted, 0) > FEEL.sad * 1000 ? 'sad'   // nobody yet: counts from when the page opened
+    : !onCat && here && now - mouse.still > FEEL.sus * 1000 && now - mouse.still < FEEL.susEnd * 1000 &&
+      mouse.still > feel.petted + FEEL.happy * 1000 ? 'suspicious'   // just petted: not until the cursor moves again
+    : null;
   const idle = !!(curStep && curStep.idle) && plan.kind === 'idle';
   // lick the cursor while it rests on the nose: when idle, and on its back (not while rolling over or back; the move
   // waits while it licks, see frame)
-  lick.back = plan.kind === 'belly' && !!curStep && !curStep.via && (curStep.to === 'belly' || curStep.to === 'bellyBat');
+  lick.back = onBack();
   const canLick = idle || lick.back;
   if (lick.active){
     if (!canLick || mouse.still > lick.since || !mouse.inside || !mouthHit()) lick.active = false;
@@ -3059,8 +3351,8 @@ function updateCursor(dt, now){
   }
   lick.w = clamp(lick.w + (lick.active ? 1 : -1) * dt / 0.25, 0, 1);
   if (lick.w > 0) lick.t += dt; else lick.t = 0;
-  // pounce when the cursor rests within reach
-  if (S.pounce && playing && idle && !lick.active && !mouse.pounced && mouse.inside && !mouse.overPanel &&
+  // pounce when the cursor rests within reach (not while it shuts an eye)
+  if (S.pounce && playing && idle && !lick.active && onEye < 0 && !mouse.pounced && mouse.inside && !mouse.overPanel &&
       now - mouse.still > 1200 && now - mouse.moved < 30000 && cursorJumpTarget()){
     mouse.pounced = true; doMove('jump');
   }
@@ -3079,40 +3371,46 @@ function lickShape(u){
 let playing = true, life = 0, last = performance.now(), lastShown = null;
 let gaitDbg = [0, 0];
 const scrub = $('scrub');
+// the pose shaped for moment T of its step: a walk's or run's paws and body, or a jump's tilt (the frame loop, and the
+// transition states' previews)
+function shapeStep(lived, step, T){
+  if (step && step.gait){
+    const G = step.gait, gt = clamp(T - step.start, 0, step.dur);
+    runKeys(lived, G, gt); gaitBody(lived, G, gt);
+    const again = structuredClone(lived);
+    let shaped = applyShape(lived); gaitPaws(shaped, G, gt);
+    const [dr, dp] = gaitReach(shaped);                          // safety: lower chest / pelvis if a leg would still stretch
+    gaitDbg = [dr, dp];
+    if (dr > 0.3 || dp > 0.3){ again.gaitBody[1] += dr; again.gaitBody[4] += dp; shaped = applyShape(again); gaitPaws(shaped, G, gt); }
+    return shaped;
+  }
+  const J = step && step.spine ? jumpTilt(step, T) : null;
+  if (!J) return applyShape(lived);
+  const again = structuredClone(lived);
+  lived.gaitBody = jumpBody(lived, J); let shaped = applyShape(lived); jumpPaws(shaped, J);
+  const [nx, ny] = jumpFront(shaped, J);
+  if (J.kL > 0){                                               // landing on straight front legs: move the body, redo
+    J.tx = nx * J.kL; J.ty = ny * J.kL;
+    again.gaitBody = jumpBody(again, J); shaped = applyShape(again); jumpPaws(shaped, J); jumpFront(shaped, J);
+  }
+  return shaped;
+}
 function frame(now){
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   refreshShapes();
   if (playing){
-    if (!(lick.active && lick.back)) planT += dt * S.speed;   // licking the cursor on its back: it stays there
+    if (!(lick.active && lick.back) && !romp.hold && !pawTest.hold) planT += dt * S.speed;   // licking, playing with or pawing at the cursor: it stays there
     life += dt;
     if (planT >= plan.total){ livePose = evalPlan(plan.total).pose; onPlanEnd(); }
   }
   const r = evalPlan(planT);
   livePose = r.pose; curStep = r.step; facing = r.facing; lift = r.lift;
   const G = curStep && curStep.gait ? curStep : null, gt = G ? clamp(planT - G.start, 0, G.dur) : 0;
-  const lived = addLife(livePose, life, playing ? dt : 0);
-  let shaped;
-  if (G){
-    gaitBody(lived, G.gait, gt);
-    const again = structuredClone(lived);
-    shaped = applyShape(lived); gaitPaws(shaped, G.gait, gt);
-    const [dr, dp] = gaitReach(shaped);                          // safety: lower chest / pelvis if a leg would still stretch
-    gaitDbg = [dr, dp];
-    if (dr > 0.3 || dp > 0.3){ again.gaitBody[1] += dr; again.gaitBody[4] += dp; shaped = applyShape(again); gaitPaws(shaped, G.gait, gt); }
-  } else {
-    const J = curStep && curStep.spine ? jumpTilt(curStep, planT) : null;
-    if (J){
-      const again = structuredClone(lived);
-      lived.gaitBody = jumpBody(lived, J); shaped = applyShape(lived); jumpPaws(shaped, J);
-      const [nx, ny] = jumpFront(shaped, J);
-      if (J.kL > 0){                                               // landing on straight front legs: move the body, redo
-        J.tx = nx * J.kL; J.ty = ny * J.kL;
-        again.gaitBody = jumpBody(again, J); shaped = applyShape(again); jumpPaws(shaped, J); jumpFront(shaped, J);
-      }
-    } else shaped = applyShape(lived);
-  }
-  const shown = solveLegs(shaped);
+  const shown = solveLegs(shapeStep(leanUp(addLife(livePose, life, playing ? dt : 0)), curStep, planT));
+  bellyPlay(shown, playing ? dt : 0, now);
+  testPaw(shown, playing ? dt : 0, now);
   shown.tail = followTail(shown.tail, playing ? dt : 0);
+  if (romp.sway) shown.tail = bendTail(shown.tail, romp.sway);   // on its back, swaying while you play (see bellyPlay)
   shown.tail = dodgeTail(shown.tail, shown, playing ? dt : 0, now);
   const lifted = r.lift + (G ? gaitLift(G.gait, gt) : 0);
   const gv = stateSel !== null ? holding : plan === playGhost;   // ghosts: while a state is held, or its move plays
@@ -3138,7 +3436,7 @@ const sec = d => v => (+v).toFixed(d) + ' s';
 const fmtOut = {
   speed: v => (+v).toFixed(2) + '×', idleTime: sec(1), postureTime: sec(2), turnTime: sec(2),
   trans: sec(2), holdStretch: sec(1), watchTime: sec(1), napTime: sec(0), jumpPrep: sec(1),
-  jumpHeight: v => (+v).toFixed(2) + '×', walkSpeed: v => (+v).toFixed(2) + '×', runSpeed: v => (+v).toFixed(2) + '×', runStride: sec(2), lookGap: sec(0), jumpReach: v => (+v).toFixed(1) + '×',
+  jumpHeight: v => (+v).toFixed(2) + '×', jumpTop: v => Math.round(v * 100) + '%', walkSpeed: v => (+v).toFixed(2) + '×', runSpeed: v => (+v).toFixed(2) + '×', runStride: sec(2), jumpReach: v => (+v).toFixed(1) + '×',
   licks: v => v + '×', size: v => v + '%', posX: v => v + '%', ground: v => v + '%',
   ...Object.fromEntries(['headSize','headWidth','eyeSize','earSize','legThick','tailThick','pawW','pawH','ribW','ribH','waistLen','waistH','pelW','pelH','neckW','tailLen','earBW','earBH','earFW','earFH','cheekRound','jawW','shoulderSpread','hipSpread','hipSize','thighW','kneeF','kneeB','kneeOut','hipW','hipLen','foldR'].map(k => [k, v => (+v).toFixed(2) + '×'])),
   eyeGap: v => v, eyeX: v => (v > 0 ? '+' : '') + v, eyeY: v => (v > 0 ? '+' : '') + v,
@@ -3374,11 +3672,24 @@ const TRANSITIONS = {
   jump:    { btn:'Jump',      label:'Jump', states:[['stand'], ['jumpReady', 'Crouch'], ['jumpPush', 'Push off'], ['jumpRise', 'Rising'], ['jumpFly', 'In the air'],
                                                   ['jumpReach', 'Reaching to land'], ['jumpAbsorb', 'Landing'], ['stand']] },
   groom:   { btn:'Lick paw',  label:'Licking the paw', states:[['sit'], ['lickReady', 'Paw up'], ['lickDown', 'Lick down'], ['lickUp', 'Lick up'], ['sit']] },
+  run:     { btn:'Run',       label:'Run', states:[['stand'], RUN_ENDS[0], ...RUN_KEYS, RUN_ENDS[1], RUN_ENDS[2], ['stand']], ring:[2, 5] },   // ring: the stride's moments, round and round
 };
-let statePaused = false;   // a jump state is a frozen moment of a real jump
-function resumeState(){ if (statePaused){ statePaused = false; setPlaying(true); } }
+const RUN_KEY = Object.fromEntries([...RUN_KEYS, ...RUN_ENDS]), ST_HINT = $('stHint').textContent;
+let statePaused = false;   // a jump or run state is a frozen moment of a real jump / run
+function resumeState(){
+  if (!statePaused) return;
+  statePaused = false;
+  // a held moment of a run stops there and stands (the run it was taken from would carry on far off screen)
+  if (plan.kind === 'runKey'){
+    const r = evalPlan(planT), s = r.step; worldX = r.x;
+    plan = compile([{ to:'stand', dur:S.trans, ease:'inOutCubic', label:'Standing', home:'stand' }], structuredClone(livePose), 'settle', 'stand',
+                   s && s.gait ? gaitLift(s.gait, clamp(planT - s.start, 0, s.dur)) : 0);
+    planT = 0;
+  }
+  setPlaying(true);
+}
 function leaveState(){
-  stateSel = null; playGhost = null; drawGhosts();
+  stateSel = null; playGhost = null; drawGhosts(); drawJumpCurve();
   document.querySelectorAll('#stList .st').forEach(e => e.classList.remove('on'));
   if (!stateEdit) return;
   stateEdit = null; resumeState(); syncShapeInputs();
@@ -3390,30 +3701,35 @@ function jumpRef(start, from){
   const steps = [...postureSteps(from, 'stand'), ...moveSteps('jump', { posture:'stand', facing, x: worldX, target: t })].map(s => ({ home:'stand', ...s }));
   return compile(steps, start, 'jump', 'stand', 0);
 }
-// when a jump state shows in full: the top of the flight for the pose it flies through, else the end of its last step
+// when a jump state shows in full: its key position in the flight for the poses the flight passes, else the end of its
+// last step
 function phaseTime(P, name){
-  const ri = P.steps.find(s => s.rise === name && s.flight);   // on the way up: where the flight passes it
-  if (ri){ let a = 0, b = 1; for (let i = 0; i < 30; i++){ const m = (a + b) / 2; if (flightPose(m, ri.jUp) < 0.25) a = m; else b = m; } return ri.start + ri.dur * a; }
-  const fl = P.steps.find(s => s.via === name && s.flight);
-  if (fl) return fl.start + fl.dur * (fl.jUp || 0.5);
+  const fl = P.steps.find(s => s.flight), K = fl && fl.jKeys, at = K && { jumpRise: K.rise, jumpFly: K.fly, jumpReach: K.reach, jumpPush: K.push || null }[name];
+  if (at) return fl.start + fl.dur * Math.min(at, 0.999);
   const st = [...P.steps].reverse().find(s => s.to === name && Number.isFinite(s.dur));
   return st ? st.start + st.dur * 0.999 : 0;
+}
+// a run held at one of its key moments, with the cat where it is now: the trip is long enough that a few strides go by
+// at full speed after speeding up, and a stride moment is in the stride after them; Setting off, Landing and Stopping at theirs
+function runRef(name){
+  const G0 = gaitPlan('run', 1e4), n = Math.ceil(G0.Ta / G0.Tc) + 2, k = catScale() / innerWidth, f = screenFacing(facing);
+  const G = gaitPlan('run', G0.V * (G0.Ta + (n + 3) * G0.Tc)); G.need = gaitNeed(G);
+  const T = name === 'runStart' ? G.Ta / 2 : name === 'runLanding' ? runLandAt(G) : name === 'runStop' ? G.stop : (n + runKeyPhases(G)[name]) * G.Tc, x0 = worldX - f * gaitDist(G, T) * k;
+  const P = compile([{ to:'run', dur:G.T, ease:'linear', label:'Editing Run: ' + RUN_KEY[name], toX: x0 + f * G.D * k, gait:G, home:'stand' }],
+                    POSES.run, 'runKey', 'stand', 0, x0);
+  return { P, T };
 }
 // the plan and moment that show a state
 function stateMoment([name]){
   if (SHAPE_GROUPS.includes(name)) return { P: compile([{ to: GROUP_POSE[name], dur: Infinity }], structuredClone(POSES[GROUP_POSE[name]]), 'edit', GROUP_HOME[name]), T: 0 };
   if (/^jump/.test(name)){ const P = jumpRef(structuredClone(POSES.stand), 'stand'); return { P, T: phaseTime(P, name) }; }
+  if (RUN_KEY[name]) return runRef(name);
   return { P: compile([{ to: name, dur: Infinity }], structuredClone(POSES[name]), 'edit', 'stand'), T: 0 };
 }
 // what the stage would show at time T of plan P, without moving the real cat (the frame loop's steps, still)
 function poseAt(P, T){
-  const r = evalPlan(T, P), lived = addLife(r.pose, 0, 0), J = r.step && r.step.spine ? jumpTilt(r.step, T) : null;
-  if (!J) return solveLegs(applyShape(lived));
-  const again = structuredClone(lived);
-  lived.gaitBody = jumpBody(lived, J); let shaped = applyShape(lived); jumpPaws(shaped, J);
-  const [nx, ny] = jumpFront(shaped, J);
-  if (J.kL > 0){ J.tx = nx * J.kL; J.ty = ny * J.kL; again.gaitBody = jumpBody(again, J); shaped = applyShape(again); jumpPaws(shaped, J); jumpFront(shaped, J); }
-  return solveLegs(shaped);
+  const r = evalPlan(T, P);
+  return solveLegs(shapeStep(addLife(r.pose, 0, 0), r.step, T));
 }
 // previews: each state is drawn on the stage between two frames (never seen there) and copied into its window
 let snapTimer = 0;
@@ -3436,7 +3752,7 @@ function drawSnaps(){
     snapGhost[+sec.dataset.i] = { shape: gs, pts: dragPoints(pose) };
   });
   skelShown = was;
-  drawGhosts();
+  drawGhosts(); drawJumpCurve();
   // one frame around the cat for all of them (same scale, so the states compare), grid lines every 50 units
   const box = [Infinity, Infinity, -Infinity, -Infinity];
   document.querySelectorAll('#stList .snap').forEach(g => { const b = g.getBBox(); if (b.width){ box[0] = Math.min(box[0], b.x); box[1] = Math.min(box[1], b.y); box[2] = Math.max(box[2], b.x + b.width); box[3] = Math.max(box[3], b.y + b.height); } });
@@ -3454,6 +3770,8 @@ const stName = ([name, label]) => label || GROUP_LABEL[name];
 // the two states shown as ghosts for state i (null: the move playing); −1 none
 function ghostRefs(i){
   const L = TRANSITIONS[stateTr].states, last = L.length - 1, loop = L[0][0] === L[last][0];
+  const R = TRANSITIONS[stateTr].ring;   // the run's stride moments: round the stride
+  if (R && i !== null && i >= R[0] && i <= R[1]) return [i === R[0] ? R[1] : i - 1, i === R[1] ? R[0] : i + 1];
   const r = i === null ? (loop ? [-1, -1] : [0, last]) : loop ? [i - 1, i + 1] : [0, last];
   return r.map(j => j === i || j > last ? -1 : j);
 }
@@ -3477,10 +3795,11 @@ function openTransition(id){
   leaveState(); stateTr = id; snapGhost = [];
   const T = TRANSITIONS[id], last = T.states.length - 1, loop = T.states[0][0] === T.states[last][0];
   $('ghost0Name').textContent = loop ? 'Previous' : 'Start'; $('ghost1Name').textContent = loop ? 'Next' : 'Finish';
+  $('stHint').textContent = T.ring ? 'Click a moment to hold it on the stage, then drag its points there. Setting off shapes speeding up, Landing and Stopping slowing down; the four moments between come round every stride, each flowing smoothly on to the next. Start and finish are the Stand position itself.' : ST_HINT;
   let grid = ''; for (let v = 0; v <= GRID.size; v += 50) grid += `M${GRID.x + v} ${GRID.y}V${GRID.y + GRID.size}M${GRID.x} ${GRID.y + v}H${GRID.x + GRID.size}`;
   $('stTitle').textContent = T.label; $('statesPanel').hidden = false;
   $('stList').innerHTML = T.states.map(([name, label], i) => `<section class="st" data-i="${i}">
-      <p class="sub">${label || (i === last ? 'Finish' : 'Start') + ' · ' + GROUP_LABEL[name]}</p>
+      <p class="sub">${JMARK[name] && id === 'jump' ? JMARK[name] + ' · ' : ''}${label || (i === last ? 'Finish' : 'Start') + ' · ' + GROUP_LABEL[name]}</p>
       <svg class="stView" viewBox="${GRID.x} ${GRID.y} ${GRID.size} ${GRID.size}" role="button" aria-label="Edit this state"><path class="stGrid" d="${grid}"/><g class="snap"></g></svg>
       ${label ? `<div class="actions"><button class="btn" type="button" data-streset="${name}">Reset this state</button></div>`
               : `<p class="hint">The ${GROUP_LABEL[name]} position itself: changing it changes ${GROUP_LABEL[name]} everywhere.</p>`}
@@ -3489,6 +3808,7 @@ function openTransition(id){
   document.querySelectorAll('[data-streset]').forEach(b => b.onclick = () => {
     delete S.states[b.dataset.streset]; save(); if (stateEdit === b.dataset.streset) syncShapeInputs();
   });
+  $('stCurve').hidden = id !== 'jump';
   drawSnaps();
 }
 function closeTransition(){
@@ -3505,14 +3825,77 @@ function selectState(i){
     if (/^jump/.test(name)){   // a frozen moment of a real jump (tilt, height and planted paws as they really are)
       plan = jumpRef(structuredClone(livePose), posture); planT = phaseTime(plan, name);
       holding = true; markActive(null); setPlaying(false); statePaused = true;
+    } else if (RUN_KEY[name]){   // and of a real run, at full speed
+      worldX = evalPlan(planT).x; ({ P: plan, T: planT } = runRef(name));
+      holding = true; markActive(null); setPlaying(false); statePaused = true;
     } else holdOn(name, GROUP_HOME[TRANSITIONS[stateTr].states[0][0]], null, `Editing ${TRANSITIONS[stateTr].btn}: ${label}`);
   }
   document.querySelectorAll('#stList .st').forEach(e => e.classList.toggle('on', +e.dataset.i === i));
-  stateSel = i; drawGhosts();
+  stateSel = i; drawGhosts(); drawJumpCurve();
 }
 $('trBtns').innerHTML = Object.entries(TRANSITIONS).map(([id, T]) => `<button class="btn" type="button" data-tr="${id}">${T.btn}</button>`).join('');
 document.querySelectorAll('[data-tr]').forEach(b => b.onclick = () => openTransition(b.dataset.tr));
 $('stClose').onclick = closeTransition;
+/* the jump's path (Jump panel): its height over the way forward, true to scale for a jump a quarter of the screen ahead,
+   with the key positions on it, numbered as in the list below (1 crouch and 6 landing where the path leaves and meets the
+   floor; the numbers that can move are drawn over them). A number dragged
+   along the path sets where in the flight the cat has that pose (see jumpPoseAt); the yellow mark is the top (Jump top).
+   Clicking a number holds that moment on the stage */
+const JMARK = { jumpReady:1, jumpPush:2, jumpRise:3, jumpFly:4, jumpReach:5, jumpAbsorb:6 };
+const JKEY = { jumpPush:'push', jumpRise:'rise', jumpFly:'fly', jumpReach:'reach' }, JKEY_ORDER = ['push', 'rise', 'fly', 'reach'];
+const JC = { x0:22, x1:278, pad:24 };   // take-off and touchdown across the box
+let jcView = null, jcDrag = null;
+function drawJumpCurve(){
+  const box = $('jCurve'); if ($('stCurve').hidden) return;
+  const fl = jumpRef(structuredClone(POSES.stand), 'stand').steps.find(s => s.flight), K = jumpKeys(), k = fl.jUp;
+  const U = Math.max(Math.abs(fl.x1 - fl.x0) * innerWidth / catScale(), 1), hh = fl.lift * (JC.x1 - JC.x0) / U, H = Math.round(hh + 2 * JC.pad), floor = H - JC.pad;
+  const X = p => JC.x0 + p * (JC.x1 - JC.x0), Y = p => floor - hh * flightHeight(p, k), f1 = v => v.toFixed(1);
+  jcView = { k };
+  let arc = ''; for (let i = 0; i <= 60; i++) arc += (i ? 'L' : 'M') + f1(X(i / 60)) + ' ' + f1(Y(i / 60));
+  const sel = stateTr === 'jump' && stateSel !== null ? TRANSITIONS.jump.states[stateSel][0] : null;
+  const mark = (name, x, y, fixed) => `<g class="jMark${fixed ? ' fixed' : ''}${name === sel ? ' on' : ''}" data-jm="${name}" transform="translate(${f1(x)} ${f1(y)})"><title>${stName(TRANSITIONS.jump.states.find(e => e[0] === name))}</title><circle r="8"/><text>${JMARK[name]}</text></g>`;
+  box.setAttribute('viewBox', `0 0 300 ${H}`);
+  box.innerHTML = `<path class="floor" d="M${JC.x0 - 12} ${floor}H${JC.x1 + 12}"/><path class="arc" d="${arc}"/><path class="topLine" d="M${f1(X(k))} ${floor}V${f1(Y(k) - 10)}"/>` +
+    `<g class="jTop" data-jm="top" transform="translate(${f1(X(k))} ${f1(Y(k) - 14)})"><title>Top of the jump</title><path d="M-6 -7H6L0 3Z"/></g>` +
+    mark('jumpReady', X(0), floor, true) + mark('jumpAbsorb', X(1), floor, true) +
+    ['jumpPush', 'jumpRise', 'jumpFly', 'jumpReach'].map(n => mark(n, X(K[JKEY[n]]), Y(K[JKEY[n]]))).join('');
+}
+function jcValue(text){ const v = $('jCurveVal'); v.hidden = false; v.textContent = text; }
+// the held jump moment follows its number (the plan keeps the positions it was made with)
+function jcFollow(){
+  for (const s of plan.steps) if (s.jKeys) s.jKeys = jumpKeys();
+  if (statePaused && stateTr === 'jump' && stateSel !== null) planT = phaseTime(plan, TRANSITIONS.jump.states[stateSel][0]);
+}
+$('jCurve').addEventListener('pointerdown', e => {
+  const m = e.target.closest('[data-jm]'); if (!m || !jcView) return;
+  e.preventDefault(); m.setPointerCapture(e.pointerId);
+  jcDrag = { name: m.dataset.jm, x: e.clientX, y: e.clientY, moved: false, fixed: m.classList.contains('fixed') };
+});
+addEventListener('pointermove', e => {
+  const D = jcDrag; if (!D || D.fixed || (!D.moved && Math.hypot(e.clientX - D.x, e.clientY - D.y) < 3)) return;
+  const q = toLocal($('jCurve'), e.clientX, e.clientY); if (!q) return;
+  D.moved = true;
+  let v = clamp((q[0] - JC.x0) / (JC.x1 - JC.x0), 0, 1);
+  if (D.name === 'top'){
+    v = clamp(Math.round(v * 100) / 100, 0.3, 0.5); S.jumpTop = v; syncInputs();
+    jcValue(`Top of the jump: ${Math.round(v * 100)}% of the way`);
+  } else {
+    const K = jumpKeys(), key = JKEY[D.name], i = JKEY_ORDER.indexOf(key), gap = 0.03;
+    const lo = i ? K[JKEY_ORDER[i - 1]] + gap : 0, hi = i < 3 ? K[JKEY_ORDER[i + 1]] - gap : 1;
+    v = e.altKey ? +v.toFixed(3) : Math.abs(v - jcView.k) < 0.02 ? jcView.k : Math.round(v * 100) / 100;   // snaps onto the top (Alt / Option: free)
+    K[key] = clamp(v, lo, hi); S.jumpKeys = K; jcFollow();
+    jcValue(`${JMARK[D.name]} ${stName(TRANSITIONS.jump.states.find(s => s[0] === D.name))}: ${Math.round(K[key] * 100)}% of the way${K[key] === jcView.k ? ' (the top)' : ''}`);
+  }
+  drawJumpCurve();
+});
+addEventListener('pointerup', () => {
+  const D = jcDrag; if (!D) return;
+  jcDrag = null;
+  if (!D.moved){ if (D.name !== 'top') selectState(TRANSITIONS.jump.states.findIndex(s => s[0] === D.name)); return; }
+  save();
+  if (D.name === 'top' && statePaused && stateSel !== null) selectState(stateSel);   // the held moment, in the new flight
+});
+$('jKeysReset').onclick = () => { delete S.jumpKeys; jcFollow(); save(); drawJumpCurve(); jcValue('Positions 2–5 back where they started'); };
 [0, 1].forEach(k => {
   const c = $('ghost' + k); c.checked = !UI['ghostOff' + k]; c.nextElementSibling.style.background = GHOST_COL[k];
   c.onchange = () => { UI['ghostOff' + k] = !c.checked; saveUI(); drawGhosts(); };
