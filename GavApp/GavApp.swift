@@ -22,7 +22,8 @@ let siteURL = URL(string: "https://veryverymadmike.github.io/GavCat/?wallpaper")
 
 /* The cat as the desktop wallpaper: a see-through window behind the desktop icons, on every Space, that clicks pass
    through (like Plash). Such a window gets no mouse events, so the cursor is read here instead and handed to the page
-   as ordinary pointer moves, only while it is over the bare desktop: not over a window, the Dock or the menu bar. */
+   as ordinary pointer moves, only while it is over the bare desktop: not over a window, the Dock or the menu bar.
+   Clicks there are handed on too (a click on the sleeping cat wakes it); they still reach the desktop as well. */
 final class Desktop: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     private var window: NSWindow!
     private var web: WKWebView!
@@ -31,6 +32,7 @@ final class Desktop: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     private var lastAt = CGPoint(x: -1, y: -1), ticks = 0
     private var onSite = false            // showing the site (not the bundled copy)
     private var version: String?          // the site's version shown (its ETag)
+    private var clicks: Any?              // watches clicks in other apps (the desktop is Finder's)
 
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.setActivationPolicy(.accessory)                 // no Dock icon, just the menu bar cat
@@ -54,6 +56,7 @@ final class Desktop: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "The cat watches the cursor")
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.trackCursor() } }
         RunLoop.main.add(timer, forMode: .common)
+        clicks = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in MainActor.assumeIsolated { self?.click() } }
         // a new version of the cat: looked for every half hour, and a little after the Mac wakes (once the network is back)
         checkForUpdate()
         let updates = Timer(timeInterval: 30 * 60, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.checkForUpdate() } }
@@ -113,6 +116,14 @@ final class Desktop: NSObject, NSApplicationDelegate, WKNavigationDelegate {
             cursor = nil
             run("document.documentElement.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }))")
         }
+    }
+
+    // a click on the bare desktop, handed to the page where it was
+    private func click() {
+        let at = NSEvent.mouseLocation, f = window.frame
+        guard f.contains(at), overDesktop(at) else { return }
+        let q = CGPoint(x: (at.x - f.minX).rounded(), y: (f.maxY - at.y).rounded())
+        run("dispatchEvent(new PointerEvent('pointerdown', { clientX: \(Int(q.x)), clientY: \(Int(q.y)), pointerType: 'mouse', button: 0 }))")
     }
 
     // the bare desktop under the cursor: the frontmost window there is the desktop or its icons
