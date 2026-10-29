@@ -171,6 +171,10 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <clipPath id="eyeClip0"><path/></clipPath><clipPath id="eyeClip1"><path/></clipPath>
       <!-- Siamese coat: each marking is drawn only inside the part it belongs to -->
       <clipPath id="cpTail"><use href="#tail"/></clipPath><clipPath id="cpSkull"><use href="#skull"/></clipPath>
+      <!-- the tail painted on top leaves out its pale root (it would show a hairline round it on the body) -->
+      <mask id="tailTopMask" maskUnits="userSpaceOnUse" x="-1000" y="-1000" width="3000" height="3000">
+        <rect x="-1000" y="-1000" width="3000" height="3000" fill="#fff"/><path id="tailTopCut" fill="none" stroke="#000"/>
+      </mask>
       <clipPath id="cpLow-ff"><use href="#low-ff"/></clipPath><clipPath id="cpLow-fn"><use href="#low-fn"/></clipPath>
       <clipPath id="cpEarL"><use href="#earL"/></clipPath><clipPath id="cpEarR"><use href="#earR"/></clipPath>
       <filter id="earSoft" x="-0.3" y="-0.3" width="1.6" height="1.6"><feGaussianBlur stdDeviation="0.4"/></filter>
@@ -191,7 +195,7 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
       <g id="catBody">
         <g id="silhouette" filter="url(#goo)">
           <path id="tail"/>
-          <g class="coat" clip-path="url(#cpTail)"><path id="ptTailPale" fill="none"/><g id="ptTail"></g></g>
+          <g class="coat" id="ptTailCoat" clip-path="url(#cpTail)"><path id="ptTailPale" fill="none"/><g id="ptTail"></g></g>
           <path id="leg-bf" class="leg" clip-path="url(#aboveFloor)"/>
           <path id="leg-ff" class="leg" clip-path="url(#aboveFloor)"/>
           <path id="body"/>
@@ -223,6 +227,9 @@ kbd{font-family:var(--font-num);font-size:11px;border:1px solid var(--line);bord
         <g id="lowerLegs"><path id="low-bf"/><path id="low-ff"/><g class="coat" clip-path="url(#cpLow-ff)"><g id="ptLow-ff"></g></g><path id="low-bn"/><path id="low-fn"/><g class="coat" clip-path="url(#cpLow-fn)"><g id="ptLow-fn"></g></g></g>
         <path id="tailHalo" fill="none" stroke-linejoin="round" stroke-width="7" opacity="0"/>
         <path id="tailFront" opacity="0"/>
+        <!-- Siamese, tail wrapped in front (lying): the tail painted again over the body and the paws; it still melts
+             into the body in the soft-merge layer -->
+        <g id="tailOnTop" class="coat"><use href="#tail" mask="url(#tailTopMask)"/><use href="#ptTailCoat"/></g>
         <g id="face">
           <ellipse id="tongue" cx="4" cy="22" rx="0" ry="0"/>
           <path id="whiskers" d="M42 13L68 7M42 17L70 17M42 21L67 26" fill="none" stroke-width="1.7" stroke-linecap="round"/>
@@ -844,7 +851,7 @@ POSES.pokeStartleStand = derive(POSES.stand, { head:{ y:56, rot:-8, ear:16 }, ey
 // leaping the other way it whips round through facing you: sitting facing you, centred on the line it turns round, tail
 // straight up behind, so it looks the same either way round (the drawing turns over there unseen)
 POSES.pokeFront = tiltPose(derive(POSES.sitFront, { head:{ ear:16 }, eye:{ lid:0, lx:0, ly:-0.3, pr:5.6, mood:0 },
-  tail:[[240,226],[240,196],[240,166],[240,136],[240,106],[240,76]] }), 0, [0, 0], TURN_AXIS - 240);
+  tail:[[240,226],[240,196],[240,166],[240,136],[240,106],[240,76]] }), 0, [0, 0], -20);   // its middle 240 → TURN_AXIS 220
 // (rearing up where it lay: the sitting pose set back, so it recoils a little rather than sliding forward)
 POSES.pokeRear = tiltPose(derive(POSES.sit, {
   rib:[262,146,50,28,-86], pel:[228,210,38,37,-14],
@@ -2967,10 +2974,15 @@ function drawCoat(p, tailC, tailR){
   const L = [0];
   for (let i = 1; i < tailC.length; i++) L.push(L[i-1] + dist(tailC[i], tailC[i-1]));
   const s = L[L.length - 1] * COAT.tailAt, T = along(tailC, L, s), E = along(tailC, L, s + r + 1);
-  const pale = $('ptTailPale');
-  pale.setAttribute('d', 'M' + [...tailC.slice(0, E.i), E.q].map(fmt).join('L'));
-  pale.setAttribute('stroke-width', (tailR * 4).toFixed(1));
+  const paleD = 'M' + [...tailC.slice(0, E.i), E.q].map(fmt).join('L');
+  const [c0, c1] = tailC, l0 = dist(c0, c1) || 1, pre = [c0[0] - (c1[0] - c0[0]) / l0 * tailR * 2, c0[1] - (c1[1] - c0[1]) / l0 * tailR * 2];
+  $('ptTailPale').setAttribute('d', paleD);
+  $('tailTopCut').setAttribute('d', 'M' + fmt(pre) + 'L' + paleD.slice(1));   // from a little before the root (its flat end)
+  for (const e of [$('ptTailPale'), $('tailTopCut')]) e.setAttribute('stroke-width', (tailR * 4).toFixed(1));
   putBand($('ptTail'), T.q, T.u, r + 4);
+  // wrapped in front of the body (fx.front, lying): painted again on top, fading in as it wraps round
+  const tf = clamp(p.fx.front, 0, 1), top = $('tailOnTop');
+  top.setAttribute('opacity', tf.toFixed(2)); top.setAttribute('visibility', tf > 0.01 ? 'visible' : 'hidden');
   // face: the mask is centred between the eyes (they move as the head turns), a little below them
   const hw = sh.headWidth, turnK = p.eye.cx / 4;
   const rx = sh.eyeGap + 14 * sh.eyeSize, ry = (12 + 12 * sh.eyeSize) * 0.9;
@@ -3540,7 +3552,7 @@ function tailGap(P, q, r){
   return d - r;
 }
 function dodgeTail(tail, p, dt, now){
-  if (!S.dodgeTail || holding || legDrag){ dodge.to = dodge.free = 0; dodge.a.fill(0); dodge.v.fill(0); return tail; }   // editing: where the pose puts it
+  if (!S.dodgeTail || holding || legDrag || tailHold() >= 1){ dodge.to = dodge.free = 0; dodge.a.fill(0); dodge.v.fill(0); return tail; }   // editing: where the pose puts it; leaping when clicked: as its poses move it (see tailHold)
   const r = LIMB.tail[0] * p.shape.tailThick, floor = FLOOR_Y - r, D = TAIL_DODGE;
   const bent = a => bendTail(tail, DODGE_W.map(() => a));
   const gap = (P, q) => tailGap(P.map(([x, y]) => [x, Math.min(y, floor)]), q, r);   // as drawn: on the floor, not in it
