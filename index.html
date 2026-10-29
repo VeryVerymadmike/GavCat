@@ -1481,7 +1481,7 @@ function spinPose(p){
 /* ---------- settings ---------- */
 // ?wallpaper in the address: see-through background (your desktop picture shows behind the cat) and no controls;
 // it always starts playing, never in an editing tab (see start)
-const WALL = new URLSearchParams(location.search).has('wallpaper');
+const WALL = document.documentElement.classList.contains('wallpaper') || new URLSearchParams(location.search).has('wallpaper');
 document.documentElement.classList.toggle('wallpaper', WALL);
 const DEFAULTS = {
   speed:1, idleTime:5, postureTime:1.0, turnTime:1.0, trans:0.9, holdStretch:2.4, watchTime:4, licks:6, napTime:10,

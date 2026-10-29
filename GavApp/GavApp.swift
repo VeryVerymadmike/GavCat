@@ -36,7 +36,13 @@ final class Desktop: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.setActivationPolicy(.accessory)                 // no Dock icon, just the menu bar cat
-        web = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: "document.documentElement.classList.add('wallpaper')",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        ))
+        web = WKWebView(frame: .zero, configuration: configuration)
         web.setValue(false, forKey: "drawsBackground")       // the desktop picture shows behind the cat
         web.navigationDelegate = self
         window = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
