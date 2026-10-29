@@ -28,11 +28,13 @@ body{background:var(--stage);color:var(--ink);font-family:var(--font-ui);overflo
 html.wallpaper,html.wallpaper body{background:transparent!important}
 /* the wallpaper never shows a control (they are for editing in a browser), not even in Plash's Browsing Mode */
 html.wallpaper #panel,html.wallpaper #showBtn,html.wallpaper #statesPanel{display:none!important}
+html.app-mode #panel,html.app-mode #showBtn,html.app-mode #statesPanel{display:none!important}
 #stage svg{width:100%;height:100%;display:block}
 #skel,#ghosts{display:none}
 #skel .grab{cursor:grab}
 html.skel-on #skel,html.skel-on #ghosts{display:inline}
 html.wallpaper #skel,html.wallpaper #ghosts{display:none!important}
+html.app-mode #skel,html.app-mode #ghosts{display:none!important}
 #ghosts .gShape *{fill:currentColor!important;stroke:none!important}
 
 .panel{position:fixed;z-index:5;
@@ -1481,7 +1483,9 @@ function spinPose(p){
 /* ---------- settings ---------- */
 // ?wallpaper in the address: see-through background (your desktop picture shows behind the cat) and no controls;
 // it always starts playing, never in an editing tab (see start)
-const WALL = document.documentElement.classList.contains('wallpaper') || new URLSearchParams(location.search).has('wallpaper');
+const APP_MODE = document.documentElement.classList.contains('app-mode') || new URLSearchParams(location.search).has('app');
+document.documentElement.classList.toggle('app-mode', APP_MODE);
+const WALL = new URLSearchParams(location.search).has('wallpaper');
 document.documentElement.classList.toggle('wallpaper', WALL);
 const DEFAULTS = {
   speed:1, idleTime:5, postureTime:1.0, turnTime:1.0, trans:0.9, holdStretch:2.4, watchTime:4, licks:6, napTime:10,
@@ -4493,7 +4497,7 @@ addEventListener('resize', layout);
 syncInputs(); syncShapeInputs(); applyColors(); setCollapsed(!!UI.collapsed); layout();
 startIdle(S.auto ? 2 : Infinity);
 look.cur = look.prev = S.eyeRest; setLook(S.eyeRest, Infinity); edSelect(edId); runNote();
-showTab(!WALL && ['shape', 'eyes'].includes(UI.tab) ? UI.tab : 'anim');
+showTab(!WALL && !APP_MODE && ['shape', 'eyes'].includes(UI.tab) ? UI.tab : 'anim');
 draw(solveLegs(applyShape(addLife(livePose, 0, 0))), 0);
 requestAnimationFrame(frame);
 
