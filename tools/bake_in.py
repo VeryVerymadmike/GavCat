@@ -3,7 +3,7 @@
 import json, os, re, sys
 SRC = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'cat-stretch.html'))
 OBS = {'browColor','brows','savedAt','shapes','eyeLooks'}
-LEG_KEY = re.compile(r'[fb][nf]([1-4][xy]|4a)|(t[1-5]|tail[1-3])[xy]|headRot|cat[XY]')   # dragged points: legs (fn1x … bf4y), tail (t1x … t5y), head tilt, whole cat
+LEG_KEY = re.compile(r'[fb][nf]([1-4][xy]|4a)|(t[1-5]|tail[1-3])[xy]|headRot|cat[XY]|mask[1-8][xyr]|muzzle[XY]')   # dragged points: legs (fn1x … bf4y), tail (t1x … t5y), head tilt, whole cat, face stain dots and nose
 def num(v):
     if isinstance(v,float): v=round(v,4); return '%g' % v
     return json.dumps(v).replace('</', '<\\/')
@@ -29,12 +29,18 @@ def bake(J, f=SRC):
         s=s[:a]+"const SHAPE_PRESET = {\n"+sh+s[b:]
     for lid,d in (J.get('eyeLooks') or {}).items():
         e=d['eyes']
+        lash=lambda x: P(x['lash']) if x.get('lash') else 'null'   # null: the lash is made from the eye
+        flags=[k for k in ('lashOff','lashBack') if d.get(k)]
+        o='{ '+', '.join(k+':true' for k in flags)+' }' if flags else '{}'
+        def call(f, a, dflt):   # leave out trailing arguments that are their defaults
+            while len(a)>len(dflt)-sum(x is not None for x in dflt) and a[-1]==dflt[len(a)-1]: a.pop()
+            return f+'('+', '.join(a)+')'
         if d.get('sep') and len(e)>1:
-            new=f"two({P(e[0]['pts'])}, {P(e[1]['pts'])}" + (f", {num(e[0]['pr'])}, {num(e[1]['pr'])}" if (e[0]['pr'],e[1]['pr'])!=(1,1) else '') + ")"
+            new=call('two', [P(e[0]['pts']), P(e[1]['pts']), num(e[0]['pr']), num(e[1]['pr']), lash(e[0]), lash(e[1]), o], [None, None, '1', '1', 'null', 'null', '{}'])
         else:
-            new=f"one({P(e[0]['pts'])}" + (f", {num(e[0]['pr'])}" if e[0]['pr']!=1 else '') + ")"
+            new=call('one', [P(e[0]['pts']), num(e[0]['pr']), lash(e[0]), o], [None, '1', 'null', '{}'])
         m=re.search(r"\['%s',\s+'[^']*',\s+[\d.]+,\s+\w+,\s+[^,]+,\s+(one\(.*?\)|two\(.*?\)), (mo\(|\(\) =>|t =>)" % ident(lid), s)
-        assert m, lid
+        if not m: continue   # an emotion that is no longer there
         s=s[:m.start(1)]+new+s[m.end(1):]
     if s==old: return False
     open(f,'w').write(s); return True
