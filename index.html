@@ -221,6 +221,8 @@ input[type=range]:disabled{opacity:.4}
       <clipPath id="cpTailOver"><use href="#low-bf"/><use href="#low-ff"/><use href="#low-bn"/><use href="#low-fn"/></clipPath>
       <clipPath id="cpLow-ff"><use href="#low-ff"/></clipPath><clipPath id="cpLow-fn"><use href="#low-fn"/></clipPath>
       <clipPath id="cpEarL"><use href="#earL"/></clipPath><clipPath id="cpEarR"><use href="#earR"/></clipPath>
+      <!-- an upper leg's edge melts into the body, so its shading is no hard shape sliding over it -->
+      <filter id="legSoft" x="-0.3" y="-0.3" width="1.6" height="1.6"><feGaussianBlur stdDeviation="2.5"/></filter>
       <filter id="earSoft" x="-0.3" y="-0.3" width="1.6" height="1.6"><feGaussianBlur stdDeviation="0.4"/></filter>
       <filter id="maskSoft" x="-0.2" y="-0.2" width="1.4" height="1.4"><feGaussianBlur stdDeviation="1"/></filter>
       <filter id="noseGlow" x="-0.2" y="-0.6" width="1.4" height="2.2"><feGaussianBlur stdDeviation="0.4"/></filter>
@@ -246,8 +248,8 @@ input[type=range]:disabled{opacity:.4}
         <g id="silhouette" filter="url(#goo)">
           <path id="tail"/>
           <g class="coat" id="ptTailCoat" clip-path="url(#cpTail)"><path id="ptTailPale" fill="none"/><g id="ptTail"></g></g>
-          <path id="leg-bf" class="leg" clip-path="url(#aboveFloor)"/>
-          <path id="leg-ff" class="leg" clip-path="url(#aboveFloor)"/>
+          <path id="leg-bf" class="leg" clip-path="url(#aboveFloor)" filter="url(#legSoft)"/>
+          <path id="leg-ff" class="leg" clip-path="url(#aboveFloor)" filter="url(#legSoft)"/>
           <path id="body"/>
           <!-- skeleton masses: the skin always wraps around the ribcage and the pelvis (pressed flat on the floor, see partOutline) -->
           <path id="massPel" clip-path="url(#aboveFloor)"/><path id="massRib" clip-path="url(#aboveFloor)"/>
@@ -257,10 +259,10 @@ input[type=range]:disabled{opacity:.4}
           </g>
           <!-- the chest and belly, one blob, shaded along its lower edge (see bellyShape); placed among the legs in draw -->
           <path id="bellyBlob" clip-path="url(#aboveFloor)"/>
-          <path id="leg-bn" class="leg" clip-path="url(#aboveFloor)"/>
+          <path id="leg-bn" class="leg" clip-path="url(#aboveFloor)" filter="url(#legSoft)"/>
           <path id="neck"/>
           <!-- the near front leg: over the neck (whose round end would show on its gradient), under the head (lying, its shoulder overlaps the face) -->
-          <path id="leg-fn" class="leg" clip-path="url(#aboveFloor)"/>
+          <path id="leg-fn" class="leg" clip-path="url(#aboveFloor)" filter="url(#legSoft)"/>
           <g id="head">
             <path id="skull" d="M-50 -26C-44 -36 -26 -37 0 -35C26 -37 44 -36 50 -26C56 -8 58 10 50 24C42 36 20 40 0 40C-20 40 -42 36 -50 24C-58 10 -56 -8 -50 -26Z"/>
           </g>
@@ -1369,7 +1371,8 @@ function applyShape(p){
   const bendAt = q => { const t = ((q[0] - pa[0]) * ax[0] + (q[1] - pa[1]) * ax[1]) / (al * al); return t > 0 && t < 1 ? Math.sin(Math.PI * t) : 0; };
   // the pose's own round back (fx.round) bows toward the cat's back whichever way up it is (rolling over, the side facing
   // up changes): bv is how far, and which way, the middle of the body moves
-  const rd = (p.fx.round || 0) * (1 - face), bv = [sUp[0] * sc + ax[1] / al * rd, sUp[1] * sc - ax[0] / al * rd], bent = !!(sc || rd);
+  // (Spine curve's bow fades out as the body stands upright, where the side facing up changes over, so nothing jumps there)
+  const rd = (p.fx.round || 0) * (1 - face), sv = sc * smooth(clamp(Math.abs(ax[0]) / al / 0.25, 0, 1)), bv = [sUp[0] * sv + ax[1] / al * rd, sUp[1] * sv - ax[0] / al * rd], bent = !!(sv || rd);
   if (bent) p.body = p.body.map(q => { const b = bendAt(q); return [q[0] + bv[0] * b, Math.min(q[1] + bv[1] * b, FLOOR_Y)]; });
   // joints: shoulders ride on the chest, waist halves and tail root on the hips; the Shoulders & hips
   // sliders move them in every position (apart = left / right away from the pair's middle)
@@ -1437,7 +1440,7 @@ function applyShape(p){
     // side views: points 7 back and 3 front sit on the circles; the back (0 → 2) and the belly (4 → 6) are the
     // circles' outer tangents, so they run straight from hip to shoulder without a dip
     const B = p.body.map((q, i) => SKIN_FRAME[i] === 0 ? hullSupport(H2, mH, q) : SKIN_FRAME[i] === 2 ? hullSupport(S2, mS, q) : null);
-    const side = (c, s) => s * (c[0] * sUp[0] + c[1] * sUp[1]) + c[2], pick = (C, s) => side(C[0], s) >= side(C[1], s) ? C[0] : C[1];
+    const side = (c, s) => s * (c[0] * sUp[0] + c[1] * sUp[1]) + c[2], pick = (C, s) => { const w = smooth(clamp((side(C[0], s) - side(C[1], s)) / 8 + 0.5, 0, 1)); return [0, 1, 2].map(i => C[1][i] + (C[0][i] - C[1][i]) * w); };   // the outer one, easing from one to the other as they pass
     const tangent = (a, b, s) => {   // outer tangent of circles a → b on the back (s 1) or belly (s -1) side: its two touching points
       const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy); if (d <= Math.abs(a[2] - b[2]) + 1e-6) return null;
       const u = [dx / d, dy / d], c = (a[2] - b[2]) / d, sn = Math.sqrt(1 - c * c);
@@ -1653,6 +1656,14 @@ SHAPE_DEFAULT.zbelly = 2.5;   // the chest and belly's layer among them: legs ab
 SHAPE_DEFAULT.zhead = 4.5;   // the head's layer among them: legs above it are drawn over the head, eyes and whiskers too (4.5: none)
 SHAPE_DEFAULT.ztail = 0.25;   // the tail's layer among them (0.25: at the back)
 // the legs back to front for a shape (between two positions the layers blend; a tie keeps the old order)
+// while two positions blend their layers would blend too, and the order change many times over: this keeps the layers of the
+// position nearest (so they change once, all together, halfway). A still (dt undefined) or a held state keeps its own
+const Z_KEYS = ['zbf', 'zff', 'zbn', 'zfn', 'zbelly', 'zhead', 'ztail'];
+function settledZ(sh, candidates){
+  let best = sh, bd = Infinity;
+  for (const c of candidates){ if (!c) continue; let d = 0; for (const k of Z_KEYS) d += ((c[k] ?? SHAPE_DEFAULT[k]) - (sh[k] ?? SHAPE_DEFAULT[k])) ** 2; if (d < bd - 1e-9){ bd = d; best = c; } }
+  return Object.fromEntries(Z_KEYS.map(k => [k, best[k] ?? SHAPE_DEFAULT[k]]));
+}
 const legOrder = sh => LEGS_BACK.slice().sort((a, b) => ((sh['z' + a] ?? 0) - (sh['z' + b] ?? 0)) || (LEGS_BACK.indexOf(a) - LEGS_BACK.indexOf(b)));
 const FAR_LEG_SHADE = 0.15;   // the hind leg in the lower layer is this much darker (0 the same … 1 black)
 const LEG_SHADE = 0.04;       // every leg is this much darker from its first fold down, fading to its top colour at the shoulder / hip
@@ -3953,19 +3964,23 @@ function draw(p, ht, dt){
   // the lower legs and their markings in the position's leg layers; a leg above the head's layer is drawn whole over the head,
   // eyes and whiskers too, and one under the belly's layer whole behind the body (see under)
   // the hind leg in the lower layer is the far one (darker, behind the body); not facing you, where neither is behind
-  const side = 1 - clamp(p.fx.view || 0, 0, 1), lo = legOrder(p.shape), hBackK = side > 0.5 ? lo.find(k => k[0] === 'b') : null;
-  const over = k => p.shape['z' + k] > (p.shape.zhead ?? 4.5), atFace = k => k === 'fn' && p.fx.curl < -1 || pawTest.w > 0.01 && pawTest.leg === k;   // a paw held up to the face (licking, reaching for the cursor) stays in front of it
-  const zb = p.shape.zbelly ?? 2.5, zh = p.shape.zhead ?? 4.5, zt = p.shape.ztail ?? 0.25, under = k => !over(k) && !atFace(k) && side > 0.5 && (k === hBackK || p.shape['z' + k] < zb && !(fore && k === 'ff'));
-  const key = lo.map(k => over(k) ? k + '+' : atFace(k) ? k + '^' : under(k) ? k + '-' : k).join() + (hBackK ? '' : '|face') + '|' + lo.filter(k => p.shape['z' + k] < zt) + (zt > zh);
+  const Z = dt === undefined || holding ? p.shape : settledZ(p.shape, Object.values(S.shapes));
+  const side = 1 - clamp(p.fx.view || 0, 0, 1), lo = legOrder(Z), hBackK = side > 0.5 ? lo.find(k => k[0] === 'b') : null;
+  const over = k => Z['z' + k] > (Z.zhead ?? 4.5), atFace = k => k === 'fn' && p.fx.curl < -1 || pawTest.w > 0.01 && pawTest.leg === k;   // a paw held up to the face (licking, reaching for the cursor) stays in front of it
+  // lying down the tail wraps round in front (fx.front): if it is over the body when lying, it stays behind and its copy fades in until it has
+  const tf = clamp(p.fx.front, 0, 1), lieS = S.shapes.lie, wrapping = tf > 0.01 && tf < 0.99 && (lieS.ztail ?? 0.25) > (lieS.zbelly ?? 2.5), tailTop = $('tailOnTop');
+  tailTop.setAttribute('opacity', wrapping ? tf.toFixed(2) : 1);
+  const zb = Z.zbelly ?? 2.5, zh = Z.zhead ?? 4.5, zt = wrapping ? -1 : Z.ztail ?? 0.25, under = k => !over(k) && !atFace(k) && side > 0.5 && (k === hBackK || Z['z' + k] < zb && !(fore && k === 'ff'));
+  const key = lo.map(k => over(k) ? k + '+' : atFace(k) ? k + '^' : under(k) ? k + '-' : k).join() + (hBackK ? '' : '|face') + '|' + lo.filter(k => Z['z' + k] < zt) + (zt > zh) + wrapping;
   if (key !== legLayerAt){
     legLayerAt = key;
     // the tail is over the lower legs under its layer: its copy is cut to them, between them and the legs above it (over the head, it covers all it passes)
-    const tailTop = $('tailOnTop'), placeTail = () => (zt > zh ? $('legsTop') : $('lowerLegs')).appendChild(tailTop);
+    const placeTail = () => wrapping ? $('face').before(tailTop) : (zt > zh ? $('legsTop') : $('lowerLegs')).appendChild(tailTop);
     let tailPlaced = false;
-    for (const u of $('cpTailOver').children){ const k = u.getAttribute('href').slice(5); u.setAttribute('display', p.shape['z' + k] < zt && !under(k) ? 'inline' : 'none'); }
-    if (zt > zh) tailTop.removeAttribute('clip-path'); else tailTop.setAttribute('clip-path', 'url(#cpTailOver)');
+    for (const u of $('cpTailOver').children){ const k = u.getAttribute('href').slice(5); u.setAttribute('display', Z['z' + k] < zt && !under(k) ? 'inline' : 'none'); }
+    if (zt > zh || wrapping) tailTop.removeAttribute('clip-path'); else tailTop.setAttribute('clip-path', 'url(#cpTailOver)');
     for (const k of lo){
-      if (!tailPlaced && p.shape['z' + k] > zt){ placeTail(); tailPlaced = true; }
+      if (!tailPlaced && Z['z' + k] > zt && !wrapping){ placeTail(); tailPlaced = true; }
       const m = $('ptLow-' + k), g = $('legTop-' + k).parentNode, to = over(k) ? g : atFace(k) ? $('lowerFront') : $('lowerLegs');
       g.setAttribute('display', over(k) ? 'inline' : 'none'); g.parentNode.appendChild(g);
       // behind the body: it only shows where it comes out from under it
@@ -3997,7 +4012,7 @@ function draw(p, ht, dt){
   }
   const hBack = els.legs[hBackK || 'bf'], hFront = els.legs[hBackK === 'bn' ? 'bf' : 'bn'];
   // the back legs at home, then the belly just over the legs under it, then the ones over it (the closer front leg stays over the neck)
-  const overBelly = k => p.shape['z' + k] > zb, bellyKey = [hBackK, fore, lo, S.coat, zt > zb, zt > zh, ...LEGS_BACK.map(overBelly), ...LEGS_BACK.map(k => p.shape['z' + k] > zt)].join();
+  const overBelly = k => Z['z' + k] > zb, bellyKey = [hBackK, fore, lo, S.coat, zt > zb, zt > zh, ...LEGS_BACK.map(overBelly), ...LEGS_BACK.map(k => Z['z' + k] > zt)].join();
   if (bellyKey !== bellyLayerAt){
     bellyLayerAt = bellyKey;
     sil.prepend($('ptTailCoat')); sil.prepend(els.tail);
@@ -4007,7 +4022,7 @@ function draw(p, ht, dt){
     let at = els.belly;
     for (const k of lo) if (overBelly(k) && k !== 'fn' && !(fore && k === 'ff')){ at.after(els.legs[k]); at = els.legs[k]; }
     // the tail under the first of them above it; under the belly's layer it stays behind the body. Over the body its pale root is left out, or it would show a hairline round it
-    const zOf = e => e === els.belly ? zb : e === els.head ? zh : e.classList.contains('leg') ? p.shape['z' + e.id.slice(4)] : -Infinity;
+    const zOf = e => e === els.belly ? zb : e === els.head ? zh : e.classList.contains('leg') ? Z['z' + e.id.slice(4)] : -Infinity;
     let next = [...sil.children].find(e => zOf(e) > zt) || null;
     if (zt < zb && (!next || els.body.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING)) next = els.body;
     sil.insertBefore(els.tail, next); sil.insertBefore($('ptTailCoat'), next);
