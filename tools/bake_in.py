@@ -10,7 +10,7 @@ def num(v):
 def ident(k):
     assert re.fullmatch(r'[A-Za-z_]\w*', k), 'bad key %r' % k
     return k
-def P(pts): return 'pts8(' + ', '.join(','.join(num(v) for v in q) for q in pts) + ')'
+def P(pts): return 'eyePts(' + ', '.join(','.join(num(v) for v in q) for q in pts) + ')'
 def bake(J, f=SRC):
     """write J into f; returns True when the file changed"""
     old=open(f).read(); s=old
@@ -29,16 +29,15 @@ def bake(J, f=SRC):
         s=s[:a]+"const SHAPE_PRESET = {\n"+sh+s[b:]
     for lid,d in (J.get('eyeLooks') or {}).items():
         e=d['eyes']
-        lash=lambda x: P(x['lash']) if x.get('lash') else 'null'   # null: the lash is made from the eye
-        flags=[k for k in ('lashOff','lashBack') if d.get(k)]
-        o='{ '+', '.join(k+':true' for k in flags)+' }' if flags else '{}'
+        if any(len(q.get('pts') or [])!=6 for q in e): continue   # eyes from before they had 6 dots (an old tab): left out
+        sw=lambda x: '['+', '.join(num(v) for v in x['sw'])+']' if x.get('sw') and any(v!=1 for v in x['sw']) else 'null'   # the stroke's thickness at each dot (null: 1 at every dot)
         def call(f, a, dflt):   # leave out trailing arguments that are their defaults
             while len(a)>len(dflt)-sum(x is not None for x in dflt) and a[-1]==dflt[len(a)-1]: a.pop()
             return f+'('+', '.join(a)+')'
         if d.get('sep') and len(e)>1:
-            new=call('two', [P(e[0]['pts']), P(e[1]['pts']), num(e[0]['pr']), num(e[1]['pr']), lash(e[0]), lash(e[1]), o], [None, None, '1', '1', 'null', 'null', '{}'])
+            new=call('two', [P(e[0]['pts']), P(e[1]['pts']), num(e[0]['pr']), num(e[1]['pr']), sw(e[0]), sw(e[1])], [None, None, '1', '1', 'null', 'null'])
         else:
-            new=call('one', [P(e[0]['pts']), num(e[0]['pr']), lash(e[0]), o], [None, '1', 'null', '{}'])
+            new=call('one', [P(e[0]['pts']), num(e[0]['pr']), sw(e[0])], [None, '1', 'null'])
         m=re.search(r"\['%s',\s+'[^']*',\s+[\d.]+,\s+\w+,\s+[^,]+,\s+(one\(.*?\)|two\(.*?\)), (mo\(|\(\) =>|t =>)" % ident(lid), s)
         if not m: continue   # an emotion that is no longer there
         s=s[:m.start(1)]+new+s[m.end(1):]

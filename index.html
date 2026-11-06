@@ -198,13 +198,17 @@ input[type=range]:disabled{opacity:.4}
       <clipPath id="headClip"><use href="#skull" id="headClipUse"/></clipPath>
       <clipPath id="aboveFloor" clipPathUnits="userSpaceOnUse"><rect x="-1000" y="-1000" width="3000" height="1249.5"/></clipPath>
       <clipPath id="eyeClip0"><path/></clipPath><clipPath id="eyeClip1"><path/></clipPath>
+      <clipPath id="irisClip0"><circle/></clipPath><clipPath id="irisClip1"><circle/></clipPath>
       <!-- Siamese coat: each marking is drawn only inside the part it belongs to -->
       <clipPath id="cpTail"><use href="#tail"/></clipPath><clipPath id="cpSkull"><use href="#skull" transform="translate(0 3) scale(0.97) translate(0 -3)"/></clipPath>
       <!-- the head and ears (placed like them in draw): a leg over the head covers them with a copy of its upper leg, only there -->
       <linearGradient id="glintFill" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
       <radialGradient id="bellyFill" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"><stop/><stop/><stop/><stop/><stop/></radialGradient>
+      <!-- the belly's shade, along the body: all of it from the shade's centre back, none by the front of the chest -->
+      <linearGradient id="bellyFade" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="1.000"/><stop offset="0.2" stop-color="#fff" stop-opacity="0.896"/><stop offset="0.4" stop-color="#fff" stop-opacity="0.648"/><stop offset="0.6" stop-color="#fff" stop-opacity="0.352"/><stop offset="0.8" stop-color="#fff" stop-opacity="0.104"/><stop offset="1" stop-color="#fff" stop-opacity="0.000"/></linearGradient>
+      <mask id="bellyMask" maskUnits="userSpaceOnUse" x="-1000" y="-1000" width="3000" height="3000"><rect x="-1000" y="-1000" width="3000" height="3000" fill="url(#bellyFade)"/></mask>
       <linearGradient id="tongueFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0"/><stop offset="0.45"/><stop offset="1"/></linearGradient>
-      <clipPath id="cpTongueTop"><rect id="tongueTop" x="-100" y="-2.5" width="200" height="200"/></clipPath>
+      <clipPath id="cpTongueTop"><rect id="tongueTop" x="-100" y="-2.5" width="200" height="200"/><rect id="tongueSideL" y="-30" width="0" height="60"/><rect id="tongueSideR" y="-30" width="0" height="60"/></clipPath>
       <clipPath id="cpLips"><rect id="lipsClip" x="-200" y="0" width="400" height="200"/></clipPath>
       <clipPath id="cpLegBoxes"><rect id="box-bf"/><rect id="box-ff"/><rect id="box-bn"/><rect id="box-fn"/></clipPath>
       <!-- each upper leg: body colour at the shoulder / hip, easing darker toward its first fold (placed in draw) -->
@@ -229,7 +233,7 @@ input[type=range]:disabled{opacity:.4}
       <filter id="noseShine" x="-0.5" y="-1" width="2" height="3"><feGaussianBlur stdDeviation="0.14"/></filter>
       <filter id="eyeShade" x="-0.1" y="-0.1" width="1.2" height="1.2"><feGaussianBlur stdDeviation="1.1"/></filter>
       <!-- "goo": blur + alpha threshold melts the separate parts into one soft silhouette (fillets at every joint) -->
-      <filter id="goo" filterUnits="userSpaceOnUse" x="-80" y="-130" width="560" height="410" color-interpolation-filters="sRGB">
+      <filter id="goo" filterUnits="userSpaceOnUse" x="-80" y="-130" width="560" height="560" color-interpolation-filters="sRGB">
         <feGaussianBlur id="gooBlur" in="SourceGraphic" stdDeviation="4.5"/>
         <feColorMatrix mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 26 -12"/>
       </filter>
@@ -244,6 +248,7 @@ input[type=range]:disabled{opacity:.4}
       <ellipse id="shadow"/>
       <g id="catBody">
         <!-- edge fur: behind the whole cat, only what sticks out of its outline shows -->
+        <g id="edgeFurTail" pointer-events="none"></g>
         <g id="edgeFurG" clip-path="url(#aboveFloor)" pointer-events="none"></g>
         <g id="silhouette" filter="url(#goo)">
           <path id="tail"/>
@@ -259,6 +264,7 @@ input[type=range]:disabled{opacity:.4}
           </g>
           <!-- the chest and belly, one blob, shaded along its lower edge (see bellyShape); placed among the legs in draw -->
           <path id="bellyBlob" clip-path="url(#aboveFloor)"/>
+          <path id="bellyShade" clip-path="url(#aboveFloor)" fill="url(#bellyFill)" mask="url(#bellyMask)"/>
           <path id="leg-bn" class="leg" clip-path="url(#aboveFloor)" filter="url(#legSoft)"/>
           <path id="neck"/>
           <!-- the near front leg: over the neck (whose round end would show on its gradient), under the head (lying, its shoulder overlaps the face) -->
@@ -299,27 +305,25 @@ input[type=range]:disabled{opacity:.4}
           <g id="eyesIn" clip-path="url(#headClip)">
           <g class="eye">
             <g class="open">
-              <path class="lashB"/>
               <path class="white"/>
-              <g clip-path="url(#eyeClip0)"><path class="shade" fill-rule="evenodd" filter="url(#eyeShade)"/><circle class="pupil" r="4.4"/><path class="glint" fill="url(#glintFill)"/></g>
-              <path class="lashF"/>
+              <g clip-path="url(#eyeClip0)"><circle class="iris"/><g clip-path="url(#irisClip0)"><path class="shade" fill-rule="evenodd" filter="url(#eyeShade)"/></g><circle class="pupil" r="4.4"/><path class="slit"/><path class="glint" fill="url(#glintFill)"/></g>
+              <path class="eyeLine"/>
             </g>
             <path class="shut" d="M-7 0Q0 6 7 0" fill="none" stroke-width="2.2" stroke-linecap="round"/>
           </g>
           <g class="eye">
             <g class="open">
-              <path class="lashB"/>
               <path class="white"/>
-              <g clip-path="url(#eyeClip1)"><path class="shade" fill-rule="evenodd" filter="url(#eyeShade)"/><circle class="pupil" r="4.4"/><path class="glint" fill="url(#glintFill)"/></g>
-              <path class="lashF"/>
+              <g clip-path="url(#eyeClip1)"><circle class="iris"/><g clip-path="url(#irisClip1)"><path class="shade" fill-rule="evenodd" filter="url(#eyeShade)"/></g><circle class="pupil" r="4.4"/><path class="slit"/><path class="glint" fill="url(#glintFill)"/></g>
+              <path class="eyeLine"/>
             </g>
             <path class="shut" d="M-7 0Q0 6 7 0" fill="none" stroke-width="2.2" stroke-linecap="round"/>
           </g>
           </g>
         </g>
-        <!-- legs over the head (see the leg layers): a copy of the upper leg (the leg itself melts into the body below)
-             and the lower leg with its markings, moved in here -->
-        <g id="legsTop"><g display="none"><use id="legTop-bf" href="#leg-bf" clip-path="url(#cpHeadTop)"/></g><g display="none"><use id="legTop-ff" href="#leg-ff" clip-path="url(#cpHeadTop)"/></g><g display="none"><use id="legTop-bn" href="#leg-bn" clip-path="url(#cpHeadTop)"/></g><g display="none"><use id="legTop-fn" href="#leg-fn" clip-path="url(#cpHeadTop)"/></g></g>
+        <!-- legs over the head (see the leg layers): a copy of the whole upper leg (the leg itself melts into the body below),
+             so it covers the head, eyes and the whiskers wherever it crosses them, and the lower leg with its markings, moved in here -->
+        <g id="legsTop"><g display="none"><use id="legTop-bf" href="#leg-bf"/></g><g display="none"><use id="legTop-ff" href="#leg-ff"/></g><g display="none"><use id="legTop-bn" href="#leg-bn"/></g><g display="none"><use id="legTop-fn" href="#leg-fn"/></g></g>
         <g id="ghosts" pointer-events="none"></g>
         <g id="skel" pointer-events="none"></g>
       </g>
@@ -466,6 +470,7 @@ input[type=range]:disabled{opacity:.4}
     <div class="colors">
       <label class="swatch" id="catColorSw"><input type="color" id="catColor">Cat</label>
       <label class="swatch"><input type="color" id="eyeColor">Eyes</label>
+      <label class="swatch"><input type="color" id="eyeWhite">Eye whites</label>
       <label class="swatch"><input type="color" id="tongueColor">Tongue</label>
       <label class="swatch"><input type="color" id="bgColor">Wall</label>
     </div>
@@ -500,8 +505,13 @@ input[type=range]:disabled{opacity:.4}
     <p class="sub">Emotion</p>
     <div class="moves looks" id="edBtns" role="group" aria-label="Emotion to edit"></div>
     <div class="edHead"><b id="edName">Round</b><label class="chip"><input type="checkbox" id="edSep">Separate eyes</label></div>
-    <div class="moves" role="group" aria-label="Dots to drag"><button class="btn" type="button" data-edpart="eye">Eye</button><button class="btn" type="button" data-edpart="lash">Lash</button><button class="btn" type="button" data-edpart="glint">Glint</button></div>
-    <div class="chips"><label class="chip"><input type="checkbox" id="edLash">Lash</label><label class="chip"><input type="checkbox" id="edLashBack">Behind the eye</label></div>
+    <div class="moves" role="group" aria-label="Dots to drag"><button class="btn" type="button" data-edpart="eye">Eye</button><button class="btn" type="button" data-edpart="glint">Glint</button></div>
+    <div class="chips"><label class="chip"><input type="checkbox" id="edStroke">Stroke</label></div>
+    <div class="row" id="edStrokeRow" hidden><label for="edStrokePx">Stroke width</label><input type="range" id="edStrokePx" min="0.2" max="6" step="0.1"><output for="edStrokePx"></output></div>
+    <div class="moves" role="group" aria-label="Pupil"><button class="btn" type="button" data-pupil="round">Round pupil</button><button class="btn" type="button" data-pupil="slit">Slit pupil</button></div>
+    <div class="row"><label for="irisSize">Iris size</label><input type="range" id="irisSize" min="0.5" max="1.5" step="0.05"><output for="irisSize"></output></div>
+    <div class="row slitRow"><label for="slitH">Slit height</label><input type="range" id="slitH" min="0.3" max="1.2" step="0.02"><output for="slitH"></output></div>
+    <div class="row slitRow"><label for="slitRound">Slit rounded corners</label><input type="range" id="slitRound" min="0" max="1" step="0.05"><output for="slitRound"></output></div>
     <div id="edEyes"></div>
     <div class="row" id="edFadeRow" hidden><label for="edFade">Fade direction</label><input type="range" id="edFade" min="0" max="355" step="5"><output for="edFade"></output></div>
     <div class="actions"><button class="btn" id="edReset" type="button">Reset this emotion</button></div>
@@ -591,9 +601,9 @@ input[type=range]:disabled{opacity:.4}
     </div>
     <p class="sub" data-not="front">Chest &amp; belly</p>
     <div class="group" data-not="front">
-      <div class="row"><label for="bellyX">Left / right</label><input type="range" id="bellyX" min="-40" max="40" step="0.5"><output for="bellyX"></output></div>
+      <div class="row"><label for="bellyX">Left / right</label><input type="range" id="bellyX" min="-150" max="150" step="0.5"><output for="bellyX"></output></div>
       <div class="row"><label for="bellyY">Up / down</label><input type="range" id="bellyY" min="-40" max="40" step="0.5"><output for="bellyY"></output></div>
-      <div class="row"><label for="bellyShade">Shade</label><input type="range" id="bellyShade" min="0" max="20" step="0.5"><output for="bellyShade"></output></div>
+      <div class="row"><label for="bellyShade">Shade</label><input type="range" id="bellyShade" min="0" max="60" step="0.5"><output for="bellyShade"></output></div>
     </div>
     <p class="sub">On the ground</p>
     <div class="group">
@@ -617,7 +627,7 @@ input[type=range]:disabled{opacity:.4}
       <div class="row"><label for="hipSpread">Hip distance</label><input type="range" id="hipSpread" min="0" max="2" step="0.01"><output for="hipSpread"></output></div>
       <div class="row"><label for="hipX">Hips fwd/back</label><input type="range" id="hipX" min="-20" max="20" step="0.5"><output for="hipX"></output></div>
       <div class="row"><label for="hipY">Hips up/down</label><input type="range" id="hipY" min="-20" max="20" step="0.5"><output for="hipY"></output></div>
-      <div class="row"><label for="hipSize">1 size</label><input type="range" id="hipSize" min="0.6" max="1.5" step="0.01"><output for="hipSize"></output></div>
+      <div class="row"><label for="hipSize">1 size</label><input type="range" id="hipSize" min="0.3" max="1.5" step="0.01"><output for="hipSize"></output></div>
       <div class="row"><label for="hipSquare">Hip corners</label><input type="range" id="hipSquare" min="0" max="1" step="0.01"><output for="hipSquare"></output></div>
       <div class="row"><label for="hipLen">Thigh length</label><input type="range" id="hipLen" min="0.7" max="1.4" step="0.01"><output for="hipLen"></output></div>
       <div class="row"><label for="bMidX">2 fwd/back</label><input type="range" id="bMidX" min="-30" max="30" step="0.5"><output for="bMidX"></output></div>
@@ -913,7 +923,9 @@ POSES.lickReady = derive(POSES.sit, {
   legs:{ fn:[[290,156],[325,148],[292,126]] },
 });
 POSES.lickDown = derive(POSES.lickReady, { head:{ x:290, y:80, rot:18 }, mouth:{ tongue:1 } });
-POSES.lickUp   = derive(POSES.lickReady, { head:{ x:285, y:77, rot:7 }, mouth:{ tongue:1 } });
+// the pull: the tongue stuck on the paw, the head sweeps off to the side at the same height, tilting a little (then the
+// next lick brings it back down onto the paw). It sets off from lickDown's head, edits included (see refreshShapes)
+POSES.lickUp   = derive(POSES.lickReady, { head:{ x:270, y:81, rot:21 }, mouth:{ tongue:1 } });
 // napping: peeks with eyes open and flicks the tail out straight
 POSES.lieAwake = derive(POSES.lie, {
   head:{ y:181, rot:0, ear:2 }, eye:{ lid:0.3, lx:0.2 },
@@ -1322,6 +1334,12 @@ function refreshShapes(){
     if (d && HELD_LEGS.has(k)) d = Object.fromEntries(Object.entries(d).filter(([c]) => !LEG_KEY.test(c)));
     POSES[k].shape = d && Object.keys(d).length ? withDelta(stateBase(k), d) : stateBase(k);
   }
+  // the lick's sideways pull sets off from where the head came down to the paw: lickUp carries lickDown's head moves too
+  const dn = S.states && S.states.lickDown;
+  if (dn && (dn.headX || dn.headY || dn.headRot)){
+    const sh = POSES.lickUp.shape = { ...POSES.lickUp.shape };
+    for (const c of ['headX', 'headY', 'headRot']) if (dn[c]) sh[c] = (sh[c] || 0) + dn[c];
+  }
 }
 const RUMP_RIM = 1.0;   // how far the back of the body may reach past the hips (1 = their rim)
 const SHAPE_CX = 212;   // waist width spreads the masses around this line, so paw spots scale the same way in every pose
@@ -1473,13 +1491,17 @@ function applyShape(p){
   const t1 = fromFrame(F[0], p.skin.tail), dx = t1[0] - p.tail[0][0], dy = t1[1] - p.tail[0][1];
   p.tail = p.tail.map(q => [q[0] + dx, q[1] + dy]);
   // tail points dragged in the skeleton view: 1 the start carries the whole tail, 2 (middle) and 3 (tip) bend it, the points
-  // between following; older saves moved points one by one. Never below the floor
-  const tf = FLOOR_Y - LIMB.tail[0] * sh.tailThick, TW2 = [0, 1/3, 2/3, 1, 0.5, 0], TW3 = [0, 0, 0, 0, 0.5, 1];
+  // between following on a smooth round bend (no corner at the dragged point); older saves moved points one by one. The pose's
+  // own tail stays above the floor; dragged lower (lying, in front of the cat), it may go below it
+  const tf = FLOOR_Y - LIMB.tail[0] * sh.tailThick, TW2 = [0, 1, 2, 3, 4, 5].map(i => i <= 3 ? Math.sin(Math.PI / 2 * i / 3) : Math.cos(Math.PI / 2 * (i - 3) / 2)), TW3 = [0, 1, 2, 3, 4, 5].map(i => i <= 2 ? 0 : ((i - 2) / 3) ** 2);
+  let tailLow = tf;
   p.tail = p.tail.map((q, i) => {
     const ox = (sh.tail1x || 0) + TW2[i] * (sh.tail2x || 0) + TW3[i] * (sh.tail3x || 0) + (sh['t' + i + 'x'] || 0);
     const oy = (sh.tail1y || 0) + TW2[i] * (sh.tail2y || 0) + TW3[i] * (sh.tail3y || 0) + (sh['t' + i + 'y'] || 0);
-    return ox || oy ? [q[0] + ox, Math.min(q[1] + oy, tf)] : q;
+    if (ox || oy) tailLow = Math.max(tailLow, q[1] + oy);
+    return ox || oy ? [q[0] + ox, q[1] + oy] : q;
   });
+  p.tailFloor = tailLow;
   // head rides on the neck base (front-top of the ribcage)
   const nUV = mix(NECK_UV, NECK_UV_FRONT, v), n0 = fromFrame(F0[2], nUV), n1 = fromFrame(FJ, nUV);
   p.head.x += n1[0] - n0[0] + sh.headX * (1 - face); p.head.y += n1[1] - n0[1] - sh.headY; p.head.rot += sh.headRot || 0;
@@ -1631,8 +1653,15 @@ const DEFAULTS = {
   blink:true, breathe:true, sway:true, closeEyes:true,
   coat:'black', catColor:'#232423', eyeColor:'#efece4', tongueColor:'#c98d8a', bgColor:'#8f938b', shadowColor:'#6f6a4b',
   size:34, posX:50, ground:16, flip:false, showSkel:true, fluid:4.5, edgeFur:1,
-  glint:null,   // the pupil's glint, its 8 dots (null: GLINT_PTS)
+  glint:null,   // the pupil's glint, its 6 dots (null: GLINT_PTS)
   glintFade:90,   // the way it fades from white to clear, degrees (0 right, 90 down)
+  eyeStroke:false,   // a line round the eyes
+  pupil:'round',   // 'round' or 'slit' (a tall lens, pointed top and bottom)
+  eyeWhite:'#f4f1ea',   // the eyeball round the iris (Eyes is the iris)
+  irisSize:1,   // the iris, times IRIS_R
+  slitH:0.88,   // the slit pupil: half its height, times the iris's radius
+  slitRound:0,   // the slit pupil: how round its top and bottom corners are (0 pointed … 1 as round as its width allows)
+  eyeStrokePx:1.5,   // how wide it is on screen, px (each dot of the eye can make it thicker or thinner there)
 };
 // shape settings, one set per position (Shape tab); in-between poses blend the two they connect
 const SHAPE_DEFAULT = { headSize:1, headWidth:1, headX:0, headY:0, ribW:1, ribH:1, waistLen:1, waistH:1, pelW:1, pelH:1, neckW:1, toeR:0.5,
@@ -1642,7 +1671,7 @@ const SHAPE_DEFAULT = { headSize:1, headWidth:1, headX:0, headY:0, ribW:1, ribH:
   shoulderSpread:1, shoulderX:0, shoulderY:0, hipSpread:1, hipX:0, hipY:0, hipSize:1,
   fPawX:0, fPawY:0, bPawX:0, bPawY:0, fMidX:0, fMidY:0, bMidX:0, bMidY:0, spineCurve:0,
   thighW:1, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1, foldR:1,
-  bellyX:0, bellyY:0, bellyShade:6,
+  bellyX:0, bellyY:0, bellyShade:6, bellyTilt:0, bellyHf:1, bellyHr:1,
 };
 // leg points 1–4 of each leg (1 shoulder / hip, 2 first fold, 3 second fold, 4 paw), dragged in the skeleton view:
 // fn1x / fn1y … bf4y, an offset in drawing units from where the pose puts the point
@@ -1690,11 +1719,11 @@ Object.assign(DEFAULTS, {
   useStretch:true, useWatch:true, useGroom:true, useNap:true, useJump:true, useWalk:true, useRun:true,
   useFace:true, useSpine:true, walkSpeed:1.25, runSpeed:2.5, runStride:0.54, blink:true, breathe:true, sway:true,
   closeEyes:true, coat:"siamese", catColor:"#191a19", eyeColor:"#2eafff", tongueColor:"#f92f24",
-  bgColor:"#8f938b", shadowColor:"#6f6a4b", size:21, posX:5, ground:8, flip:false, showSkel:false, fluid:4.1,
-  edgeFur:1,
-  glint:[[-9.5, 8.5, 0.95], [-6.5, -1, 0.2], [-3, -10, 1], [5, -10, 0.15], [11, -10, 0.85], [5.5, 5, 1], [0, 21.5, 1], [-5, 14, 0]],
-  glintFade:20, turnBack:false,
-  states:{"sitMid": {"bf4x": 3.65, "bf4y": 21.84, "bf3x": -38.87, "bf3y": 41, "bn4x": 6.34, "bn4y": 19.07, "bn3x": 3.57, "bn3y": 25.88, "bn1x": -25.43, "bn1y": 3.21, "bf1x": -23.53, "bf1y": 4.38, "bn2x": 19.78, "bn2y": 7.85, "bf2x": -2.21, "bf2y": 6.27, "ff1x": -24.54, "ff1y": -2.56, "fn1x": -24.61, "fn1y": -3.16, "ff2x": -14.15, "ff2y": 4.04, "ff3x": -15.38, "ff3y": 1.18, "ff4x": -15.72, "ff4y": 1.18, "fn3x": -12.23, "fn3y": 1.18, "fn4x": -10.03, "fn4y": 1.18, "fn2x": -22.08, "fn2y": 4.24, "headX": -20.98, "headY": -4.22, "bf4a": 31.5, "bn4a": 402.1, "tail1x": -25.72, "tail1y": 37.32, "catX": 42.63, "catY": 4.25}, "lieMid": {"bf4x": 11.94, "bf4y": 26.1, "bf3x": 10.84, "bf3y": 26.1, "bn4x": 12.12, "bn4y": 21, "bn3x": 6.02, "bn3y": 21, "fn4x": 1.44, "fn4y": 25.77, "fn3x": 4.24, "fn3y": 19.59, "ff3x": 1.81, "ff3y": 11.17, "ff4x": -3.55, "ff4y": 16.13, "fn2x": -1.32, "fn2y": 17.03, "ff2x": -13.91, "ff2y": 22.88, "ff1x": -18.33, "ff1y": 6.18, "catX": 16.99, "catY": 1}, "reach": {"ff2x": -11.02, "ff2y": 6.97, "fn2x": -9.84, "fn2y": 11.01, "ff1x": -1.96, "ff1y": 6.42, "fn1x": -7.08, "fn1y": 13.08, "headX": 3.21, "headY": -7.35, "bn1x": -2.99, "bn1y": -8.5, "bf1x": -0.49, "bf1y": -8.5}, "faceMid": {"fn1x": -5.21, "fn1y": -18.11, "ff1x": -0.17, "ff1y": 13.49, "fn2x": -3.42, "fn2y": -17.1, "fn4x": -2.94, "fn4y": 2.36, "fn3x": -11.7, "fn3y": 1.18, "ff4x": -3.63, "ff4y": 14.09, "ff3x": -2.11, "ff3y": 14.09, "ff2x": -2.85, "ff2y": 5.91, "bf2x": -3.72, "bf2y": -2.49, "bn1x": -0.24, "bn1y": -1.18, "bn2x": -22.79, "bn2y": -27.15, "bn4x": -10.76, "bn4y": 1.49, "bn3x": -4.59, "bn3y": 1.49}, "jumpReady": {"bn1x": 0, "bn1y": 5, "bf1x": 0, "bf1y": 5, "bf2x": 5, "bf2y": -5, "fn1x": -15, "fn1y": -10, "headX": -32.38, "headY": 9.77, "spineCurve": -5.5}, "jumpPush": {"bn1x": 10.27, "bn1y": 57.29, "bf1x": 10.29, "bf1y": 52.28, "ff1x": 52.74, "ff1y": 35.23, "fn1x": 15.13, "fn1y": 54.16, "bf2x": 17.61, "bf2y": 10.91, "bn2x": 15.25, "bn2y": 26.68, "ff2x": 78.73, "ff2y": 49.6, "fn2x": 56.58, "fn2y": 47.75, "fn3x": 48.16, "fn3y": 58.18, "ff3x": 56.64, "ff3y": 49.38, "fn4x": 10.46, "fn4y": 73.86, "ff4x": 42.05, "ff4y": 59.08, "headX": 13.2, "headY": -18.02, "headRot": -3, "spineCurve": 5, "t1x": -7.66, "t1y": -3.23, "ff4a": -153, "fn4a": -180.3, "catX": 17.72, "catY": -2.3, "bn3x": -17.83, "bn3y": 2.29, "bf3x": -17.5, "bf3y": 2.29, "tail1x": -19.59, "tail1y": 22.95}, "jumpFly": {"fn1x": 2.92, "fn1y": -89.72, "ff1x": -9.4, "ff1y": -71.58, "ff2x": -27.47, "ff2y": 17.05, "fn2x": -10.18, "fn2y": 10.24, "fn3x": -84.89, "fn3y": 15.58, "fn4x": -64.34, "fn4y": 46.38, "ff3x": -95.66, "ff3y": 31.98, "ff4x": -40.9, "ff4y": 39.48, "headX": -42.47, "headY": -5.52, "t1x": 8.11, "t1y": -42.52, "t2x": 0.92, "t2y": -36.49, "t4x": -0.18, "t4y": 23.74, "t5x": 2.32, "t5y": 57.08, "t3x": 0.53, "t3y": -10.55, "bn1x": 9.52, "bn1y": -111.01, "bf1x": 24.52, "bf1y": -121.01, "tail1x": 6.37, "tail1y": -163.49, "tail2x": 15.93, "tail2y": 1.44, "tail3x": 29.27, "tail3y": 0.83, "bn2x": -1.78, "bn2y": -89.73, "bf2x": 8.41, "bf2y": -121.6, "bf3x": -5.51, "bf3y": -118.42, "bn3x": -10.64, "bn3y": -76.46, "ff4a": 40.8, "fn4a": -9.4, "bn4a": -193.3, "headRot": 6, "spineCurve": 28}, "jumpReach": {"bf1x": -64.4, "bf1y": 35.49, "bn1x": -69.36, "bn1y": 35.46, "bn2x": -110.2, "bn2y": 65.16, "bn3x": -122.35, "bn3y": 8.55, "bn4x": -136.14, "bn4y": 18.06, "bf2x": -66.02, "bf2y": 47.82, "bf3x": -96.89, "bf3y": -2.17, "bf4x": -113.98, "bf4y": -13.15, "t1x": -1.77, "t1y": -6.75, "t2x": -34.8, "t2y": 30.12, "t3x": -50.78, "t3y": 54.86, "t4x": -82.04, "t4y": 85.79, "t5x": -134.25, "t5y": 101.48, "ff1x": 5.42, "ff1y": -18.72, "fn1x": -31.7, "fn1y": -45.62, "fn2x": 27.85, "fn2y": 19.3, "ff2x": 27.24, "ff2y": 20.27, "headX": -59.2, "headY": -16.86, "headRot": -27, "tail1x": -93.53, "tail1y": 6.38, "tail2x": 17.31, "tail2y": -15.92, "tail3x": 55.2, "tail3y": -49.23, "spineCurve": -20.5}, "jumpAbsorb": {"bn1x": 16.23, "bn1y": -34.13, "bf1x": 26.23, "bf1y": -34.13, "bf2x": -5.96, "bf2y": -79.68, "bf3x": -23.15, "bf3y": -91.64, "bf4x": -13.74, "bf4y": -18.51, "bn2x": -1.43, "bn2y": -100.63, "bn3x": -28.15, "bn3y": -63.37, "bn4x": -19.62, "bn4y": -23.51, "headX": -51.8, "headY": -25.6, "ff2x": 17.95, "ff2y": 19.24, "fn2x": 8.56, "fn2y": 23.04, "fn1x": -14.12, "fn1y": 0.47, "spineCurve": 17.5, "tail1x": -4, "tail1y": -79.5, "tail2x": 32.56, "tail2y": -92.04, "tail3x": 10.08, "tail3y": -80.27}, "jumpRise": {"tail1x": -64.44, "tail1y": -8.25, "tail2x": 39.77, "tail2y": 22.37, "tail3x": 44.79, "tail3y": 64.69, "bn2x": 31.74, "bn2y": 9.01, "bn4a": -68.7, "bn3x": 55.62, "bn3y": -12.58, "bf3x": 22.45, "bf3y": 3.9, "bf4a": 362.4, "bf2x": 26.19, "bf2y": 26.58, "bf1x": -40.28, "bf1y": 25.11, "bn1x": -29.53, "bn1y": 29.16, "headX": -23.4, "headY": 34.57, "fn1x": -3.7, "fn1y": -11.14, "ff1x": -2.46, "ff1y": -17.68, "ff2x": 54.95, "ff2y": 2.54, "fn2x": 35.09, "fn2y": 13.84, "fn3x": 34.04, "fn3y": 47.72, "ff3x": 41.08, "ff3y": 26.28, "fn4a": -565, "ff4a": -177.7, "spineCurve": 27.5, "headRot": -20, "catX": 40.91, "catY": -5.87}, "lickReady": {"fn2x": -50.86, "fn2y": 15.65, "fn1x": -4, "fn1y": 6, "fn3x": 20.88, "fn3y": 5.82, "fn4a": -358.4, "ff1x": -12, "ff1y": -7, "ff2x": 5.53, "ff2y": -6.15, "ff3x": 14.66, "ff3y": 6.18, "ff4a": -326.7, "bn3x": -6.39, "bn3y": 0.24, "bf1x": -11.52, "bf1y": 2.91, "bf2x": 15, "bf2y": 10, "bn2x": 5, "bn2y": 5}, "lickDown": {"fn2x": -14.21, "fn2y": 2.49, "fn4a": -82, "fn3x": 5, "fn3y": 24, "headRot": -7, "headX": -1.32, "headY": -7.65, "fn1x": 0, "fn1y": 10}, "runStart": {"bn2x": 36.46, "bn2y": 33.8, "bn4a": -90.2, "bn3x": -11.27, "bn3y": -6.06, "bf2x": 18.46, "bf2y": -6.56, "bn1x": -0.86, "bn1y": -31.41, "bf4a": -37.8, "bf1x": -5.47, "bf1y": -23.73, "fn1x": -38.84, "fn1y": -9.95, "ff1x": -28, "ff1y": -9.42, "ff3x": 6.97, "ff3y": -12.24, "ff2x": 58.82, "ff2y": -11.95, "headX": -6.32, "headY": 13.26, "ff4a": -2, "fn4a": -252.2, "fn3x": -63.44, "fn3y": -0.99, "fn2x": 12.81, "fn2y": -15.19, "bf3x": 12.38, "bf3y": -12.15, "spineCurve": 7.5, "tail1x": -4.35, "tail1y": -20.4, "tail2x": 11.1, "tail2y": 35.07, "tail3x": 0.48, "tail3y": 48.56}, "runLand": {"ff4a": -36.8, "bn1x": 13.7, "bn1y": -21.13, "bf1x": 8.7, "bf1y": -26.13, "bn2x": -5.53, "bn2y": -48.31, "bn3x": -15.96, "bn3y": -27.23, "bf3x": 23.72, "bf3y": -9.7, "bf2x": 25.51, "bf2y": -28.18, "bf4a": -66.3, "bn4a": -22.7, "tail1x": -4.27, "tail1y": -17.79, "tail3x": 5.45, "tail3y": -56.05, "tail2x": 16, "tail2y": 5.04, "headX": -4.77, "headY": -29.19, "spineCurve": 14, "fn1x": -20.39, "fn1y": 1.46}, "runGather": {"bn1x": -6.64, "bn1y": 10.91, "tail1x": -9.14, "tail1y": 8.8, "bn4a": 17.5, "bf3x": -1.93, "bf3y": 26.18, "bf4a": 95.6, "bn3x": -4.77, "bn3y": 1.49, "bn2x": 2.37, "bn2y": -4.23, "bf2x": 2.04, "bf2y": -3.33, "bf1x": 8.36, "bf1y": 10.91, "fn3x": -4.39, "fn3y": 5.78, "fn2x": -16.49, "fn2y": 32.95, "ff2x": -17.85, "ff2y": 20.17, "ff1x": -15.65, "ff1y": 1.73, "fn1x": -36.59, "fn1y": -2.34, "ff3x": 15.02, "ff3y": 1.27, "ff4a": -158.7, "fn4a": -208.4, "headRot": -3, "headX": -18.95, "headY": -9.84}, "runPush": {"bn2x": 49.42, "bn2y": 35.02, "bn3x": 11.79, "bn3y": 8.71, "bn1x": 8.1, "bn1y": 0.63, "tail1x": -4.62, "tail1y": -6.16, "bf2x": 49.39, "bf2y": 16.63, "bn4a": 298.6, "bf4a": 38.9, "bf3x": -1.87, "bf3y": 6.49, "bf1x": 8.1, "bf1y": 0.63, "spineCurve": -2, "fn1x": -30.59, "fn1y": -5.65, "ff4a": -42.7, "fn4a": 62.8, "fn3x": -19.08, "fn3y": -17.5, "fn2x": -4.3, "fn2y": -8.17, "headX": -4.63, "headY": -4.42, "ff1x": -14.46, "ff1y": -5.2, "ff3x": 17.99, "ff3y": -8.68, "ff2x": 5.81, "ff2y": 8.15}, "runFly": {"catX": -6.32, "catY": -17.97, "fn1x": -18.71, "fn1y": 2.88, "fn2x": 32.77, "fn2y": -23.47, "fn3x": 25.13, "fn3y": -20.93, "ff2x": 68.94, "ff2y": -8.01, "ff3x": 82.04, "ff3y": -0.71, "ff4a": -156.2, "fn4a": -86.2, "bn2x": 58.13, "bn2y": 15.86, "bn3x": -84.09, "bn3y": 10.88, "bf2x": 6.18, "bf2y": 42.85, "bf3x": -34.31, "bf3y": -12.05, "bf4a": -249, "bn4a": -178.5, "bn1x": -16.68, "bn1y": -2.93, "spineCurve": 15.5, "headX": -6.01, "headY": -18.82, "tail1x": -14.69, "tail1y": 13.68, "bf1x": -16.68, "bf1y": -2.93}, "runLanding": {"bn3x": 5.25, "bn3y": 13.57, "bn4a": 82.7, "bf4a": -57.6, "bn1x": 13.33, "bn1y": -16.65, "bf1x": 16.65, "bf1y": -16.63, "bn2x": 15.39, "bn2y": -29.87, "tail1x": 8.47, "tail1y": -16.44, "tail3x": -1.38, "tail3y": -22.28, "tail2x": 10.64, "tail2y": 3.35, "spineCurve": -13}, "runStop": {"ff1x": -5, "ff1y": -15, "fn1x": -16.14, "fn1y": -11.2, "headX": -0.84, "headY": 5.7, "spineCurve": 6.5}, "spineTip": {"bn2x": -19, "bn2y": 31, "bn3x": -18, "bn3y": 6, "bf3x": -45, "bf3y": -4, "bf2x": 15, "bf2y": 43, "bf4a": -65.6, "bn4a": -274.1, "fn2x": 15, "fn2y": -1, "fn3x": -8, "fn3y": 19, "fn4a": 284.1, "ff2x": 21, "ff2y": -4, "ff3x": 54, "ff3y": -10, "ff4a": -9.5, "bn1x": -12.5, "bn1y": 0.5, "headX": -4, "headY": -18.88, "spineCurve": 2.5, "tail1x": 16.5, "tail1y": -3.5}, "spineBack": {"bf2x": -7, "bf2y": -2, "bf3x": -35, "bf3y": 4, "fn1x": -4.51, "fn1y": 3.07, "ff1x": 1.39, "ff1y": -4.78, "fn2x": 3, "fn2y": -16, "fn3x": -29, "fn3y": 13, "fn4a": 201.1, "ff2x": 6, "ff2y": -5}, "spineKickA": {"bn2x": -14, "bn2y": -16, "bf2x": 65, "bf2y": -11, "bf3x": -1, "bf3y": -24, "bf4a": -67.6, "bn4a": 5.1, "tail1x": 0, "tail1y": -8, "fn1x": 0, "fn1y": 0, "ff2x": 0, "ff2y": -10, "fn2x": 12, "fn2y": 5, "fn3x": -1, "fn3y": 8}, "spineKickB": {"bn3x": 32, "bn3y": -97, "bf2x": -3, "bf2y": 2, "fn1x": 0, "fn1y": 0, "fn2x": -4, "fn2y": -2, "fn3x": -14, "fn3y": 26, "fn4a": -65.3, "ff2x": 15, "ff2y": 5, "bn2x": -17, "bn2y": -9, "bf3x": 9, "bf3y": -13, "bf4a": 143.7, "bn4a": 21.1, "bn1x": 10, "bn1y": 0}, "spineUp": {"headX": -41.5, "headY": -42.18, "bn1x": 47.8, "bn1y": -37.17, "hipSize": -0.28, "bn3x": 25, "bn3y": -37, "bf4a": -128.6, "bf2x": 2.07, "bf2y": -27.54, "bf3x": -20, "bf3y": -90.9, "bn4a": -61.5, "headRot": -10, "fn2x": 2, "fn2y": -31, "ff2x": 8, "ff2y": -17, "ff3x": 15, "ff3y": 0, "tail1x": 60, "tail1y": 12, "bf1x": 14.25, "bf1y": -8.19, "bn2x": 4, "bn2y": -9, "spineCurve": 1}, "spineLean": {"headRot": 20, "headX": -42.5, "headY": -22.95, "tail1x": 10, "tail1y": 0, "thighW": 0.09, "hipSize": -0.4, "bn1x": 9.75, "bn1y": -14.07, "bf1x": 11.16, "bf1y": 8.91, "fn1x": -15.02, "fn1y": 3.58, "fn3x": -19, "fn3y": -17, "fn4a": 147.2, "ff3x": 28, "ff3y": 12, "ff2x": 31, "ff2y": -16, "bn2x": -14.29, "bn2y": 15.66, "bf3x": 35, "bf3y": -15.9, "bf2x": 4.71, "bf2y": 79.18, "bf4a": -153.1, "fn2x": -3.55, "fn2y": -8.86, "spineCurve": -2.5}, "spineCrouch": {"headX": -10.33, "headY": 19.76, "spineCurve": 18.5}, "lickUp": {"fn4a": 29.9, "fn3x": 0, "fn3y": 5, "fn2x": -15, "fn2y": -5}},
+  bgColor:"#8f938b", shadowColor:"#6f6a4b", size:34, posX:5, ground:8, flip:false, showSkel:true, fluid:4.1,
+  edgeFur:1, glint:[[-14, -12, 1], [8.5, -23, 1], [25.5, -14, 1], [2.5, -1, 1], [-1.5, 32.5, 1], [-18, 14.5, 1]],
+  glintFade:30, eyeStroke:true, pupil:"slit", eyeWhite:"#f4f1ea", irisSize:1.1, slitH:0.7, slitRound:0.6,
+  eyeStrokePx:0.9, turnBack:false,
+  states:{"sitMid": {"bf4x": 3.65, "bf4y": 21.84, "bf3x": 11.18, "bf3y": 41, "bn4x": 6.34, "bn4y": 19.07, "bn3x": -14.26, "bn3y": 28.56, "bn1x": -19.04, "bn1y": 10.65, "bf1x": -23.01, "bf1y": 6.41, "bn2x": -25.76, "bn2y": 39.13, "bf2x": -18.98, "bf2y": 33.41, "ff1x": 23.44, "ff1y": 23.52, "fn1x": 28.25, "fn1y": 24.64, "ff2x": 1.18, "ff2y": 12.31, "ff3x": 5.36, "ff3y": 1.18, "ff4x": -15.72, "ff4y": 1.18, "fn3x": 14.96, "fn3y": 1.18, "fn4x": -10.03, "fn4y": 1.18, "fn2x": 4.18, "fn2y": 8.21, "headX": 23.55, "headY": -16.42, "bf4a": 377.26, "bn4a": 189.44, "tail1x": 2.67, "tail1y": -15.34, "catX": 26.04, "catY": -29.09, "ribW": -0.1762, "ribH": 0.1495, "neckW": -0.0213, "toeR": 0.1068, "legThick": 0.0373, "pawW": -0.1015, "pawH": -0.1549, "eyeSize": -0.0534, "eyeGap": -0.267, "eyeX": 1.0683, "eyeY": 0.267, "earSize": 0.0694, "earBW": -0.1068, "earBX": -2.938, "earBY": -2.1367, "earFW": -0.1015, "earFX": 1.3354, "earRound": -0.0267, "shoulderSpread": -0.5181, "shoulderX": 1.6025, "shoulderY": 3.2051, "hipSpread": -0.5822, "hipX": -2.6709, "hipY": -1.8696, "hipSize": 0.1015, "fPawX": 4.2734, "fPawY": 10.6837, "bPawX": 7.7457, "bPawY": 5.609, "fMidX": 6.6773, "fMidY": -14.423, "bMidX": -1.8696, "bMidY": -2.938, "spineCurve": -6.6773, "thighW": 0.5288, "hipLen": 0.1549, "foldR": -0.2297, "bellyShade": 16.8269, "bellyTilt": 7.4786, "bellyHf": -0.2403, "bellyHr": -0.0748, "mask2x": 1.6025, "mask2y": -1.6025, "mask4x": 1.6025, "mask4y": 1.6025, "mask5y": -1.6025, "mask7x": 1.6025, "mask7y": -1.6025, "mask8x": -3.2051, "mask8y": 1.6025, "muzzleSize": -0.032, "groundFlat": 0.267, "headRot": 4.66, "bellyX": 7.03, "bellyY": 9.07, "tail2x": 20.74, "tail2y": -151.11, "tail3x": 84.12, "tail3y": -241.74, "ff4a": 222.72, "fn4a": 14.72}, "lieMid": {"bf4x": 11.94, "bf4y": 26.1, "bf3x": 10.84, "bf3y": 26.1, "bn4x": 12.12, "bn4y": 21, "bn3x": 6.02, "bn3y": 21, "fn4x": 1.44, "fn4y": 25.77, "fn3x": 4.24, "fn3y": 19.59, "ff3x": 1.81, "ff3y": 11.17, "ff4x": -3.55, "ff4y": 16.13, "fn2x": -1.32, "fn2y": 17.03, "ff2x": -13.91, "ff2y": 22.88, "ff1x": -18.33, "ff1y": 6.18, "catX": 16.99, "catY": 1}, "reach": {"ff2x": -11.02, "ff2y": 6.97, "fn2x": -9.84, "fn2y": 11.01, "ff1x": -1.96, "ff1y": 6.42, "fn1x": -7.08, "fn1y": 13.08, "headX": 3.21, "headY": -7.35, "bn1x": -2.99, "bn1y": -8.5, "bf1x": -0.49, "bf1y": -8.5}, "faceMid": {"fn1x": -5.21, "fn1y": -18.11, "ff1x": -0.17, "ff1y": 13.49, "fn2x": -3.42, "fn2y": -17.1, "fn4x": -2.94, "fn4y": 2.36, "fn3x": -11.7, "fn3y": 1.18, "ff4x": -3.63, "ff4y": 14.09, "ff3x": -2.11, "ff3y": 14.09, "ff2x": -2.85, "ff2y": 5.91, "bf2x": -3.72, "bf2y": -2.49, "bn1x": -0.24, "bn1y": -1.18, "bn2x": -22.79, "bn2y": -27.15, "bn4x": -10.76, "bn4y": 1.49, "bn3x": -4.59, "bn3y": 1.49}, "jumpReady": {"bn1x": 0, "bn1y": 5, "bf1x": 0, "bf1y": 5, "bf2x": 5, "bf2y": -5, "fn1x": -15, "fn1y": -10, "headX": -32.38, "headY": 9.77, "spineCurve": -5.5}, "jumpPush": {"bn1x": 10.27, "bn1y": 57.29, "bf1x": 10.29, "bf1y": 52.28, "ff1x": 52.74, "ff1y": 35.23, "fn1x": 15.13, "fn1y": 54.16, "bf2x": 17.61, "bf2y": 10.91, "bn2x": 15.25, "bn2y": 26.68, "ff2x": 78.73, "ff2y": 49.6, "fn2x": 56.58, "fn2y": 47.75, "fn3x": 48.16, "fn3y": 58.18, "ff3x": 56.64, "ff3y": 49.38, "fn4x": 10.46, "fn4y": 73.86, "ff4x": 42.05, "ff4y": 59.08, "headX": 13.2, "headY": -18.02, "headRot": -3, "spineCurve": 5, "t1x": -7.66, "t1y": -3.23, "ff4a": -153, "fn4a": -180.3, "catX": 17.72, "catY": -2.3, "bn3x": -17.83, "bn3y": 2.29, "bf3x": -17.5, "bf3y": 2.29, "tail1x": -19.59, "tail1y": 22.95}, "jumpFly": {"fn1x": 2.92, "fn1y": -89.72, "ff1x": -9.4, "ff1y": -71.58, "ff2x": -27.47, "ff2y": 17.05, "fn2x": -10.18, "fn2y": 10.24, "fn3x": -84.89, "fn3y": 15.58, "fn4x": -64.34, "fn4y": 46.38, "ff3x": -95.66, "ff3y": 31.98, "ff4x": -40.9, "ff4y": 39.48, "headX": -42.47, "headY": -5.52, "t1x": 8.11, "t1y": -42.52, "t2x": 0.92, "t2y": -36.49, "t4x": -0.18, "t4y": 23.74, "t5x": 2.32, "t5y": 57.08, "t3x": 0.53, "t3y": -10.55, "bn1x": 9.52, "bn1y": -111.01, "bf1x": 24.52, "bf1y": -121.01, "tail1x": 6.37, "tail1y": -163.49, "tail2x": 15.93, "tail2y": 1.44, "tail3x": 29.27, "tail3y": 0.83, "bn2x": -1.78, "bn2y": -89.73, "bf2x": 8.41, "bf2y": -121.6, "bf3x": -5.51, "bf3y": -118.42, "bn3x": -10.64, "bn3y": -76.46, "ff4a": 40.8, "fn4a": -9.4, "bn4a": -193.3, "headRot": 6, "spineCurve": 28}, "jumpReach": {"bf1x": -64.4, "bf1y": 35.49, "bn1x": -69.36, "bn1y": 35.46, "bn2x": -110.2, "bn2y": 65.16, "bn3x": -122.35, "bn3y": 8.55, "bn4x": -136.14, "bn4y": 18.06, "bf2x": -66.02, "bf2y": 47.82, "bf3x": -96.89, "bf3y": -2.17, "bf4x": -113.98, "bf4y": -13.15, "t1x": -1.77, "t1y": -6.75, "t2x": -34.8, "t2y": 30.12, "t3x": -50.78, "t3y": 54.86, "t4x": -82.04, "t4y": 85.79, "t5x": -134.25, "t5y": 101.48, "ff1x": 5.42, "ff1y": -18.72, "fn1x": -31.7, "fn1y": -45.62, "fn2x": 27.85, "fn2y": 19.3, "ff2x": 27.24, "ff2y": 20.27, "headX": -59.2, "headY": -16.86, "headRot": -27, "tail1x": -93.53, "tail1y": 6.38, "tail2x": 17.31, "tail2y": -15.92, "tail3x": 55.2, "tail3y": -49.23, "spineCurve": -20.5}, "jumpAbsorb": {"bn1x": 16.23, "bn1y": -34.13, "bf1x": 26.23, "bf1y": -34.13, "bf2x": -5.96, "bf2y": -79.68, "bf3x": -23.15, "bf3y": -91.64, "bf4x": -13.74, "bf4y": -18.51, "bn2x": -1.43, "bn2y": -100.63, "bn3x": -28.15, "bn3y": -63.37, "bn4x": -19.62, "bn4y": -23.51, "headX": -51.8, "headY": -25.6, "ff2x": 17.95, "ff2y": 19.24, "fn2x": 8.56, "fn2y": 23.04, "fn1x": -14.12, "fn1y": 0.47, "spineCurve": 17.5, "tail1x": -4, "tail1y": -79.5, "tail2x": 32.56, "tail2y": -92.04, "tail3x": 10.08, "tail3y": -80.27}, "jumpRise": {"tail1x": -64.44, "tail1y": -8.25, "tail2x": 39.77, "tail2y": 22.37, "tail3x": 44.79, "tail3y": 64.69, "bn2x": 31.74, "bn2y": 9.01, "bn4a": -68.7, "bn3x": 55.62, "bn3y": -12.58, "bf3x": 22.45, "bf3y": 3.9, "bf4a": 362.4, "bf2x": 26.19, "bf2y": 26.58, "bf1x": -40.28, "bf1y": 25.11, "bn1x": -29.53, "bn1y": 29.16, "headX": -23.4, "headY": 34.57, "fn1x": -3.7, "fn1y": -11.14, "ff1x": -2.46, "ff1y": -17.68, "ff2x": 54.95, "ff2y": 2.54, "fn2x": 35.09, "fn2y": 13.84, "fn3x": 34.04, "fn3y": 47.72, "ff3x": 41.08, "ff3y": 26.28, "fn4a": -565, "ff4a": -177.7, "spineCurve": 27.5, "headRot": -20, "catX": 40.91, "catY": -5.87}, "lickReady": {"fn2x": -50.86, "fn2y": 15.65, "fn1x": -4, "fn1y": 6, "fn3x": 20.88, "fn3y": 5.82, "fn4a": -358.4, "ff1x": -12, "ff1y": -7, "ff2x": 5.53, "ff2y": -6.15, "ff3x": 14.66, "ff3y": 6.18, "ff4a": -326.7, "bn3x": -6.39, "bn3y": 0.24, "bf1x": -11.52, "bf1y": 2.91, "bf2x": 15, "bf2y": 10, "bn2x": 5, "bn2y": 5, "bellyX": -22.63, "bellyY": -22.58, "bellyTilt": 43, "bellyHr": 0.05}, "lickDown": {"fn2x": -14.21, "fn2y": 2.49, "fn4a": -82, "fn3x": 5, "fn3y": 24, "headRot": -7, "headX": -1.32, "headY": -7.65, "fn1x": 0, "fn1y": 10, "bellyX": -28.02, "bellyY": 14.03, "groundFlat": 0.17, "groundReach": -3, "shoulderX": -7.5, "shoulderY": 4}, "runStart": {"bn2x": 36.46, "bn2y": 33.8, "bn4a": -90.2, "bn3x": -11.27, "bn3y": -6.06, "bf2x": 18.46, "bf2y": -6.56, "bn1x": -0.86, "bn1y": -31.41, "bf4a": -37.8, "bf1x": -5.47, "bf1y": -23.73, "fn1x": -38.84, "fn1y": -9.95, "ff1x": -28, "ff1y": -9.42, "ff3x": 6.97, "ff3y": -12.24, "ff2x": 58.82, "ff2y": -11.95, "headX": -6.32, "headY": 13.26, "ff4a": -2, "fn4a": -252.2, "fn3x": -63.44, "fn3y": -0.99, "fn2x": 12.81, "fn2y": -15.19, "bf3x": 12.38, "bf3y": -12.15, "spineCurve": 7.5, "tail1x": -4.35, "tail1y": -20.4, "tail2x": 11.1, "tail2y": 35.07, "tail3x": 0.48, "tail3y": 48.56}, "runLand": {"ff4a": -36.8, "bn1x": 13.7, "bn1y": -21.13, "bf1x": 8.7, "bf1y": -26.13, "bn2x": -5.53, "bn2y": -48.31, "bn3x": -15.96, "bn3y": -27.23, "bf3x": 23.72, "bf3y": -9.7, "bf2x": 25.51, "bf2y": -28.18, "bf4a": -66.3, "bn4a": -22.7, "tail1x": -4.27, "tail1y": -17.79, "tail3x": 5.45, "tail3y": -56.05, "tail2x": 16, "tail2y": 5.04, "headX": -4.77, "headY": -29.19, "spineCurve": 14, "fn1x": -20.39, "fn1y": 1.46}, "runGather": {"bn1x": -6.64, "bn1y": 10.91, "tail1x": -9.14, "tail1y": 8.8, "bn4a": 17.5, "bf3x": -1.93, "bf3y": 26.18, "bf4a": 95.6, "bn3x": -4.77, "bn3y": 1.49, "bn2x": 2.37, "bn2y": -4.23, "bf2x": 2.04, "bf2y": -3.33, "bf1x": 8.36, "bf1y": 10.91, "fn3x": -4.39, "fn3y": 5.78, "fn2x": -16.49, "fn2y": 32.95, "ff2x": -17.85, "ff2y": 20.17, "ff1x": -15.65, "ff1y": 1.73, "fn1x": -36.59, "fn1y": -2.34, "ff3x": 15.02, "ff3y": 1.27, "ff4a": -158.7, "fn4a": -208.4, "headRot": -3, "headX": -18.95, "headY": -9.84}, "runPush": {"bn2x": 49.42, "bn2y": 35.02, "bn3x": 11.79, "bn3y": 8.71, "bn1x": 8.1, "bn1y": 0.63, "tail1x": -4.62, "tail1y": -6.16, "bf2x": 49.39, "bf2y": 16.63, "bn4a": 298.6, "bf4a": 38.9, "bf3x": -1.87, "bf3y": 6.49, "bf1x": 8.1, "bf1y": 0.63, "spineCurve": -2, "fn1x": -30.59, "fn1y": -5.65, "ff4a": -42.7, "fn4a": 62.8, "fn3x": -19.08, "fn3y": -17.5, "fn2x": -4.3, "fn2y": -8.17, "headX": -4.63, "headY": -4.42, "ff1x": -14.46, "ff1y": -5.2, "ff3x": 17.99, "ff3y": -8.68, "ff2x": 5.81, "ff2y": 8.15}, "runFly": {"catX": -6.32, "catY": -17.97, "fn1x": -18.71, "fn1y": 2.88, "fn2x": 32.77, "fn2y": -23.47, "fn3x": 25.13, "fn3y": -20.93, "ff2x": 68.94, "ff2y": -8.01, "ff3x": 82.04, "ff3y": -0.71, "ff4a": -156.2, "fn4a": -86.2, "bn2x": 58.13, "bn2y": 15.86, "bn3x": -84.09, "bn3y": 10.88, "bf2x": 6.18, "bf2y": 42.85, "bf3x": -34.31, "bf3y": -12.05, "bf4a": -249, "bn4a": -178.5, "bn1x": -16.68, "bn1y": -2.93, "spineCurve": 15.5, "headX": -6.01, "headY": -18.82, "tail1x": -14.69, "tail1y": 13.68, "bf1x": -16.68, "bf1y": -2.93}, "runLanding": {"bn3x": 5.25, "bn3y": 13.57, "bn4a": 82.7, "bf4a": -57.6, "bn1x": 13.33, "bn1y": -16.65, "bf1x": 16.65, "bf1y": -16.63, "bn2x": 15.39, "bn2y": -29.87, "tail1x": 8.47, "tail1y": -16.44, "tail3x": -1.38, "tail3y": -22.28, "tail2x": 10.64, "tail2y": 3.35, "spineCurve": -13}, "runStop": {"ff1x": -5, "ff1y": -15, "fn1x": -16.14, "fn1y": -11.2, "headX": -0.84, "headY": 5.7, "spineCurve": 6.5}, "spineTip": {"bn2x": -19, "bn2y": 31, "bn3x": -18, "bn3y": 6, "bf3x": -45, "bf3y": -4, "bf2x": 15, "bf2y": 43, "bf4a": -65.6, "bn4a": -274.1, "fn2x": 15, "fn2y": -1, "fn3x": -8, "fn3y": 19, "fn4a": 284.1, "ff2x": 21, "ff2y": -4, "ff3x": 54, "ff3y": -10, "ff4a": -9.5, "bn1x": -12.5, "bn1y": 0.5, "headX": -4, "headY": -18.88, "spineCurve": 2.5, "tail1x": 16.5, "tail1y": -3.5}, "spineBack": {"bf2x": -7, "bf2y": -2, "bf3x": -35, "bf3y": 4, "fn1x": -4.51, "fn1y": 3.07, "ff1x": 1.39, "ff1y": -4.78, "fn2x": 3, "fn2y": -16, "fn3x": -29, "fn3y": 13, "fn4a": 201.1, "ff2x": 6, "ff2y": -5}, "spineKickA": {"bn2x": -14, "bn2y": -16, "bf2x": 65, "bf2y": -11, "bf3x": -1, "bf3y": -24, "bf4a": -67.6, "bn4a": 5.1, "tail1x": 0, "tail1y": -8, "fn1x": 0, "fn1y": 0, "ff2x": 0, "ff2y": -10, "fn2x": 12, "fn2y": 5, "fn3x": -1, "fn3y": 8}, "spineKickB": {"bn3x": 32, "bn3y": -97, "bf2x": -3, "bf2y": 2, "fn1x": 0, "fn1y": 0, "fn2x": -4, "fn2y": -2, "fn3x": -14, "fn3y": 26, "fn4a": -65.3, "ff2x": 15, "ff2y": 5, "bn2x": -17, "bn2y": -9, "bf3x": 9, "bf3y": -13, "bf4a": 143.7, "bn4a": 21.1, "bn1x": 10, "bn1y": 0}, "spineUp": {"headX": -41.5, "headY": -42.18, "bn1x": 47.8, "bn1y": -37.17, "hipSize": -0.28, "bn3x": 25, "bn3y": -37, "bf4a": -128.6, "bf2x": 2.07, "bf2y": -27.54, "bf3x": -20, "bf3y": -90.9, "bn4a": -61.5, "headRot": -10, "fn2x": 2, "fn2y": -31, "ff2x": 8, "ff2y": -17, "ff3x": 15, "ff3y": 0, "tail1x": 60, "tail1y": 12, "bf1x": 14.25, "bf1y": -8.19, "bn2x": 4, "bn2y": -9, "spineCurve": 1}, "spineLean": {"headRot": 20, "headX": -42.5, "headY": -22.95, "tail1x": 10, "tail1y": 0, "thighW": 0.09, "hipSize": -0.4, "bn1x": 9.75, "bn1y": -14.07, "bf1x": 11.16, "bf1y": 8.91, "fn1x": -15.02, "fn1y": 3.58, "fn3x": -19, "fn3y": -17, "fn4a": 147.2, "ff3x": 28, "ff3y": 12, "ff2x": 31, "ff2y": -16, "bn2x": -14.29, "bn2y": 15.66, "bf3x": 35, "bf3y": -15.9, "bf2x": 4.71, "bf2y": 79.18, "bf4a": -153.1, "fn2x": -3.55, "fn2y": -8.86, "spineCurve": -2.5}, "spineCrouch": {"headX": -10.33, "headY": 19.76, "spineCurve": 18.5}, "lickUp": {"fn4a": 29.9, "fn3x": 0, "fn3y": 5, "fn2x": -15, "fn2y": -5}, "first:sit": {"bn4a": -70.7, "bf4a": -68, "bn1x": -6.11, "bn1y": 26.48, "bf1x": -25.1, "bf1y": 21.42, "tail1x": 1.08, "tail1y": 17.22, "bn2x": -16.5, "bn2y": 12.89, "bf2x": -24.24, "bf2y": 17.04}},
   jumpKeys:{"push": 0.07, "rise": 0.29, "fly": 0.62, "reach": 0.94},
   tongue:{"cursor": {"up": {"pts": [[-7.5, -1.5, 0.45], [0, -1, 0], [7.5, -1.5, 0.45], [6.5, 7, 0], [5.5, 12, 1], [0, 14.5, 1], [-5.5, 12, 1], [-6.5, 7, 0]], "over": 0}, "out": {"pts": [[-7, -8, 1], [0, -4, 0], [7, -8, 1], [6, 1, 1], [5, 6.5, 1], [0, 11, 1], [-5, 6.5, 1], [-6, 1, 1]], "over": 0}, "back": {"pts": [[-7, 0.5, 1], [0, -0.5, 1], [7, 0.5, 1], [7, 3.5, 0], [6.5, 7.5, 1], [0, 1, 1], [-6.5, 7.5, 1], [-7, 3.5, 0]], "over": 0}, "in": {"pts": [[-8.5, -2.5, 1], [0, -9, 0], [8.5, -2.5, 1], [8.5, 0, 0], [6, 3, 1], [0, 6, 1], [-6, 3, 1], [-8.5, 0, 0]], "over": 0}}, "paw": {"in": {"pts": [[-3, -1, 1], [0, -1, 0], [3, -1, 1], [3, 0, 0], [3.5, 2.5, 1], [0, 3, 0], [-3.5, 2.5, 1], [-3, 0, 0]], "over": 0}, "out": {"pts": [[-4, -4, 1], [0, -4, 0], [4, -4, 1], [4.5, 2, 0], [5.5, 5, 1], [0, 5, 1], [-5.5, 5, 1], [-4.5, 2, 0]], "over": 0}, "on": {"pts": [[-5, -4, 1], [0, -4, 0], [5, -4, 1], [5.5, 3, 0], [6, 6, 1], [0, 5.5, 1], [-6, 6, 1], [-5.5, 3, 0]], "over": 0}}}
 });
@@ -1714,13 +1743,13 @@ function migrateShape(g){
 }
 // tuned shape for each position (built in; "Reset this position" goes back to it)
 const SHAPE_PRESET = {
-  stand: { headSize:1.14, headWidth:1, headX:-0.84, headY:0.33, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.77, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.33, eyeGap:20.5, eyeX:1, eyeY:0, earSize:1.17, earBW:1.17, earBH:1.02, earBX:4.5, earBY:-6, earFW:1.2, earFH:1.05, earFX:-7, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:-4.5, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, bellyX:-22.77, bellyY:0.07, bellyShade:20, fn1x:-31.14, fn1y:-1.2, fn2x:-36.79, fn2y:-6.94, fn3x:-31.88, fn3y:7.36, ff1x:-5.54, ff1y:-1.2, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-13.3, bn1y:2.5, bn2x:-8.58, bn2y:8.75, bn3x:1.06, bn3y:1.49, bf1x:6.7, bf1y:7.5, bf2x:-1.7, bf2y:0.71, bf3x:8.18, bf3y:6.49, fn4a:22.4, ff4a:-172.2, bn4a:32.5, bf4a:103.4, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.05, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:5, tail1x:-18.5, tail1y:2.4 },
-  sit: { headSize:1.14, headWidth:1, headX:12.68, headY:-18, ribW:1.03, ribH:0.67, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.81, toeR:0.41, legThick:1.09, tailThick:1.04, tailLen:1, pawW:0.79, pawH:0.97, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.04, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:2, shoulderX:8, shoulderY:-11.5, hipSpread:1.87, hipX:18, hipY:1, hipSize:0.6, fPawX:1.5, fPawY:-19.5, bPawX:-26, bPawY:-7.5, fMidX:-2.5, fMidY:21.5, bMidX:5, bMidY:17.5, spineCurve:8, thighW:1.72, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.74, foldR:1.55, bellyX:-37.28, bellyY:-15.21, bellyShade:20, fn1x:-20.65, fn1y:-6.35, fn2x:9.18, fn2y:10.47, fn3x:-11.71, fn3y:-0.07, ff1x:20.35, ff1y:-1.35, ff2x:51.94, ff2y:11.65, ff3x:45.73, ff3y:10.9, ff4x:15.59, ff4y:1.18, bn1x:-9.84, bn1y:26.07, bn2x:-13.71, bn2y:5.76, bn3x:-1.39, bn3y:0.48, bf1x:-21.52, bf1y:22.91, bf2x:-23.21, bf2y:14.85, bf3x:-10.27, bf3y:10.72, fn4a:14.9, ff4a:176.6, bn4a:383, bf4a:45.7, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-6, mask4y:12, mask4r:0.3, mask5x:-21, mask5y:-6, mask6y:-6, mask7x:18, mask7y:-6, mask8x:3, mask8y:12, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0.29, groundReach:12, hipSquare:0, shoulderSquare:0, catX:-81.37, catY:1.25, tail1x:-25.1, tail1y:-5.32 },
-  lie: { headSize:1.14, headWidth:1, headX:12.21, headY:2.25, ribW:0.89, ribH:0.62, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.09, toeR:0.61, legThick:1.28, tailThick:0.82, tailLen:1, pawW:0.82, pawH:0.68, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1.21, shoulderX:2, shoulderY:-7, hipSpread:1.52, hipX:3.5, hipY:-1, hipSize:0.6, fPawX:15.5, fPawY:-20, bPawX:1, bPawY:-12.5, fMidX:-30, fMidY:-7.5, bMidX:14, bMidY:30, spineCurve:18.5, thighW:2.38, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.84, foldR:1.49, bellyX:0, bellyY:0, bellyShade:6, fn1x:-40.33, fn1y:-1.16, fn2x:-52.16, fn2y:3.73, fn3x:-17.51, fn3y:-1.04, ff1x:-20.65, ff1y:-1.16, ff2x:-2.61, ff2y:13.79, ff3x:16.86, ff3y:-0.88, ff4x:17.64, ff4y:-3.44, bn1x:7.79, bn1y:10.5, bn2x:38.18, bn2y:12.98, bn3x:2.85, bn3y:2.23, bn4x:4.31, bn4y:-9.73, bf1x:7.79, bf1y:10.5, bf2x:46.36, bf2y:13.31, bf3x:36.15, bf3y:0.68, bf4x:43.35, bf4y:-9.32, fn4a:-361.1, ff4a:35.6, bn4a:52.3, bf4a:38.7, zbf:2, zff:1, zbn:4, zfn:3, zbelly:2.25, zhead:3.25, ztail:4.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:12, catX:-30.99, catY:10.5, t1x:-6.08, t1y:-4.83, t2x:8.96, t2y:-6.7, t3x:11.03, t3y:-7.67, t4x:10.25, t4y:-4.32, t5x:12.42, t5y:7.41, tail1x:2.19, tail1y:-23.6, tail2x:-81.04, tail2y:17.92, tail3x:-41.72, tail3y:14.19 },
-  stretch: { headSize:1.14, headWidth:1, headX:12.5, headY:44.77, ribW:0.74, ribH:1.15, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.61, legThick:1.12, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.98, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:2, shoulderX:-20, shoulderY:-13.5, hipSpread:1.01, hipX:15, hipY:5.5, hipSize:1, fPawX:13, fPawY:-11.5, bPawX:6, bPawY:-7.5, fMidX:26, fMidY:-14, bMidX:9.5, bMidY:4, spineCurve:-20, thighW:2.02, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.19, foldR:1.22, bellyX:47.57, bellyY:-42.15, bellyShade:6, fn1x:-24.61, fn1y:3.29, fn2x:-43.52, fn2y:-15.41, fn3x:-22.81, fn3y:6.18, ff1x:16.29, ff1y:12.8, ff2x:7.87, ff2y:-5.2, ff3x:28.33, ff3y:-3.82, bn1x:-1.26, bn1y:17, bn2x:-1.03, bn2y:1.24, bn3x:-13.8, bn3y:4.47, bf1x:3.74, bf1y:17, bf2x:-16.33, bf2y:7.14, bf3x:-5.96, bf3y:7.98, fn4a:-74.3, ff4a:115.5, bn4a:26.7, bf4a:65.1, zbf:2, zff:1, zbn:3, zfn:4, zbelly:2.25, zhead:3.25, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:-9 },
-  jump: { headSize:1.14, headWidth:1, headX:3, headY:13.49, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1.16, shoulderX:20, shoulderY:-6, hipSpread:1.5, hipX:20, hipY:17, hipSize:0.86, fPawX:9.5, fPawY:-7.5, bPawX:-5, bPawY:-17.5, fMidX:-20.5, fMidY:4.5, bMidX:-7, bMidY:15.5, spineCurve:-3, thighW:2.18, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.13, bellyX:0, bellyY:0, bellyShade:6, fn1x:-28.52, fn1y:-13.58, fn2x:-10.09, fn2y:-11.19, ff1x:-32.64, ff1y:-18.58, ff2x:-23.73, ff2y:-16.87, bn1x:-20.3, bn1y:-48, bn2x:-26.75, bn2y:-29.99, bn3x:-2.64, bn3y:-8.51, bf1x:-25.3, bf1y:-43, bf2x:-29.65, bf2y:-24.29, bf3x:-10.12, bf3y:-13.51, bn4a:-34.2, bf4a:-37, zbf:1, zff:3, zbn:2, zfn:4, zbelly:1.5, zhead:4.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, tail1x:-23.51, tail1y:-24.47 },
-  front: { headSize:1.14, headWidth:1, headX:5, headY:-8, ribW:0.6, ribH:0.6, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1.67, shoulderX:10, shoulderY:-4.5, hipSpread:0.9, hipX:7.5, hipY:-15, hipSize:0.77, fPawX:10, fPawY:-7, bPawX:2.5, bPawY:-20, fMidX:5.5, fMidY:-1, bMidX:10.5, bMidY:30, spineCurve:0, thighW:1.25, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.24, bellyX:0, bellyY:0, bellyShade:6, fn1x:5.06, fn1y:-24.5, fn2x:4.17, fn2y:-16.2, fn3x:-0.78, fn3y:3.54, fn4x:-18.44, fn4y:1.18, ff1x:-6.7, ff1y:-24.5, ff2x:-6.32, ff2y:-16.02, ff3x:-20.86, ff3y:12.36, ff4x:-13.2, ff4y:1.18, bn1x:0.15, bn1y:-13.6, bn2x:-17.87, bn2y:-4.95, bn3x:11.01, bn3y:10.96, bn4x:-1.65, bn4y:2.98, bf1x:-1.79, bf1y:-13.6, bf2x:2.27, bf2y:-27.32, bf3x:-12.65, bf3y:18.94, bf4x:-14.99, bf4y:2.98, fn4a:-21.7, ff4a:98.2, bn4a:-33, bf4a:-183, zbf:1, zff:3, zbn:2, zfn:4, zbelly:2.5, zhead:4.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:-1, tail1x:-3.32, tail1y:-12.8 },
-  spine: { headSize:1.14, headWidth:1, headX:26.5, headY:-5.24, ribW:1, ribH:1, waistLen:1, waistH:1, pelW:1, pelH:1, neckW:1.44, toeR:0.5, legThick:1, tailThick:1, tailLen:1, pawW:1, pawH:1, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1, shoulderX:0, shoulderY:0, hipSpread:1, hipX:0, hipY:0, hipSize:1, fPawX:0, fPawY:0, bPawX:0, bPawY:0, fMidX:0, fMidY:0, bMidX:0, bMidY:0, spineCurve:5, thighW:1.83, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1, foldR:1, bellyX:0, bellyY:0, bellyShade:6, fn1x:6.5, fn1y:36.5, fn2x:-2.5, fn2y:31.5, fn3x:7, fn3y:12, ff1x:19.11, ff1y:9.28, ff2x:14.5, ff2y:-25.5, ff3x:2.5, ff3y:-18.5, bn1x:8.5, bn1y:21.5, bn2x:34, bn2y:9, bn3x:-25, bn3y:7, bf1x:6.5, bf1y:4.5, bf2x:28, bf2y:-10, bf3x:8.5, bf3y:10.5, fn4a:112.2, ff4a:176.8, bn4a:-145.8, bf4a:-58.4, zbf:1, zff:2, zbn:3, zfn:4, zbelly:2.5, zhead:3.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.08, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:-33, catX:-123.5, catY:8.5, tail2x:12.1, tail2y:-1.22 },
+  stand: { headSize:1.14, headWidth:1, headX:-0.84, headY:0.33, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.77, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.33, eyeGap:20.5, eyeX:1, eyeY:0, earSize:1.17, earBW:1.17, earBH:1.02, earBX:4.5, earBY:-6, earFW:1.2, earFH:1.05, earFX:-7, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:-11.5, bPawY:3, fMidX:10, fMidY:-5.5, bMidX:1.5, bMidY:12, spineCurve:-4.5, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.03, foldR:1.12, bellyX:-17.59, bellyY:-1.14, bellyShade:51.5, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:-31.14, fn1y:-1.2, fn2x:-36.79, fn2y:-6.94, fn3x:-31.88, fn3y:7.36, ff1x:-5.54, ff1y:-1.2, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-13.3, bn1y:2.5, bn2x:-8.58, bn2y:8.75, bn3x:1.06, bn3y:1.49, bf1x:6.7, bf1y:7.5, bf2x:-1.7, bf2y:0.71, bf3x:8.18, bf3y:6.49, fn4a:22.4, ff4a:-172.2, bn4a:32.5, bf4a:103.4, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2y:3, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.05, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:5, tail1x:-18.5, tail1y:2.4, tail2x:-1.94, tail2y:19.53 },
+  sit: { headSize:1.14, headWidth:1, headX:12.68, headY:-18, ribW:1.03, ribH:0.67, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.81, toeR:0.41, legThick:1.09, tailThick:1.04, tailLen:1, pawW:0.79, pawH:0.97, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.04, earBW:1.37, earBH:1.02, earBX:10, earBY:-2, earFW:1.39, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.66, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:2, shoulderX:8, shoulderY:-11.5, hipSpread:1.87, hipX:18, hipY:1, hipSize:0.6, fPawX:1.5, fPawY:-19.5, bPawX:-26, bPawY:-7.5, fMidX:-2.5, fMidY:21.5, bMidX:5, bMidY:17.5, spineCurve:8, thighW:1.72, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.74, foldR:1.55, bellyX:-38.85, bellyY:-31.45, bellyShade:20, bellyTilt:-14, bellyHf:1.45, bellyHr:1.14, fn1x:-20.65, fn1y:-6.35, fn2x:-0.9, fn2y:18.85, fn3x:-27.26, fn3y:1.86, ff1x:13.85, ff1y:-4.35, ff2x:51.94, ff2y:11.65, ff3x:45.73, ff3y:10.9, ff4x:15.59, ff4y:1.18, bn1x:-11.44, bn1y:15.93, bn2x:-18.67, bn2y:3.17, bn3x:2.46, bn3y:21.93, bf1x:-24.92, bf1y:18.06, bf2x:-30.16, bf2y:7.68, bf3x:-28.22, bf3y:17.17, fn4a:14.9, ff4a:176.6, bn4a:451.9, bf4a:64.8, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-6, mask4y:12, mask4r:0.3, mask5x:-21, mask5y:-6, mask6y:-6, mask7x:18, mask7y:-6, mask8x:3, mask8y:12, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0, groundReach:14, hipSquare:0, shoulderSquare:0, catX:-81.37, catY:1.25, tail1x:-25.1, tail1y:-5.32 },
+  lie: { headSize:1.14, headWidth:1, headX:12.21, headY:2.25, ribW:0.89, ribH:0.62, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.09, toeR:0.61, legThick:1.28, tailThick:0.82, tailLen:1, pawW:0.82, pawH:0.68, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1.21, shoulderX:2, shoulderY:-7, hipSpread:1.52, hipX:3.5, hipY:-1, hipSize:0.6, fPawX:15.5, fPawY:-20, bPawX:1, bPawY:-12.5, fMidX:-30, fMidY:-7.5, bMidX:14, bMidY:30, spineCurve:18.5, thighW:2.38, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:0.84, foldR:1.49, bellyX:0, bellyY:0, bellyShade:6, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:-40.33, fn1y:-1.16, fn2x:-52.16, fn2y:3.73, fn3x:-17.51, fn3y:-1.04, ff1x:-20.65, ff1y:-1.16, ff2x:-2.61, ff2y:13.79, ff3x:16.86, ff3y:-0.88, ff4x:17.64, ff4y:-3.44, bn1x:7.79, bn1y:10.5, bn2x:38.18, bn2y:12.98, bn3x:2.85, bn3y:2.23, bn4x:4.31, bn4y:-9.73, bf1x:7.79, bf1y:10.5, bf2x:46.36, bf2y:13.31, bf3x:36.15, bf3y:0.68, bf4x:43.35, bf4y:-9.32, fn4a:-361.1, ff4a:35.6, bn4a:52.3, bf4a:38.7, zbf:2, zff:1, zbn:4, zfn:3, zbelly:2.25, zhead:3.25, ztail:4.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:12, catX:-30.99, catY:10.5, t1x:-6.08, t1y:-4.83, t2x:8.96, t2y:-6.7, t3x:11.03, t3y:-7.67, t4x:10.25, t4y:-4.32, t5x:12.42, t5y:7.41, tail1x:2.19, tail1y:-23.6, tail2x:-81.04, tail2y:17.92, tail3x:-41.72, tail3y:14.19 },
+  stretch: { headSize:1.14, headWidth:1, headX:22, headY:23.15, ribW:0.74, ribH:1.15, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.61, legThick:1.12, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.98, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:2, shoulderX:-20, shoulderY:-13.5, hipSpread:1.01, hipX:15, hipY:5.5, hipSize:1, fPawX:13, fPawY:-11.5, bPawX:6, bPawY:-7.5, fMidX:26, fMidY:-14, bMidX:9.5, bMidY:4, spineCurve:-20, thighW:2.02, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.19, foldR:1.22, bellyX:18.14, bellyY:-0.56, bellyShade:6, bellyTilt:-16, bellyHf:1.19, bellyHr:1, fn1x:-24.61, fn1y:3.29, fn2x:-43.52, fn2y:-15.41, fn3x:-22.81, fn3y:6.18, ff1x:16.29, ff1y:12.8, ff2x:7.87, ff2y:-5.2, ff3x:28.33, ff3y:-3.82, bn1x:-1.26, bn1y:17, bn2x:-1.03, bn2y:1.24, bn3x:-13.8, bn3y:4.47, bf1x:3.74, bf1y:17, bf2x:-16.33, bf2y:7.14, bf3x:-5.96, bf3y:7.98, fn4a:-74.3, ff4a:115.5, bn4a:26.7, bf4a:65.1, zbf:2, zff:1, zbn:3, zfn:4, zbelly:2.25, zhead:3.25, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:5 },
+  jump: { headSize:1.14, headWidth:1, headX:3, headY:13.49, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1.16, shoulderX:20, shoulderY:-6, hipSpread:1.5, hipX:20, hipY:17, hipSize:0.86, fPawX:9.5, fPawY:-7.5, bPawX:-5, bPawY:-17.5, fMidX:-20.5, fMidY:4.5, bMidX:-7, bMidY:15.5, spineCurve:-3, thighW:2.18, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.13, bellyX:0, bellyY:0, bellyShade:6, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:-28.52, fn1y:-13.58, fn2x:-10.09, fn2y:-11.19, ff1x:-32.64, ff1y:-18.58, ff2x:-23.73, ff2y:-16.87, bn1x:-20.3, bn1y:-48, bn2x:-26.75, bn2y:-29.99, bn3x:-2.64, bn3y:-8.51, bf1x:-25.3, bf1y:-43, bf2x:-29.65, bf2y:-24.29, bf3x:-10.12, bf3y:-13.51, bn4a:-34.2, bf4a:-37, zbf:1, zff:3, zbn:2, zfn:4, zbelly:1.5, zhead:4.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, tail1x:-23.51, tail1y:-24.47 },
+  front: { headSize:1.14, headWidth:1, headX:5, headY:-8, ribW:0.6, ribH:0.6, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:2, toeR:0.61, legThick:1.16, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1.67, shoulderX:10, shoulderY:-4.5, hipSpread:0.9, hipX:7.5, hipY:-15, hipSize:0.77, fPawX:10, fPawY:-7, bPawX:2.5, bPawY:-20, fMidX:5.5, fMidY:-1, bMidX:10.5, bMidY:30, spineCurve:0, thighW:1.25, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.4, foldR:1.24, bellyX:0, bellyY:0, bellyShade:6, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:5.06, fn1y:-24.5, fn2x:4.17, fn2y:-16.2, fn3x:-0.78, fn3y:3.54, fn4x:-18.44, fn4y:1.18, ff1x:-6.7, ff1y:-24.5, ff2x:-6.32, ff2y:-16.02, ff3x:-20.86, ff3y:12.36, ff4x:-13.2, ff4y:1.18, bn1x:0.15, bn1y:-13.6, bn2x:-17.87, bn2y:-4.95, bn3x:11.01, bn3y:10.96, bn4x:-1.65, bn4y:2.98, bf1x:-1.79, bf1y:-13.6, bf2x:2.27, bf2y:-27.32, bf3x:-12.65, bf3y:18.94, bf4x:-14.99, bf4y:2.98, fn4a:-21.7, ff4a:98.2, bn4a:-33, bf4a:-183, zbf:1, zff:3, zbn:2, zfn:4, zbelly:2.5, zhead:4.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.11, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:-1, tail1x:-3.32, tail1y:-12.8 },
+  spine: { headSize:1.14, headWidth:1, headX:26.5, headY:-5.24, ribW:1, ribH:1, waistLen:1, waistH:1, pelW:1, pelH:1, neckW:1.44, toeR:0.5, legThick:1, tailThick:1, tailLen:1, pawW:1, pawH:1, eyeSize:1.43, eyeGap:21, eyeX:-1, eyeY:-0.5, earSize:1.17, earBW:1.54, earBH:1.02, earBX:10, earBY:-2, earFW:1.51, earFH:1.05, earFX:-9.5, earFY:0, earRound:0.61, cheekOut:-0.5, cheekY:-3.5, cheekRound:1.15, jawW:1.34, chinY:3, shoulderSpread:1, shoulderX:0, shoulderY:0, hipSpread:1, hipX:0, hipY:0, hipSize:1, fPawX:0, fPawY:0, bPawX:0, bPawY:0, fMidX:0, fMidY:0, bMidX:0, bMidY:0, spineCurve:5, thighW:1.83, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1, foldR:1, bellyX:0, bellyY:0, bellyShade:6, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:6.5, fn1y:36.5, fn2x:-2.5, fn2y:31.5, fn3x:7, fn3y:12, ff1x:19.11, ff1y:9.28, ff2x:14.5, ff2y:-25.5, ff3x:2.5, ff3y:-18.5, bn1x:8.5, bn1y:21.5, bn2x:34, bn2y:9, bn3x:-25, bn3y:7, bf1x:6.5, bf1y:4.5, bf2x:28, bf2y:-10, bf3x:8.5, bf3y:10.5, fn4a:112.2, ff4a:176.8, bn4a:-145.8, bf4a:-58.4, zbf:1, zff:2, zbn:3, zfn:4, zbelly:2.5, zhead:3.5, ztail:0.25, mask1y:3, mask1r:-0.15, mask2x:-3, mask2y:6, mask2r:-0.4, mask3x:-3, mask3y:3, mask3r:-0.15, mask4x:-3, mask4y:15, mask4r:0.3, mask5x:-21, mask5y:-9, mask6y:-6, mask7x:21, mask7y:-9, mask8x:-3, mask8y:15, mask8r:0.3, muzzleY:-12, muzzleSize:1.08, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, headRot:-33, catX:-123.5, catY:8.5, tail2x:12.1, tail2y:-1.22 },
 };
 const freshShapes = (from = {}) => Object.fromEntries(SHAPE_GROUPS.map(g => [g, { ...SHAPE_DEFAULT, ...SHAPE_PRESET[g], ...migrateShape(from[g]) }]));
 const oldFluid = j => j && !('fluid' in j) && j.shapes && j.shapes.stand && 'fluid' in j.shapes.stand ? j.shapes.stand.fluid : null;
@@ -1733,6 +1762,7 @@ let saved = null;
 try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
 if (saved) Object.assign(S, saved);
 for (const k in S) if (oldLookKey(k)) delete S[k];
+dropOldEyes(S);
 S.states = structuredClone(S.states || {});   // transition states: { pose: its own changes on top of its position }
 // earlier versions stored one shape for every position; carry those values over to all positions
 const legacyShape = saved ? Object.fromEntries(Object.keys(SHAPE_DEFAULT).filter(k => k in saved).map(k => [k, saved[k]])) : {};
@@ -1741,6 +1771,11 @@ if (oldFluid(saved) !== null) S.fluid = oldFluid(saved);
 for (const k of Object.keys(SHAPE_DEFAULT)) delete S[k];
 delete S.floorShadow;
 if (!saved && matchMedia('(prefers-reduced-motion: reduce)').matches) { S.breathe = false; S.sway = false; }
+// eyes edited before they had 6 dots don't fit the new eye: those emotions go back to the built-in ones
+function dropOldEyes(o){
+  if (!o || !o.eyeLooks) return;
+  for (const id in o.eyeLooks){ const e = o.eyeLooks[id]; if (!e || !e.eyes || e.eyes.some(q => !q || !q.pts || q.pts.length !== 6)) delete o.eyeLooks[id]; }
+}
 function save(keepTime){ if (!keepTime) S.savedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (toProject) saveToProject(); if (stateTr) refreshSnaps(); }
 let stateEdit = null, stateTr = null;   // the transition state being edited (a pose name) and the open transition (right-hand panel)
 let stateSel = null, playGhost = null, ghostVis = true, snapGhost = [], ghostOn = [];   // the state picked there (its index); ghosts (see drawGhosts)
@@ -1778,8 +1813,9 @@ const ease = {
    the tongue stays on the paw for share drag of the time, while the head goes share head of its way; then it lets go at
    speed letGo and the head hurries on. vary: each lick's length, so they don't beat like a machine.
    grip: how much the catches show in the head; press: how deep in the fur the tip starts, without friction + at full
-   friction (head units); maxLen: half the longest the tongue gets. */
-const LICK = { reach:0.24, stroke:[0.5, 0.85], drag:0.85, head:0.3, letGo:0.9, vary:[1, 0.9, 1.12], grip:0.3, press:[0.8, 1.5], maxLen:10 };
+   friction (head units); maxLen: half the longest the tongue gets; slip: how far the stuck tip creeps along the paw
+   while the head pulls (head units). */
+const LICK = { reach:0.24, stroke:[0.5, 0.85], drag:0.85, head:0.7, letGo:0.9, vary:[1, 0.9, 1.12], grip:0.3, press:[0.8, 1.5], maxLen:16, slip:1 };
 // stick-slip: the head pulls the tongue through a spring; the tongue stays stuck on the fur until the pull beats the grip
 // (a little different each time), slips forward, slows on the sliding friction and sticks again. x: where the tip has got
 // to, for the pull going steadily 0 … 1; g: how far the head has pulled ahead of the tip. Made once for each of 3 licks.
@@ -1819,6 +1855,29 @@ function lickMouth(pose, s, p){
 }
 // how far down the face from the mouth (x, y: head units) the paw starts: the first point on that line inside the paw,
 // or else where the line passes closest to it
+/* where the tongue's tip is stuck on the paw, in head units from the tongue's root (x, y). While the head comes down
+   (touching) the spot is where the line down the face meets the paw, pressed press into the fur; from then on it stays
+   on that spot of the paw (kept in the paw's own frame: wrist → toe and across), creeping slip head units along the paw,
+   the way the head pulls, as the tongue slides (the catches with friction). Too far for the tongue (twice maxLen) the tip
+   is dragged along after the head. */
+let lickTouch = null;
+function lickSpot(p, x, y, hs, touching){
+  const [, , w, t] = p.legs.fn, dx = t[0] - w[0], dy = t[1] - w[1], dd = dx * dx + dy * dy || 1;
+  const a = p.head.rot * Math.PI / 180, c = Math.cos(a), n = Math.sin(a), hx = p.head.x, hy = p.head.y + HEAD_DROP;
+  const world = (lx, ly) => [hx + (lx * c - ly * n) * hs, hy + (lx * n + ly * c) * hs];
+  const local = q => { const qx = (q[0] - hx) / hs, qy = (q[1] - hy) / hs; return [qx * c + qy * n - x, -qx * n + qy * c - y]; };
+  if (touching || !lickTouch){
+    const q = world(x, y + pawBelowMouth(p, x, y, hs) + LICK.press[0] + LICK.press[1] * (S.lickFriction ?? 0)), qx = q[0] - w[0], qy = q[1] - w[1];
+    lickTouch = [(qx * dx + qy * dy) / dd, (qy * dx - qx * dy) / dd];
+  }
+  const [u, v] = lickTouch, root = world(x, y);
+  let q = [w[0] + dx * u - dy * v, w[1] + dy * u + dx * v];
+  const way = Math.sign((root[0] - q[0]) * dx + (root[1] - q[1]) * dy), k = way * LICK.slip * (p.mouth.slide || 0) * hs / Math.sqrt(dd);
+  q = [q[0] + dx * k, q[1] + dy * k];
+  let [lx, ly] = local(q); const L = Math.hypot(lx, ly), M = 2 * LICK.maxLen;
+  if (L > M){ lx *= M / L; ly *= M / L; }
+  return [lx, ly];
+}
 function pawBelowMouth(p, x, y, hs){
   const [, , w, t] = p.legs.fn, r = 7.2 * p.shape.legThick * p.shape.pawH * 0.94, a = p.head.rot * Math.PI / 180, c = Math.cos(a), n = Math.sin(a), dx = t[0] - w[0], dy = t[1] - w[1], dd = dx * dx + dy * dy || 1;
   let best = 0, near = Infinity;
@@ -1909,18 +1968,39 @@ function bellyShape(p, B){
   if (k < 0.01) return null;
   const ux = (C[0] - H[0]) / L, uy = (C[1] - H[1]) / L; let nx = -uy, ny = ux;
   const rr = (p.skel.rib[6] || 0) * Math.PI / 180; if (-Math.sin(rr) * nx + Math.cos(rr) * ny < 0){ nx = -nx; ny = -ny; }   // n: toward the belly, by the ribcage's own turn (on its back that is up)
-  const rC = (J.shoulderR[3] || J.shoulderR[2]) + (J.shoulderL[3] || J.shoulderL[2]), len = L + rC / 2 * BELLY.front * k, X = sh.bellyX || 0, Y = sh.bellyY || 0;
-  const peak = clamp(BELLY.peak + (X * ux + Y * uy) / len, 0.2, 0.8), g = Math.log(peak) / Math.log(0.5);
-  const deep = k * (Math.max(0, (B[5][0] - H[0]) * nx + (B[5][1] - H[1]) * ny, (B[1][0] - H[0]) * nx + (B[1][1] - H[1]) * ny) + Math.max(0, BELLY.bulge + X * nx + Y * ny));
-  // round the blob: a 0 the chest's end, pi/2 the deepest point, pi the hips' end
-  const at = a => {
-    const w = Math.sin(a), s = len * Math.pow((1 + Math.cos(a)) / 2, g), h = deep * w * (w > 0 ? 1 : BELLY.top);
-    return [H[0] + ux * s + nx * h, Math.min(H[1] + uy * s + ny * h, FLOOR_Y)];
-  };
-  const ring = Array.from({ length: 32 }, (_, i) => at(i / 32 * 2 * Math.PI)), T = Math.min((sh.bellyShade || 0) * k, deep * 0.8);
-  const lift = deep * BELLY.lift, rim = deep - T * (1 - BELLY.soft) + lift, a = len * Math.max(peak, 1 - peak) * BELLY.wide, s0 = len * peak;
-  const moon = T > 0.05 && { at: 'matrix(' + [ux * a, uy * a, nx * rim, ny * rim, H[0] + ux * s0 - nx * lift, H[1] + uy * s0 - ny * lift].map(v => v.toFixed(2)).join(' ') + ')', lit: (deep - T + lift) / rim };
-  return { d: closedCurve(ring, FLOOR_Y), moon, low: at(Math.PI / 2) };
+  // in the body's frame: s along the spine line from the middle of the hips (toward the chest), h across it (toward the belly)
+  const rad = j => J[j][3] || J[j][2], S_ = q => (q[0] - H[0]) * ux + (q[1] - H[1]) * uy, H_ = q => (q[0] - H[0]) * nx + (q[1] - H[1]) * ny;
+  const at = ([s, h]) => [H[0] + ux * s + nx * h, H[1] + uy * s + ny * h];
+  // from the back of the hips to past the front of the chest
+  const s0 = -(rad('waistR') + rad('waistL')) / 2 * k, s1 = L + (rad('shoulderR') + rad('shoulderL')) / 2 * BELLY.front * k, X = sh.bellyX || 0, Y = sh.bellyY || 0;
+  // the body's own lower edge (hip and shoulder circles, the belly line): the blob never shows less of the belly than that
+  const circles = ['waistR', 'waistL', 'shoulderR', 'shoulderL'].map(j => [S_(J[j]), H_(J[j]), rad(j)]), line = [];
+  { const c = [2 * B[5][0] - (B[4][0] + B[6][0]) / 2, 2 * B[5][1] - (B[4][1] + B[6][1]) / 2];
+    for (let i = 0; i <= 12; i++){ const t = i / 12, q = [0, 1].map(j => (1 - t) * (1 - t) * B[4][j] + 2 * t * (1 - t) * c[j] + t * t * B[6][j]); line.push([S_(q), H_(q)]); } }
+  const edge = s => { let h = -Infinity;
+    for (const [cs, ch, r] of circles){ const d = s - cs; if (Math.abs(d) < r) h = Math.max(h, ch + Math.sqrt(r * r - d * d)); }
+    for (let i = 1; i < line.length; i++){ const [a0, h0] = line[i - 1], [a1, h1] = line[i]; if ((s - a0) * (s - a1) <= 0 && a0 !== a1) h = Math.max(h, h0 + (h1 - h0) * (s - a0) / (a1 - a0)); }
+    return h; };
+  // its point: anywhere along it (bellyX / Y, dragged), as deep as the body there and the bulge
+  const span = s1 - s0, sp = clamp(L * BELLY.peak + X * ux + Y * uy, s0 + span * 0.04, s1 - span * 0.04), e0 = edge(sp);
+  const deep = k * (Math.max(0, Number.isFinite(e0) ? e0 : H_(B[5])) + Math.max(0, BELLY.bulge + X * nx + Y * ny));
+  // the curve through it, as in a drawing program: a smooth point whose two handles turn together (bellyTilt, degrees toward
+  // the belly at the front) and each have their own length (bellyHf front, bellyHr back, × the quarter-ellipse's)
+  const KAPPA = 0.5523, tl = (sh.bellyTilt || 0) * Math.PI / 180, dS = Math.cos(tl), dH = Math.sin(tl);
+  const lf = KAPPA * (s1 - sp), lr = KAPPA * (sp - s0), hf = lf * (sh.bellyHf ?? 1), hr = lr * (sh.bellyHr ?? 1);
+  const P = [sp, deep], Pf = [sp + dS * hf, deep + dH * hf], Pr = [sp - dS * hr, deep - dH * hr], top = deep * BELLY.top, e = KAPPA * deep;
+  const cub = (a, b, c, d, t) => [0, 1].map(i => { const v = 1 - t; return v * v * v * a[i] + 3 * v * v * t * b[i] + 3 * v * t * t * c[i] + t * t * t * d[i]; });
+  const ring = [];
+  for (let i = 0; i < 14; i++) ring.push(cub([s0, 0], [s0, e], Pr, P, i / 14));   // underneath: back end → point → front end
+  for (let i = 0; i < 14; i++) ring.push(cub(P, Pf, [s1, e], [s1, 0], i / 14));
+  for (let i = 0; i < 8; i++) ring.push(cub([s1, 0], [s1, -e * BELLY.top], [sp + KAPPA * (s1 - sp), -top], [sp, -top], i / 8));   // its hidden upper half
+  for (let i = 0; i < 8; i++) ring.push(cub([sp, -top], [sp - KAPPA * (sp - s0), -top], [s0, -e * BELLY.top], [s0, 0], i / 8));
+  const pts = ring.map(([s, h], i) => { if (i < 28 && s > s0 && s < s1){ const b = edge(s); if (b + 0.5 > h) h = b + 0.5; } return at([s, h]); });
+  // T: how far up from the rim the shade reaches; at most almost to the top of its ellipse (the lifted middle)
+  const lift = deep * BELLY.lift, T = Math.min((sh.bellyShade || 0) * k, (deep + lift) * 0.95), rim = deep - T * (1 - BELLY.soft) + lift, a = Math.max(sp - s0, s1 - sp) * BELLY.wide, c0 = at([sp, -lift]);
+  const moon = T > 0.05 && { at: 'matrix(' + [ux * a, uy * a, nx * rim, ny * rim, c0[0], c0[1]].map(v => v.toFixed(2)).join(' ') + ')', lit: (deep - T + lift) / rim };
+  if (moon){ moon.from = at([sp, 0]); moon.to = at([s1, 0]); }   // the shade fades out along this, toward the chest
+  return { d: closedCurve(pts, FLOOR_Y), moon, low: at(P), h: { f: at(Pf), r: at(Pr), u: [ux, uy], n: [nx, ny], l: { f: lf, r: lr } } };
 }
 function closedCurve(P, maxY = Infinity){
   const n = P.length, lo = q => [q[0], Math.min(q[1], maxY)]; let d = 'M' + fmt(lo(P[0]));
@@ -2899,33 +2979,54 @@ function onPlanEnd(){
 }
 
 /* ---------- eye looks ----------
-   Each eye is a square cut by a vertical and a horizontal centre line, on a 20 × 20 grid (−10 … 10;
-   the plain round eye fills −8 … 8). Its 8 dots are the corners and the points where the centre lines
-   meet the edges: TL, T, TR, R, BR, B, BL, L, each [x, y, roundness 0 sharp … 1 round].
+   Drawn like a cat's eye: a dome (the upper lid) over a gentle bottom line. 6 dots on a 20 × 20 grid (−10 … 10), each
+   [x, y, roundness 0 sharp … 1 round]: 0 the far bottom corner, 1 the far side, 2 the top, 3 the nose side, 4 the nose
+   bottom corner, 5 the bottom. The two bottom corners are where the lids meet: the same spot in every emotion (their
+   roundness is free). The top (1, 2, 3) is the lid that closes down onto the corners as the cat falls asleep and rises
+   when surprised, scared or looking up; the bottom (5) straightens when it is sceptical.
    Coordinates are as seen on screen for the LEFT eye (its nose side is +x); the right eye mirrors it
    unless the emotion has separate eyes. "Sleeping" is the closed eye: blinks, naps, the stretch and
    licking morph the current eyes into it as the lid closes. Pupil: size pr per eye; dx, dy offsets and gaze (how far it
    follows where the cat looks and the cursor) come from the emotion's motion. Every emotion can be edited in the Eyes tab. */
 const EYE_G = 8.5 / 8;                              // one grid step in drawing units
-const EYE_COLS = [[0, 7, 6], [1, 5], [2, 3, 4]];    // left, middle and right column, top → bottom
-const EYE_MIRROR = [2, 1, 0, 7, 6, 5, 4, 3];
-const EYE_LOCKED = [[3, 5], [7, 5]];                // the eye's two bottom corners (nose side, far side): fixed, in every emotion; the second list is for a separate right eye, whose dots are mirrored
+const EYE_COLS = [[1, 0], [2, 5], [3, 4]];          // far, middle and nose side, top → bottom
+const EYE_MIRROR = [4, 3, 2, 1, 0, 5];
+const EYE_TOP = [1, 2, 3];
+const EYE_LOCKED = [[0, 4], [0, 4]];                // the two bottom corners: in the same place in every emotion (left eye, a separate right eye)
+const PT8_MIRROR = [2, 1, 0, 7, 6, 5, 4, 3];        // 8-dot shapes (the tongue): left ↔ right
 const circ = (w, t, b) => [[-w,-t,1],[0,-t,0],[w,-t,1],[w,0,0],[w,b,1],[0,b,0],[-w,b,1],[-w,0,0]];
 const pts8 = (...v) => Array.from({ length: 8 }, (_, j) => v.slice(j * 3, j * 3 + 3));
+const eyePts = (...v) => Array.from({ length: v.length / 3 }, (_, j) => v.slice(j * 3, j * 3 + 3));
 const mirrorPts = P => EYE_MIRROR.map(j => [-P[j][0], P[j][1], P[j][2]]);
-const EYE0 = { pts: circ(8, 8, 8), pr:1, dx:0, dy:0, gaze:1 };
-Object.assign(EYE0, { lash: lashFor(EYE0.pts), lashOn: 1, lashBack: 0 });
-// lash: the eye's lash dots (null: made from the eye, see lashFor); o: { lashOff, lashBack } (no lash / lash behind the eye)
-const one = (pts, pr = 1, lash = null, o = {}) => ({ sep:false, eyes:[{ pts, pr, lash }], ...o });
-const two = (a, b, pra = 1, prb = 1, la = null, lb = null, o = {}) => ({ sep:true, eyes:[{ pts:a, pr:pra, lash:la }, { pts:b, pr:prb, lash:lb }], ...o });
-/* the lash: a dark shape over the top of the eye, like the shadow of the upper lid (or, behind the eye, a rim round it).
-   Unless an emotion has its own, it is made from the eye: a band a little past the eye's top edge, thickest in the middle,
-   running out to points at the eye's two side dots */
-const LASH = '#141010';
+const EYE_ONES = [1, 1, 1, 1, 1, 1];
+const EYE0 = { pts: eyePts(-6,4,0.35, -8,-1,1, 1,-6.5,1, 9,-1.5,1, 9,4,0.35, 1.5,6.5,1), pr:1, dx:0, dy:0, gaze:1, sw: EYE_ONES };
+// sw: how thick the eye's stroke is at each dot, times the Stroke width (null: 1 at every dot)
+const one = (pts, pr = 1, sw = null) => ({ sep:false, eyes:[{ pts, pr, sw }] });
+const two = (a, b, pra = 1, prb = 1, swa = null, swb = null) => ({ sep:true, eyes:[{ pts:a, pr:pra, sw:swa }, { pts:b, pr:prb, sw:swb }] });
+const LASH = '#141010';   // the dark of the pupil, the stroke and the nose
+// the iris: its radius in eye units at Iris size 1 (the round eye is about 6.5 high either side of its middle)
+const IRIS_R = 6.6;
+// the slit pupil: half its width at the middle, times the round pupil's radius (a bigger pupil: a wider slit, as it opens
+// in the dark); half its height (times the iris's radius) is the Slit height setting
+const SLIT = { w:0.42 };
+/* two arcs meeting top and bottom; with Slit rounded corners each meeting is rounded off by a small circle touching both
+   arcs from inside (radius: slitRound × most of the half width) */
+function slitD(r, x, y, ir){
+  const hh = ir * (S.slitH ?? 0.88), hw = Math.max(0.01, r * SLIT.w), R0 = (hh * hh + hw * hw) / (2 * hw), q = v => v.toFixed(2);
+  const rho = clamp(S.slitRound || 0, 0, 1) * 0.95 * hw;
+  if (rho < 0.01) return `M${q(x)} ${q(y - hh)}A${q(R0)} ${q(R0)} 0 0 1 ${q(x)} ${q(y + hh)}A${q(R0)} ${q(R0)} 0 0 1 ${q(x)} ${q(y - hh)}Z`;
+  // the small circle's middle, on the slit's centre line; where it touches each arc: out from that arc's middle through it
+  const D = R0 - hw, yc = Math.sqrt(Math.max(0, (R0 - rho) ** 2 - D * D)), k = R0 / (R0 - rho);
+  const tx = D * (k - 1), ty = yc * k;   // the touch points: x ± tx, y ± ty
+  const big = `${q(R0)} ${q(R0)} 0 0 1`, small = `${q(rho)} ${q(rho)} 0 0 1`;
+  return `M${q(x - tx)} ${q(y - ty)}A${small} ${q(x + tx)} ${q(y - ty)}A${big} ${q(x + tx)} ${q(y + ty)}`
+       + `A${small} ${q(x - tx)} ${q(y + ty)}A${big} ${q(x - tx)} ${q(y - ty)}Z`;
+}
 /* inside the eye: a shadow from the top, the eye colour multiplied by itself (deeper, not greyer), k: how deep (share of
    the eye's height, at most max grid steps), op: how strong */
 const EYE_SHADE = { k:0.34, max:5.5, op:0.9 };
-/* the glint, a tiny white reflection where the light catches the pupil: 8 dots like an eye's on a grid of its own, a close
+const EYE_UP = 1.6;   // grid steps the upper lid rises when the cat looks all the way up
+/* the glint, a tiny white reflection where the light catches the pupil: 4 dots like an eye's on a grid of its own, a close
    up of the pupil round GLINT_AT (on the pupil's own grid, radius 8 steps from its middle), zoom times closer. The Eyes tab
    shows that grid round the pupil's middle out to ±GLINT_AT.view steps: the whole pupil (radius 8 × zoom) and some eye.
    It rides on the pupil, so it moves and grows with it; it may lie anywhere on the eye (pupil or not) and is cut only at the
@@ -2933,12 +3034,79 @@ const EYE_SHADE = { k:0.34, max:5.5, op:0.9 };
    this slanted oval) */
 const GLINT_AT = { x:-3.2, y:-2.24, zoom:3, view:30 };
 // the glint's view on the Eyes tab: its middle (the pupil's, on the glint's grid) and half-size
-const glintView = () => ({ cx: -GLINT_AT.x * GLINT_AT.zoom, cy: -GLINT_AT.y * GLINT_AT.zoom, w: GLINT_AT.view });
+// (w grows past view so the whole iris fits, however small the pupil: see edDraw)
+let glintW = GLINT_AT.view;
+const glintView = () => ({ cx: -GLINT_AT.x * GLINT_AT.zoom, cy: -GLINT_AT.y * GLINT_AT.zoom, w: glintW });
+// its grid on the Eyes tab: a line every 2 steps, and the two crossing at its middle
+function glintGridD(){
+  const GV = glintView(), [x0, x1, y0, y1] = [GV.cx - GV.w, GV.cx + GV.w, GV.cy - GV.w, GV.cy + GV.w];
+  let wide = '';
+  for (let v = Math.ceil(x0 / 2) * 2; v <= x1; v += 2) wide += `M${v} ${y0}V${y1}`;
+  for (let v = Math.ceil(y0 / 2) * 2; v <= y1; v += 2) wide += `M${x0} ${v}H${x1}`;
+  return [wide, `M${GV.cx} ${y0}V${y1}M${x0} ${GV.cy}H${x1}`];
+}
+const GLINT_N = 6;   // its dots: one each end, two along the top, two along the bottom
 const GLINT_PTS = (() => {
   const a = -55 * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
-  return circ(7.2, 2.4, 2.4).map(([x, y, r]) => [+(x * c - y * s).toFixed(2), +(x * s + y * c).toFixed(2), r]);
+  return [[-4, -2.4, 1], [4, -2.4, 1], [7.2, 0, 1], [4, 2.4, 1], [-4, 2.4, 1], [-7.2, 0, 1]].map(([x, y, r]) => [+(x * c - y * s).toFixed(2), +(x * s + y * c).toFixed(2), r]);
 })();
-const glintPts = () => S.glint || GLINT_PTS;
+// a glint saved with another number of dots (it has had 8 and 4) is fitted onto GLINT_N the first time it is used
+const glintPts = () => { if (S.glint && S.glint.length !== GLINT_N) S.glint = glintRefit(S.glint); return S.glint || GLINT_PTS; };
+/* fitting a glint onto GLINT_N dots so it looks the same: both shapes are filled on a small canvas (2 px a step) and
+   compared pixel by pixel. Starts: with fewer dots, a dot added in the middle of its top side and of its bottom side (on
+   its outline), and so on; with more, any GLINT_N of its dots or of 12 spots round its outline (in order round it). The
+   few best are each nudged, a dot at a time, in big steps then smaller down to half steps (as the Eyes tab snaps) and
+   roundness down to 0.05, while that differs less, keeping neighbouring dots at least 3 steps apart */
+function glintRefit(P){
+  const xs = P.map(q => q[0]), ys = P.map(q => q[1]), k = 2, pad = 15, x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
+  const W = Math.ceil((Math.max(...xs) + pad - x0) * k), H = Math.ceil((Math.max(...ys) + pad - y0) * k);
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  const mask = Q => {
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); g.setTransform(k, 0, 0, k, -x0 * k, -y0 * k); g.fill(new Path2D(roundedPath(Q)));
+    const a = g.getImageData(0, 0, W, H).data, m = new Uint8Array(W * H); for (let i = 0; i < m.length; i++) m[i] = a[i * 4 + 3] > 127; return m;
+  };
+  const T = mask(P), off = Q => { const m = mask(Q); let d = 0; for (let i = 0; i < m.length; i++) d += m[i] !== T[i]; return d; };
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'path'); line.setAttribute('d', roundedPath(P));
+  const len = line.getTotalLength(), on = n => Array.from({ length: n }, (_, i) => { const q = line.getPointAtLength(len * i / n); return [Math.round(q.x * 2) / 2, Math.round(q.y * 2) / 2, 0.5]; });
+  const starts = [], apart = R => R.every((q, i) => { const b = R[(i + 1) % R.length]; return Math.hypot(q[0] - b[0], q[1] - b[1]) >= 3; });   // no two dots on top of each other
+  if (P.length < GLINT_N){
+    // add dots in the sides farthest above and below the middle, in turn, each on the outline nearest that side's middle
+    const Q = P.map(q => q.slice()), ring = on(96);
+    for (let up = true; Q.length < GLINT_N; up = !up){
+      const my = Q.reduce((a, q) => a + q[1] / Q.length, 0), mids = Q.map((q, i) => { const b = Q[(i + 1) % Q.length]; return [(q[0] + b[0]) / 2, (q[1] + b[1]) / 2, i]; });
+      const [mx, mY, i] = mids.reduce((a, m) => (up ? m[1] < a[1] : m[1] > a[1]) ? m : a, [0, my, -1]);
+      if (i < 0) break;
+      const near = ring.reduce((a, q) => Math.hypot(q[0] - mx, q[1] - mY) < Math.hypot(a[0] - mx, a[1] - mY) ? q : a);
+      Q.splice(i + 1, 0, [near[0], near[1], Math.round((Q[i][2] + Q[(i + 1) % Q.length][2]) * 50) / 100]);
+    }
+    while (Q.length < GLINT_N) Q.push(Q[Q.length - 1].slice());
+    starts.push([off(Q), Q]);
+  } else for (const from of [P, on(12)]){
+    const pick = (i0, got) => {
+      if (got.length === GLINT_N){ const Q = got.map(i => from[i].slice()); starts.push([off(Q), Q]); return; }
+      for (let i = i0; i <= from.length - (GLINT_N - got.length); i++) pick(i + 1, [...got, i]);
+    };
+    pick(0, []);
+  }
+  starts.sort((a, b) => a[0] - b[0]);
+  let [bd, best] = starts[0];
+  for (const [d0, Q0] of starts.slice(0, 6)){
+    let d = d0, Q = Q0;
+    for (const [s, r] of P.length < GLINT_N ? [[0, 0.1], [0, 0.05]] : [[4, 0.2], [2, 0.1], [1, 0.05], [0.5, 0.05]]){   // dots added: they stay put, only the roundness is tuned
+      for (let n = 0, better = true; better && n < 40; n++){
+        better = false;
+        for (let j = 0; j < GLINT_N; j++) for (const [dx, dy, dr] of [[s, 0, 0], [-s, 0, 0], [0, s, 0], [0, -s, 0], [0, 0, r], [0, 0, -r]].filter(t => t[0] || t[1] || t[2])){
+          const R = Q.map(q => q.slice()); R[j] = [R[j][0] + dx, R[j][1] + dy, Math.round(clamp(R[j][2] + dr, 0, 1) * 100) / 100];
+          if (!apart(R)) continue;
+          const e = off(R); if (e < d){ d = e; Q = R; better = true; }
+        }
+      }
+    }
+    if (d < bd){ bd = d; best = Q; }
+  }
+  return best;
+}
 // the inner shadow (grid units × sc): everything but the eye moved down a little; clipped to the eye, the band along its top
 function shadeD(P, sc = 1){
   const h = Math.max(...EYE_COLS.map(col => P[col[col.length - 1]][1] - P[col[0]][1])), dy = clamp(h * EYE_SHADE.k, 0.4, EYE_SHADE.max), e = 30 * sc;
@@ -2973,12 +3141,59 @@ function glintFit(){
   glintKey = key;
   return glintCache = { d: roundedPath(P), mid, r: far, ux, uy };
 }
-function lashFor(P){
-  const lo = (a, k) => [P[a][0] + (P[5][0] - P[a][0]) * k, P[a][1] + (P[5][1] - P[a][1]) * k];   // part way down toward the bottom middle
-  const up = 0.5, [bl, b, br] = [lo(0, 0.12), lo(1, 0.16), lo(2, 0.12)];
-  return [[P[0][0] - 0.3, P[0][1] - up, P[0][2]], [P[1][0], P[1][1] - up, P[1][2]], [P[2][0] + 0.3, P[2][1] - up, P[2][2]], [P[3][0], P[3][1], 0.15],
-          [br[0], br[1], 1], [b[0], b[1], 0], [bl[0], bl[1], 1], [P[7][0], P[7][1], 0.15]];
+/* the eye's stroke: a line along the eye's own rounded edge (grid units, × sc), w wide, times W[j] at dot j and blending
+   smoothly from one dot to the next. Drawn as a filled shape: a piece along each short step of the edge and a round end at
+   each sample, all turning the same way, so where they overlap they still fill */
+function eyeLineD(P, W, w, sc = 1){
+  if (!(w > 0.001)) return '';
+  const K = 0.5523, n = P.length, C = roundCorners(P), Q = [], mids = [];   // Q: [x, y, corner, side] along the edge, every 0.4 steps or so
+  C.forEach(({ p, A, B }, j) => {
+    const c1 = [A[0] + (p[0] - A[0]) * K, A[1] + (p[1] - A[1]) * K], c2 = [B[0] + (p[0] - B[0]) * K, B[1] + (p[1] - B[1]) * K];
+    const N = 2 * clamp(Math.ceil((Math.hypot(p[0] - A[0], p[1] - A[1]) + Math.hypot(B[0] - p[0], B[1] - p[1])) / 0.8), 1, 12);
+    for (let i = 0; i <= N; i++){
+      const t = i / N, m = 1 - t, at = k => m * m * m * A[k] + 3 * m * m * t * c1[k] + 3 * m * t * t * c2[k] + t * t * t * B[k];
+      if (i === N / 2) mids[j] = Q.length;
+      Q.push([at(0), at(1), j, i < N / 2 ? 0 : 1]);
+    }
+  });
+  const len = [0];
+  for (let k = 1; k < Q.length; k++) len.push(len[k - 1] + Math.hypot(Q[k][0] - Q[k - 1][0], Q[k][1] - Q[k - 1][1]));
+  const total = len[len.length - 1] + Math.hypot(Q[0][0] - Q[Q.length - 1][0], Q[0][1] - Q[Q.length - 1][1]);
+  const V = [];   // [x, y, half width], repeated spots merged
+  Q.forEach(([x, y, j, side], k) => {
+    const a = side ? j : (j + n - 1) % n, b = (a + 1) % n;   // between the dot before and the one after (each dot: the middle of its corner)
+    let s0 = len[mids[a]], s1 = len[mids[b]], s = len[k];
+    if (s1 < s0) s1 += total;
+    if (s < s0) s += total;
+    const u = s1 - s0 > 1e-6 ? clamp((s - s0) / (s1 - s0), 0, 1) : 0, wa = W[a] ?? 1, wb = W[b] ?? 1, h = Math.max(0, w * (wa + (wb - wa) * smooth(u)) / 2);
+    const last = V[V.length - 1];
+    if (last && Math.hypot(x - last[0], y - last[1]) < 1e-4) last[2] = Math.max(last[2], h); else V.push([x, y, h]);
+  });
+  if (V.length > 1 && Math.hypot(V[0][0] - V[V.length - 1][0], V[0][1] - V[V.length - 1][1]) < 1e-4) V[0][2] = Math.max(V[0][2], V.pop()[2]);
+  const m = V.length, at = k => V[(k + m) % m];
+  if (m < 2) return '';
+  // each step's own direction (unit) and length
+  const seg = V.map((q, k) => { const r = at(k + 1), L = Math.hypot(r[0] - q[0], r[1] - q[1]) || 1e-9; return [(r[0] - q[0]) / L, (r[1] - q[1]) / L, L]; });
+  // at each spot: a gentle bend shares one side line between its two steps; a sharp one gets a round end instead
+  const sharp = [], nrm = [];
+  V.forEach((q, k) => {
+    const A = seg[(k + m - 1) % m], B = seg[k], cos = clamp(A[0] * B[0] + A[1] * B[1], -1, 1), th = Math.acos(cos);
+    sharp[k] = th > 0.35 || q[2] * Math.tan(th / 2) > 0.45 * Math.min(A[2], B[2]);
+    const nx = -(A[1] + B[1]), ny = A[0] + B[0], L = Math.hypot(nx, ny) || 1;
+    nrm[k] = [nx / L, ny / L];
+  });
+  const f = v => (v * sc).toFixed(2);
+  let d = '';
+  V.forEach(([x, y, h], k) => {
+    if (sharp[k] && h > 0.001) d += 'M' + f(x + h) + ' ' + f(y) + 'A' + f(h) + ' ' + f(h) + ' 0 1 0 ' + f(x - h) + ' ' + f(y) + 'A' + f(h) + ' ' + f(h) + ' 0 1 0 ' + f(x + h) + ' ' + f(y) + 'Z';
+    const [x2, y2, h2] = at(k + 1), S0 = seg[k], sn = [-S0[1], S0[0]];
+    if (h + h2 < 0.002) return;
+    const n1 = sharp[k] ? sn : nrm[k], n2 = sharp[(k + 1) % m] ? sn : nrm[(k + 1) % m];
+    d += 'M' + f(x + n1[0] * h) + ' ' + f(y + n1[1] * h) + 'L' + f(x2 + n2[0] * h2) + ' ' + f(y2 + n2[1] * h2) + 'L' + f(x2 - n2[0] * h2) + ' ' + f(y2 - n2[1] * h2) + 'L' + f(x - n1[0] * h) + ' ' + f(y - n1[1] * h) + 'Z';
+  });
+  return d;
 }
+let eyePx = 4;   // screen px per eye grid step, as the cat was last drawn (the Eyes tab draws the stroke in proportion)
 const mo = o => () => [o, o];
 // "did anyone see?", the only emotion whose pupils move on their own: quick glances to one side, the other, again, then back on the cursor
 const SHIFTY = [[-0.95, 0.6], [0.95, 0.6], [-0.95, 0.42], [0.95, 0.42], [0, 1.2]];
@@ -2999,20 +3214,20 @@ function shiftyGaze(t){
 // id, label, seconds a Show-now button shows it, (in the automatic mix, setting key: from the old random mix, unused; kept
 // because tools/bake_in.py finds edited eyes by this layout), eye shapes, pupil motion. Only emotions that read clearly
 // apart: round (the resting look), the moods (happy, sad, suspicious), a few to show, fly hunt (hunting) and sleeping (shut)
-// Each one is Round with only the dots that need to move moved (the upper lid closing for sleepy and sleeping, the lower lid
-// rising for happy …), dot for dot, so the eye stays in place, and blends and blinks move only those parts. The two bottom
-// corners (EYE_LOCKED) are the same in all of them and can't be dragged
+// Each one is Round with only the dots that need to move moved (the upper lid closing for sleepy and sleeping, the bottom
+// rising for happy and straightening for suspicious …), dot for dot, so the eye stays in place, and blends and blinks move
+// only those parts. The two bottom corners (EYE_LOCKED) are the same in all of them and can't be dragged
 const LOOKS = [
-  ['round',      'Round',      3,   false, null,             one(pts8(-5,-5,0.45, 0,-5,0.45, 6,-4,0.15, 9,4,0.25, 1,7,1, -6,4,0.3, -7,1,0.6, -8,-4,1), 1.22, pts8(-8,-1,1, -8,-5,0.4, 5,-8,1, 9,1,0.5, 9,6,0.2, 6,-4,0.55, -7,-4,0.45, -7,1,0.15)), mo({})],
-  ['happy',      'Happy',      3.5, true,  'lookHappy',      one(pts8(-5,-5,0.45, 0,-5,0.45, 6,-4,0.15, 9,4,0.25, 1,2,1, -6,4,0.3, -7,1,0.6, -8,-2,1), 1.31, pts8(-8,-1,0.2, -8,-5,0.7, 3,-8,1, 10,0,1, 8,5,0, 7,-4,0.65, -6,-4,0.7, -7,1,0)), mo({})],
-  ['sad',        'Sad',        3.5, false, 'lookSad',        one(pts8(-3,0,0.45, 4,-2,0.45, 8,-2,0.15, 9,4,0.25, 3,6,1, -6,4,0.3, -6.7,2,0.3, -7,1,0.5), 1.22, pts8(-8,2,1, -7,0,0.8, 8,-4,0.35, 9,3,0.5, 9,6,0.2, 8,-2,0.45, -4,1,0.45, -6.7,2,0.15)), mo({})],
-  ['angry',      'Angry',      2.6, false, 'lookAngry',      one(pts8(-5,-5,0.45, 0,-1.8,0.2, 8.2,2,0.2, 9,4,0.25, 1,7,1, -6,4,0.3, -7,1,0.6, -8,-4,1), 1.22, pts8(-8,-1,1, -8,-5.8,0.4, 6.5,-2.8,1, 10.1,4,0.5, 9,6,0.2, 8.2,2,0.55, -7,-4,0.45, -7,1,0.15)), mo({})],
-  ['surprised',  'Surprised',  2.6, true,  'lookSurprised',  one(pts8(-5.2,-8.2,0.7, 0.5,-9,0.7, 7,-6,0.6, 9,4,0.25, 1,8.5,1, -6,4,0.3, -7.6,0.5,0.6, -8.3,-6,1), 1.22, pts8(-8.4,-2.3,1, -8.3,-8.1,0.4, 5.8,-10.6,1, 9.5,0,0.5, 9,6,0.2, 7,-6.2,0.55, -7,-7,0.45, -7.6,0.5,0.15)), mo({})],
-  ['sleepy',     'Sleepy',     4,   true,  'lookSleepy',     one(pts8(-4.5,-0.2,0.45, 0,0,0.45, 7.5,0,0.15, 9,4,0.25, 1,6,1, -6,4,0.3, -6.7,2,0.3, -7.3,-0.5,0.5), 1.22, pts8(-8,3,1, -8,-1,0.55, 5,-2,0.5, 10,2,0.75, 9,6,0.2, 8,1,0.55, -5,2,0.7, -6,4,0.15)), mo({})],
-  ['suspicious', 'Suspicious', 3,   true,  'lookSuspicious', one(pts8(-4.5,-1,0.1, 0,-1,0.1, 7.1,-1,0.15, 9,4,0.25, 0,4,1, -6,4,0.3, -7,0,0.6, -7.4,-1,0.3), 0.95, pts8(-8,0,1, -7.4,-2,0.4, 6,-3,1, 9,1,0.5, 9,6,0.2, 8,-1,0.55, -6.5,-0.1,0.45, -7,2,0.15)), mo({ dx:-0.55, dy:0.1, gaze:1 })],
-  ['shifty',     'Who saw?',   3.4, true,  'lookShifty',     one(pts8(-5,-3.2,0.45, 0,-3.2,0.45, 6.5,-2.8,0.15, 9,4,0.25, 1,7,1, -6,4,0.3, -7,1,0.6, -7.7,-2.6,0.8), 1.22, pts8(-7.8,-0.3,1, -7.7,-3.6,0.4, 5.3,-6.6,1, 9.3,1.6,0.5, 9,6,0.2, 6.5,-2.8,0.55, -6.7,-2.6,0.45, -7,1,0.15)), t => { const o = { dx:shiftyX(t), dy:0.2, gaze:shiftyGaze(t) }; return [o, o]; }],
-  ['fly',        'Fly hunt',   5.5, true,  'lookFly',        one(pts8(-5,-6,0.6, 0,-7,0.6, 8,-3,1, 9,4,0.25, 1,7,1, -6,4,0.3, -7.5,0.3,0.6, -8,-4,1), 0.85, pts8(-8.3,-2.4,1, -8,-6,0.4, 6,-9,1, 9.4,0.2,0.5, 9,6,0.2, 7,-5,0.55, -7,-5,0.45, -7.5,0.3,0.15)), mo({})],
-  ['sleeping',   'Sleeping',   3,   false, null,             one(pts8(-3,4.9,0.6, 1,5.7,0.8, 8.7,4,0.3, 9,4,0.25, 1,7,1, -6,4,0.3, -6.1,3.9,0.3, -6.3,3.7,0.5), 1, pts8(-7.4,3.7,0.55, -7.2,2.8,0.4, 2,4.2,1, 8,4,0.5, 7,5,0.2, 3,6,0.6, -1,6,0.6, -5,5,0.15)), mo({})],
+  ['round',      'Round',      3,   false, null,             one(eyePts(-6,4,0, -8,-1,1, 1,-6.5,1, 9,-1.5,1, 9,4,0.1, 2,6,1), 1.36, [1.95, 2, 1.5, 1.5, 2, 1]), mo({})],
+  ['happy',      'Happy',      3.5, true,  'lookHappy',      one(eyePts(-6,4,0.35, -8,-1,1, 1,-5.5,1, 9,-1,1, 9,4,0.35, 1.5,2,1), 1.31), mo({})],
+  ['sad',        'Sad',        3.5, false, 'lookSad',        one(eyePts(-6,4,0.35, -7,2,1, 1,-3,1, 9,-3,1, 9,4,0.35, 1.5,6.5,1), 1.22), mo({})],
+  ['angry',      'Angry',      2.6, false, 'lookAngry',      one(eyePts(-6,4,0.35, -8,-2,1, 0,-4,1, 8,1.5,0.6, 9,4,0.35, 1.5,6.5,1), 1.22), mo({})],
+  ['surprised',  'Surprised',  2.6, true,  'lookSurprised',  one(eyePts(-6,4,0.35, -9,-3,1, 1,-9.5,1, 10,-3.5,1, 9,4,0.35, 1.5,7.5,1), 1.22), mo({})],
+  ['sleepy',     'Sleepy',     4,   true,  'lookSleepy',     one(eyePts(-6,4,0.35, -7,1.5,1, 1,-0.5,1, 9,0.5,1, 9,4,0.35, 1.5,6.5,1), 1.22), mo({})],
+  ['suspicious', 'Suspicious', 3,   true,  'lookSuspicious', one(eyePts(-6,4,0.35, -7,1,1, 1,-1,1, 9,0,1, 9,4,0.35, 1.5,4.3,1), 0.95), mo({ dx:-0.55, dy:0.1, gaze:1 })],
+  ['shifty',     'Who saw?',   3.4, true,  'lookShifty',     one(eyePts(-6,4,0.35, -8,0,1, 1,-3,1, 9,-2,1, 9,4,0.35, 1.5,5,1), 1.22), t => { const o = { dx:shiftyX(t), dy:0.2, gaze:shiftyGaze(t) }; return [o, o]; }],
+  ['fly',        'Fly hunt',   5.5, true,  'lookFly',        one(eyePts(-6,4,0.35, -9,-2,1, 1,-8,1, 10,-2.5,1, 9,4,0.35, 1.5,7.5,1), 0.85), mo({})],
+  ['sleeping',   'Sleeping',   3,   false, null,             one(eyePts(-6,4,0.35, -3,5,1, 1,5,1, 6,5,1, 9,4,0.35, 1.5,6.5,1), 1, [1, 2.35, 2.8, 2.05, 1, 2.4]), mo({})],
 ].map(([id, label, hold, auto, key, shape, motion]) => ({ id, label, hold, auto, key, shape, motion }));
 const LOOK_BY = Object.fromEntries(LOOKS.map(L => [L.id, L]));
 /* ---------- the tongue: 8 dots (0 top left, 1 top, 2 top right, 3 right, 4 bottom right, 5 tip, 6 bottom left, 7 left), each
@@ -3049,6 +3264,7 @@ function tongueCursorX(u){
   return i + (u - A[i]) / ((i + 1 < A.length ? A[i + 1] : 1) - A[i]);
 }
 const TONGUE_CUT = -2.5;   // where it is cut off behind the lips (head units from its root, inside the pads)
+const TONGUE_SIDE = 6;     // stuck on the paw: beyond this far either side of its root it shows above the cut too
 // where the tongue comes from, in the face's units: under the cross of the muzzle's pads
 function tongueRoot(sh, hw, tcx){
   const r = MUZZLE.r * sh.muzzleSize, g = MUZZLE.gap * sh.muzzleSize;
@@ -3067,20 +3283,31 @@ function drawTongue(p, sh, hs, hw, tcx){
   if (lick.w > 0.001) T = mix(T, tongueAt('cursor', tongueCursorX((lick.t % LICK_T) / LICK_T)), lick.w);
   const [ax, ay] = tongueRoot(sh, hw, tcx);
   let P = T.pts.map(q => [q[0] * out, q[1] * out, q[2]]);
-  // on the paw: the tip is pinned in the fur, so the tongue stretches as the head pulls away and shortens as the tip slips
-  // up to the surface; the shape keeps its look, only longer or shorter (and a little narrower when longer)
+  // on the paw: the tip sticks to the spot on the fur where it touched (see lickSpot). The paw stays, the head pulls away,
+  // so the tongue stretches from that spot to the mouth (sideways as the head sweeps off): it comes out of the mouth
+  // downward and bends over to the spot along a curve, its width kept across the curve, narrower the longer it gets.
+  // Letting go (grip easing to 0) it springs back to its own shape
   const grip = (p.mouth.grip || 0) * (1 - lick.w), tip = Math.max(...P.map(q => q[1]));
   if (grip > 0.001 && tip > 1){
-    const want = Math.min(2 * LICK.maxLen, pawBelowMouth(p, ax, ay, hs) + (LICK.press[0] + LICK.press[1] * (S.lickFriction ?? 0)) * (1 - p.mouth.slide));
-    const sy = 1 + (clamp(want / tip, 0.5, 3) - 1) * grip, sx = Math.pow(1 / sy, 0.2);
-    P = P.map(q => [q[0] * sx, q[1] > 0 ? q[1] * sy : q[1], q[2]]);
-  }
+    const [vx, vy] = lickSpot(p, ax, ay, hs, (p.mouth.tk || 0) < 2), n = P[5];
+    const ex = n[0] + (vx - n[0]) * grip, ey = n[1] + (vy - n[1]) * grip, len = Math.hypot(ex, ey);
+    const c = Math.max(Math.min(len / 2, ey), 0.35 * tip), sx = Math.pow(clamp(len / Math.hypot(n[0], n[1]), 1, 4), -0.4);
+    // the curve from the root (0, 0) out through (0, c) to the spot; a point y down the tongue goes to share y / tip of it
+    P = P.map(q => {
+      if (q[1] <= 0) return [q[0] * sx, q[1], q[2]];
+      const s = Math.min(1, q[1] / tip), m = 1 - s, tx = 2 * s * ex, ty = 2 * m * c + 2 * s * (ey - c), tl = Math.hypot(tx, ty) || 1, w = q[0] * sx;
+      return [s * s * ex + w * ty / tl, 2 * m * s * c + s * s * ey - w * tx / tl, q[2]];
+    });
+  } else lickTouch = null;
   G.setAttribute('transform', `translate(${ax.toFixed(2)} ${ay.toFixed(2)})`);
   els.tongue.setAttribute('d', roundedPath(P));
   $('tongueCrease').setAttribute('d', tongueCreaseD(P));
   // behind the lips nothing of it shows, however far up its shape reaches; in front of them (over) it is all there
   const lips = 1 - clamp(T.over, 0, 1);
   $('tongueTop').setAttribute('y', (TONGUE_CUT - 60 * (1 - lips)).toFixed(2));
+  // stuck on the paw and stretched off to the side, the head tilted, it may run up past that line beside the lips: there
+  // it shows (the root stays hidden behind them)
+  for (const [id, x] of [['tongueSideL', -100 - TONGUE_SIDE], ['tongueSideR', TONGUE_SIDE]]){ const r = $(id); r.setAttribute('x', x); r.setAttribute('width', grip > 0.001 ? 100 : 0); }
   L.setAttribute('display', lips > 0.01 ? 'inline' : 'none');
   L.setAttribute('opacity', lips.toFixed(2));
   L.setAttribute('transform', `scale(${hw.toFixed(3)} 1) ${$('ptFace').getAttribute('transform') || ''}`);
@@ -3099,13 +3326,14 @@ document.getElementById('eyeRest').innerHTML = LOOKS.filter(L => L.id !== 'sleep
 // the eye shapes of an emotion (edited ones from the Eyes tab win), resolved to [left eye, right eye]
 const lookData = id => (S.eyeLooks && S.eyeLooks[id]) || (LOOK_BY[id] || LOOK_BY.round).shape;
 function lookShape(id){
-  const d = lookData(id), e0 = d.eyes[0], l0 = e0.lash || lashFor(e0.pts), e1 = d.sep && d.eyes[1];
-  return [{ pts: e0.pts, pr: e0.pr, lash: l0 }, e1 ? { pts: e1.pts, pr: e1.pr, lash: e1.lash || lashFor(e1.pts) } : { pts: mirrorPts(e0.pts), pr: e0.pr, lash: mirrorPts(l0) }];
+  const d = lookData(id), e0 = d.eyes[0], e1 = d.sep && d.eyes[1], w0 = e0.sw || EYE_ONES;
+  return [{ pts: e0.pts, pr: e0.pr, sw: w0 }, e1 ? { pts: e1.pts, pr: e1.pr, sw: e1.sw || EYE_ONES }
+                                             : { pts: mirrorPts(e0.pts), pr: e0.pr, sw: EYE_MIRROR.map(j => w0[j]) }];
 }
-// an emotion's eyes as they blend: shape, pupil, lash (lashOn / lashBack as numbers, so they fade between emotions) and pupil motion
+// an emotion's eyes as they blend: shape, pupil, stroke thickness and pupil motion
 function lookParams(name, t){
-  const L = LOOK_BY[name] || LOOK_BY.round, d = lookData(L.id), sh = lookShape(L.id), m = L.motion(t);
-  return [0, 1].map(i => ({ pts: sh[i].pts, pr: sh[i].pr, lash: sh[i].lash, lashOn: d.lashOff ? 0 : 1, lashBack: d.lashBack ? 1 : 0,
+  const L = LOOK_BY[name] || LOOK_BY.round, sh = lookShape(L.id), m = L.motion(t);
+  return [0, 1].map(i => ({ pts: sh[i].pts, pr: sh[i].pr, sw: sh[i].sw,
                             dx: m[i].dx || 0, dy: m[i].dy || 0, gaze: m[i].gaze ?? 1 }));
 }
 const mixEye = (a, b, k) => mix(a, b, k);
@@ -3183,7 +3411,7 @@ function roundedPath(P, sc = 1){
 const eyeOpen = P => clamp((Math.max(...EYE_COLS.map(col => P[col[col.length - 1]][1] - P[col[0]][1])) * EYE_G - 0.6) / 1.6, 0, 1);
 // the closed-eye line sits where the middle column closes, as wide as the eye
 function shutAt(P){
-  const xs = P.map(q => q[0]), x0 = Math.min(...xs), x1 = Math.max(...xs), y = P[1][1] + (P[5][1] - P[1][1]) * 0.6;
+  const xs = P.map(q => q[0]), x0 = Math.min(...xs), x1 = Math.max(...xs), y = P[2][1] + (P[5][1] - P[2][1]) * 0.6;
   return `translate(${((x0 + x1) / 2 * EYE_G).toFixed(2)} ${(y * EYE_G - 1).toFixed(2)}) scale(${Math.max(0.3, (x1 - x0) / 16).toFixed(3)} 1)`;
 }
 /* ---------- small life: breathing, tail, blinks ---------- */
@@ -3314,10 +3542,10 @@ const els = {
   low: { bf:$('low-bf'), ff:$('low-ff'), bn:$('low-bn'), fn:$('low-fn') },
   eyes: [...document.querySelectorAll('.eye')], headClip: $('headClipUse'),
   eyeWhite: [...document.querySelectorAll('.eye .white')], eyeOpen: [...document.querySelectorAll('.eye .open')],
-  lashF: [...document.querySelectorAll('.eye .lashF')], lashB: [...document.querySelectorAll('.eye .lashB')],
+  eyeLine: [...document.querySelectorAll('.eye .eyeLine')],
   shade: [...document.querySelectorAll('.eye .shade')], glint: [...document.querySelectorAll('.eye .glint')],
   eyeClip: [document.querySelector('#eyeClip0 path'), document.querySelector('#eyeClip1 path')],
-  vol: [...document.querySelectorAll('#vol .ve')], belly: $('bellyBlob'), bellyFill: $('bellyFill'), neck: $('neck'), massRib: $('massRib'), massPel: $('massPel'),
+  vol: [...document.querySelectorAll('#vol .ve')], belly: $('bellyBlob'), bellyShade: $('bellyShade'), bellyFill: $('bellyFill'), bellyFade: $('bellyFade'), neck: $('neck'), massRib: $('massRib'), massPel: $('massPel'),
   massW: { waistR: $('massWR'), waistL: $('massWL') },
   whiskers2: $('whiskers2'), silhouette: $('silhouette'), goo: $('goo'),
 };
@@ -3677,7 +3905,7 @@ function drawMask(sh, turn = 1){
 function buildCoat(){
   const r = COAT.ramp;
   // the pale hairs above the brown take the lower leg's colour (a touch darker than the body), so they don't show as a lighter fringe
-  ['ff', 'fn'].forEach((k, i) => buildBand($('ptLow-' + k), 30, r, 11 + i, { point:0.4, pale:1 }, { point:COAT.point, pale:mixHex(COAT.pale, '#000000', LEG_SHADE) }));
+  ['ff', 'fn'].forEach((k, i) => buildBand($('ptLow-' + k), 30, r, 11 + i, { point:0.28, pale:0.7 }, { point:COAT.point, pale:mixHex(COAT.pale, '#000000', LEG_SHADE) }));
   buildBand($('ptTail'), 14, r, 21, { point:0.4, pale:1 });
   buildMask($('ptFace'));
   for (const [i, s] of ['L', 'R'].entries()){
@@ -3772,7 +4000,7 @@ function coatColors(){
   const { pale, point } = COAT;
   for (const e of [els.body, els.belly, ...els.vol, $('skull'), els.neck, els.massRib, els.massPel, ...Object.values(els.massW), ...Object.values(els.legs), els.earL, els.earR, ...Object.values(els.low)]) e.setAttribute('fill', pale);
   for (const e of [els.tail, els.tailFront]) e.setAttribute('fill', point);
-  document.querySelectorAll('.pupil').forEach(e => e.setAttribute('fill', LASH));   // black, like the lashes
+  document.querySelectorAll('.pupil, .slit').forEach(e => e.setAttribute('fill', LASH));   // black, like the stroke
   els.whiskers.setAttribute('stroke', point); els.whiskers2.setAttribute('stroke', point);
   $('ptTailPale').setAttribute('stroke', pale);
   for (const e of ['L', 'R']) $('ptInner' + e).setAttribute('fill', `url(#ptInner${e}Ramp)`);
@@ -3848,6 +4076,7 @@ function buildFur(){
   }
   // the tail: its outline runs up one side and back down the other, and the fur runs on toward its tip on both
   part(els.tail, 480, { tail:true, dark:(x, y, h) => 1 - Math.abs(2 * h.r - 1) > COAT.tailAt + h.at * 0.1 });
+  { const t = furParts[furParts.length - 1]; for (const L of [t.pale, t.point]) if (L) $('edgeFurTail').appendChild(L[0].parentNode); }   // the tail's fur is not cut at the floor (it may lie below it)
   part(els.belly, 260, { run:toRump });
 }
 // no chest: the body is a band, whose two lines end inside the circles at either end, and those ends jump from one circle
@@ -3896,7 +4125,7 @@ function furHairs(Q, part, F, amt, dark, p, headM){
 function drawEdgeFur(p){
   if (!furParts) buildFur();
   const g = $('edgeFurG'), amt = S.edgeFur, on = amt > 0, disp = on ? '' : 'none';
-  if (g.style.display !== disp) g.style.display = disp;
+  for (const x of [g, $('edgeFurTail')]) if (x.style.display !== disp) x.style.display = disp;
   if (!on) return;
   const sia = S.coat === 'siamese', sh = p.shape, hs = HEAD_SCALE * sh.headSize, a = p.head.rot * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
   const headM = [c * hs * sh.headWidth, s * hs * sh.headWidth, -s * hs, c * hs, p.head.x, p.head.y + HEAD_DROP];
@@ -3922,7 +4151,7 @@ function draw(p, ht, dt){
   catBody.setAttribute('transform', `translate(0 ${(-ht).toFixed(1)})`);
   const bandB = p.fx.chest < 0.5 && (p.skel ? pressedBody(p, p.ground) : p.body), belly = bandB && p.skel ? bellyShape(p, bandB) : null;
   els.body.setAttribute('d', bandB ? bandPath(bandB, FLOOR_Y) : closedCurve(p.body, FLOOR_Y));   // the body rests on the floor, level with the soles
-  els.belly.setAttribute('d', belly ? belly.d : ''); p.bellyAt = belly && belly.low;
+  els.belly.setAttribute('d', belly ? belly.d : ''); els.bellyShade.setAttribute('d', belly && belly.moon ? belly.d : ''); p.bellyAt = belly && belly.low; p.bellyH = belly && belly.h;
   const v = p.vol;
   els.vol.forEach((e, i) => {
     const q = v && v[i];
@@ -3935,7 +4164,7 @@ function draw(p, ht, dt){
   const bc = p.body.reduce((a, q) => [a[0] + q[0] / 8, a[1] + q[1] / 8], [0, 0]);
   const bl = Math.hypot(bc[0]-t0[0], bc[1]-t0[1]) || 1;
   const tr = p.skel && p.skel.joints.waistC, tailPts = [tr ? [tr[0], tr[1]] : [t0[0] + (bc[0]-t0[0]) / bl * 12, t0[1] + (bc[1]-t0[1]) / bl * 12], ...tp];   // grows from the middle between the hips (inside the body)
-  const tailR = LIMB.tail[0] * p.shape.tailThick, tailC = roundBends(sampleSpline(tailPts, 10).map(([x, y]) => [x, Math.min(y, FLOOR_Y - tailR)]), tailR);   // round, never creased
+  const tailR = LIMB.tail[0] * p.shape.tailThick, tailC = roundBends(sampleSpline(tailPts, 10).map(([x, y]) => [x, Math.min(y, Math.max(FLOOR_Y - tailR, p.tailFloor || 0))]), tailR);   // round, never creased
   const tailD = taperPath(tailC, LIMB.tail[0] * p.shape.tailThick, LIMB.tail[1] * p.shape.tailThick, false), fr = clamp(p.fx.front, 0, 1);
   // the tail always melts into the body (soft-merge layer), also when it lies wrapped along the body
   els.tail.setAttribute('d', tailD); els.tail.setAttribute('opacity', 1);
@@ -3994,9 +4223,12 @@ function draw(p, ht, dt){
   // its thigh tucked behind the body in the soft merge (a tie keeps the far hind leg at the back)
   const hz = (p.shape.zbn ?? 0) - (p.shape.zbf ?? 0), coatC = S.coat === 'siamese' ? COAT.pale : S.catColor;
   // the belly: the body's colour easing into its own dark
-  const bStops = els.bellyFill.children, bFill = belly && belly.moon ? 'url(#bellyFill)' : coatC;
+  const bStops = els.bellyFill.children, bFill = coatC;
   if (els.bellyFill.dataset.c !== coatC){ els.bellyFill.dataset.c = coatC; const dark = mixHex(coatC, '#000000', BELLY.dark); [...bStops].forEach((e, i) => e.setAttribute('stop-color', mixHex(coatC, dark, smooth(i / (bStops.length - 1))))); }
-  if (belly && belly.moon){ els.bellyFill.setAttribute('gradientTransform', belly.moon.at); [...bStops].forEach((e, i) => e.setAttribute('offset', (belly.moon.lit + (1 - belly.moon.lit) * i / (bStops.length - 1)).toFixed(4))); }
+  if (belly && belly.moon){
+    const F = els.bellyFade, [a, b] = [belly.moon.from, belly.moon.to];
+    F.setAttribute('x1', a[0].toFixed(2)); F.setAttribute('y1', a[1].toFixed(2)); F.setAttribute('x2', b[0].toFixed(2)); F.setAttribute('y2', b[1].toFixed(2));
+    els.bellyFill.setAttribute('gradientTransform', belly.moon.at); [...bStops].forEach((e, i) => e.setAttribute('offset', (belly.moon.lit + (1 - belly.moon.lit) * i / (bStops.length - 1)).toFixed(4))); }
   if (els.belly.getAttribute('fill') !== bFill) els.belly.setAttribute('fill', bFill);
   // every leg: its top colour (the body's; the far hind leg's own darker one) at the shoulder / hip, easing all the way
   // down to a touch darker by where the lower leg's round top starts; the lower leg is that colour, so no edge shows
@@ -4019,10 +4251,11 @@ function draw(p, ht, dt){
     $('ptTailCoat').after(hBack); $('vol').after(hFront);
     if (!fore) els.body.before(els.legs.ff);
     (!fore && !overBelly('fn') ? els.legs.fn : !overBelly(hBackK === 'bn' ? 'bf' : 'bn') ? hFront : $('vol')).after(els.belly);
-    let at = els.belly;
+    els.belly.after(els.bellyShade);
+    let at = els.bellyShade;
     for (const k of lo) if (overBelly(k) && k !== 'fn' && !(fore && k === 'ff')){ at.after(els.legs[k]); at = els.legs[k]; }
     // the tail under the first of them above it; under the belly's layer it stays behind the body. Over the body its pale root is left out, or it would show a hairline round it
-    const zOf = e => e === els.belly ? zb : e === els.head ? zh : e.classList.contains('leg') ? Z['z' + e.id.slice(4)] : -Infinity;
+    const zOf = e => e === els.belly || e === els.bellyShade ? zb : e === els.head ? zh : e.classList.contains('leg') ? Z['z' + e.id.slice(4)] : -Infinity;
     let next = [...sil.children].find(e => zOf(e) > zt) || null;
     if (zt < zb && (!next || els.body.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING)) next = els.body;
     sil.insertBefore(els.tail, next); sil.insertBefore($('ptTailCoat'), next);
@@ -4081,20 +4314,10 @@ function draw(p, ht, dt){
   els.eyes.forEach((e, i) => {
     const turnK = p.eye.cx / 4;   // eye offsets follow the head as it turns
     e.setAttribute('transform', `translate(${((p.eye.cx + (i ? sh.eyeGap : -sh.eyeGap)) * hw + sh.eyeX * turnK).toFixed(2)} ${(-sh.eyeY).toFixed(2)}) scale(${sh.eyeSize})`);
-    // the emotion's 8-dot eye; closing (blink, sleep) morphs it into the Sleeping eye. An eye drawn
+    // the emotion's eye; closing (blink, sleep) morphs it into the Sleeping eye. An eye drawn
     // with no height at all shows as the curved closed-eye line instead
     const li = Math.max(lid, p.eye.shy ? p.eye.shy[i] : 0);   // this eye's own lid: the cursor may have shut it
-    const L = p.look ? p.look[i] : EYE0, P = li > 0 ? mix(L.pts, sleepEyes[i].pts, li) : L.pts, d = roundedPath(P, EYE_G);
-    const shutK = clamp((0.6 - eyeOpen(P)) / 0.6, 0, 1), closed = shutK;   // only a (nearly) flat eye turns into the line
-    els.eyeWhite[i].setAttribute('d', d); els.eyeClip[i].setAttribute('d', d); els.shade[i].setAttribute('d', shadeD(P, EYE_G));
-    // the lash closes with the eye, into the Sleeping eye's lash; behind the eye only what sticks out of it shows
-    const ld = L.lashOn > 0.01 ? roundedPath(li > 0 ? mix(L.lash, sleepEyes[i].lash, li) : L.lash, EYE_G) : '', back = L.lashBack > 0.5;
-    els.lashF[i].setAttribute('d', back ? '' : ld); els.lashB[i].setAttribute('d', back ? ld : '');
-    for (const e of [els.lashF[i], els.lashB[i]]){ e.setAttribute('opacity', clamp(L.lashOn, 0, 1).toFixed(2)); e.setAttribute('fill', LASH); }
-    els.eyeOpen[i].setAttribute('opacity', (1 - closed).toFixed(2));
-    const pu = e.querySelector('.pupil');
-    pu.setAttribute('r', (p.eye.pr * L.pr).toFixed(2));
-    pu.setAttribute('opacity', (1 - clamp((li - 0.55) / 0.35, 0, 1)).toFixed(2));   // the pupil goes as the eye closes
+    const L = p.look ? p.look[i] : EYE0;
     let px = (p.eye.lx * L.gaze + L.dx) * 3.4, py = 0.4 + 1.6 * clamp(li / 0.5, 0, 1) + (p.eye.ly * L.gaze + L.dy) * 2;
     const cw = mouse.w * clamp(L.gaze, 0, 1);   // the cursor pulls the pupils as far as the emotion follows a gaze ("Who saw?" glances, then comes back to it)
     if (cw > 0.001){
@@ -4104,8 +4327,27 @@ function draw(p, ht, dt){
         px += (dx / dd * mag - px) * cw; py += (0.4 + dy / dd * mag * 0.85 - py) * cw;
       }
     }
-    pu.setAttribute('cx', px.toFixed(2));
-    pu.setAttribute('cy', py.toFixed(2));
+    // looking up opens the eye a little: the upper lid rises with the pupil (most in the middle)
+    const up = clamp((0.4 - py) / 2.8, 0, 1) * (1 - clamp(li * 2, 0, 1)) * EYE_UP;
+    let P = li > 0 ? mix(L.pts, sleepEyes[i].pts, li) : L.pts;
+    if (up > 0.001) P = P.map((q, j) => EYE_TOP.includes(j) ? [q[0], q[1] - up * (j === 2 ? 1 : 0.6), q[2]] : q);
+    const d = roundedPath(P, EYE_G);
+    const shutK = clamp((0.6 - eyeOpen(P)) / 0.6, 0, 1), closed = shutK;   // only a (nearly) flat eye turns into the line
+    els.eyeWhite[i].setAttribute('d', d); els.eyeClip[i].setAttribute('d', d); els.shade[i].setAttribute('d', shadeD(P, EYE_G));
+    // the stroke: S.eyeStrokePx on screen, whatever the cat's and the eye's size; it closes with the eye too
+    eyePx = viewScale * hs * sh.eyeSize * EYE_G;
+    els.eyeLine[i].setAttribute('d', S.eyeStroke ? eyeLineD(P, li > 0 ? mix(L.sw, sleepEyes[i].sw, li) : L.sw, S.eyeStrokePx / eyePx, EYE_G) : '');
+    els.eyeLine[i].setAttribute('fill', LASH);
+    els.eyeOpen[i].setAttribute('opacity', (1 - closed).toFixed(2));
+    const pu = e.querySelector('.pupil'), sl = e.querySelector('.slit'), pr = p.eye.pr * L.pr, slit = S.pupil === 'slit';
+    const pop = (1 - clamp((li - 0.55) / 0.35, 0, 1)).toFixed(2);   // the pupil goes as the eye closes
+    pu.setAttribute('r', pr.toFixed(2)); pu.setAttribute('opacity', pop);
+    pu.setAttribute('cx', px.toFixed(2)); pu.setAttribute('cy', py.toFixed(2));
+    pu.setAttribute('display', slit ? 'none' : 'inline'); sl.setAttribute('display', slit ? 'inline' : 'none');
+    // the iris round the pupil, looking where it looks; the shade is only on it
+    const ir = IRIS_R * (S.irisSize || 1), iris = e.querySelector('.iris'), ic = document.querySelector(`#irisClip${i} circle`);
+    for (const c of [iris, ic]){ c.setAttribute('r', ir.toFixed(2)); c.setAttribute('cx', px.toFixed(2)); c.setAttribute('cy', py.toFixed(2)); }
+    if (slit){ sl.setAttribute('d', slitD(pr, px, py, ir)); sl.setAttribute('opacity', pop); }
     glintAt(els.glint[i], px, py, p.eye.pr * L.pr); els.glint[i].setAttribute('opacity', pu.getAttribute('opacity'));
     const sh2 = e.querySelector('.shut'); sh2.setAttribute('opacity', shutK.toFixed(2)); sh2.setAttribute('transform', shutAt(P));
   });
@@ -4149,7 +4391,7 @@ function fitFilter(f, b, m){
    numbered with its layer. Joints are dots. */
 const SK = { pink:'#d0679a', front:'#7d63c4', hind:'#d08a3c', head:'#5aa0bf' };
 const LEG_COL = { fn:'#7d63c4', ff:'#1f9e89', bn:'#d97a1e', bf:'#2f62d9' };   // front near purple, front far teal, hind near orange, hind far blue
-let skelBelly = null, skelShown = false, shapeOpen = false, skelEls = null, skelPts = {}, skelHead = null, skelTail = [], skelMove = null;
+let skelBelly = null, skelBellyH = null, skelShown = false, shapeOpen = false, skelEls = null, skelPts = {}, skelHead = null, skelTail = [], skelMove = null;
 // the grid leg points snap to: 400 × 400 drawing units around the cat, its bottom on the floor line
 const GRID = { x:0, y:CAT_BOX.floor - 400, size:400, step:10, snap:5 };
 function buildSkel(){
@@ -4208,6 +4450,12 @@ function buildSkel(){
   E.tags.t = [0, 1, 2].map(k => numTag(SK.pink, k + 1, e => tailDown(e, k)));
   E.headDot = handle({ r:4.5, fill:SK.head }, e => startDrag(e, { kx:'headX', ky:'headY', sy:-1, q0:skelHead, name:'Head' }));
   E.tiltDot = handle({ r:3.6, fill:'#fff', stroke:SK.head, 'stroke-width':1.6 }, e => startDrag(e, { tilt:true, q0:skelHead, name:'Head tilt' }));
+  // the belly's point and its curve handles (a smooth point: drag a handle to turn both and set that side's length)
+  E.bellyArm = mk('path', { stroke:'#ffd23f', 'stroke-width':1.2, 'vector-effect':'non-scaling-stroke', fill:'none', 'pointer-events':'none' });
+  const bellyHandleDown = (e, side) => { e.preventDefault(); e.stopPropagation(); if (!holding){ legNote('Turn on “Hold this position while editing” to drag points.'); return; }
+    if (!skelBellyH || !skelBelly) return; e.target.setPointerCapture(e.pointerId); legDrag = { bellyH: side, moved: false, name: 'Belly curve' }; };
+  E.bellyHf = handle({ r:2.8, fill:'#fff', stroke:'#ffd23f', 'stroke-width':1.6 }, e => bellyHandleDown(e, 'f'));
+  E.bellyHr = handle({ r:2.8, fill:'#fff', stroke:'#ffd23f', 'stroke-width':1.6 }, e => bellyHandleDown(e, 'r'));
   E.bellyDot = handle({ r:4, fill:'#ffd23f' }, e => startDrag(e, { kx:'bellyX', ky:'bellyY', sy:1, q0:skelBelly, name:'Belly' }));
   // the whole cat: a move handle in the middle of the body (the same size whatever the cat's size; on top of everything)
   E.moveDot = mk('g', { class:'grab', 'pointer-events':'all' });
@@ -4288,6 +4536,9 @@ function drawSkel(p){
   }
   const place = (e, q) => { e.setAttribute('cx', q[0].toFixed(1)); e.setAttribute('cy', q[1].toFixed(1)); }, ra = p.head.rot * Math.PI / 180;
   skelBelly = p.bellyAt; E.bellyDot.setAttribute('display', skelBelly ? 'inline' : 'none'); if (skelBelly) place(E.bellyDot, skelBelly);
+  skelBellyH = skelBelly && p.bellyH;
+  for (const [e, q] of [[E.bellyHf, skelBellyH && skelBellyH.f], [E.bellyHr, skelBellyH && skelBellyH.r]]){ e.setAttribute('display', q ? 'inline' : 'none'); if (q) place(e, q); }
+  E.bellyArm.setAttribute('d', skelBellyH ? 'M' + fmt(skelBellyH.r) + 'L' + fmt(skelBelly) + 'L' + fmt(skelBellyH.f) : '');
   place(E.headDot, hc); place(E.tiltDot, [hc[0] + Math.sin(ra) * hr, hc[1] - Math.cos(ra) * hr]);
   E.tailDots.forEach((d, k) => place(d, skelPts.t[k]));
   skelMove = DP.c[0]; E.moveDot.setAttribute('transform', `translate(${fmt(skelMove)}) scale(${u.toFixed(4)})`);
@@ -4331,6 +4582,12 @@ addEventListener('pointermove', e => {
   const D = legDrag; if (!D) return;
   const p = toLocal($('skel'), e.clientX, e.clientY); if (!p) return;
   const t = editShapeObj(D.paw ? D.paw + '4a' : D.kx); D.moved = true;
+  if (D.bellyH){   // a belly curve handle: both handles turn together, this side's length follows the drag
+    const B = skelBellyH, v = [p[0] - skelBelly[0], p[1] - skelBelly[1]], g = D.bellyH === 'f' ? 1 : -1;
+    const a = Math.atan2(g * (v[0] * B.n[0] + v[1] * B.n[1]), g * (v[0] * B.u[0] + v[1] * B.u[1])) * 180 / Math.PI;
+    t.bellyTilt = e.altKey ? +clamp(a, -85, 85).toFixed(1) : Math.round(clamp(a, -85, 85)); t['bellyH' + D.bellyH] = +clamp(Math.hypot(...v) / (B.l[D.bellyH] || 1), 0.05, 3).toFixed(2);
+    legNote(`Belly curve: turned ${t.bellyTilt}°, ${D.bellyH === 'f' ? 'front' : 'back'} handle ${t['bellyH' + D.bellyH]}×`); return;
+  }
   if (D.paw){   // the paw keeps its length; snap its whole turn, so a round angle stays round
     const whole = D.o0[1] + tiltAngle(p, D.q0) - D.a0, snapped = e.altKey ? Math.round(whole) : Math.round(whole / 5) * 5;
     t[D.paw + '4a'] = +(D.o0[0] + snapped - D.o0[1]).toFixed(1); legNote(`${D.name}: paw turned ${snapped}°`); return;
@@ -4373,8 +4630,9 @@ function applyColors(){
   if (typeof edBuild === 'function' && edViews.length) edBuild();
   els.whiskers.setAttribute('stroke', c); els.whiskers2.setAttribute('stroke', c);
   for (const e of Object.values(els.massW)) e.setAttribute('fill', c);
-  document.querySelectorAll('.pupil').forEach(r => r.setAttribute('fill', c));
-  document.querySelectorAll('.white').forEach(r => r.setAttribute('fill', S.eyeColor));
+  document.querySelectorAll('.pupil, .slit').forEach(r => r.setAttribute('fill', c));
+  document.querySelectorAll('.white').forEach(r => r.setAttribute('fill', S.eyeWhite));
+  document.querySelectorAll('.eye .iris').forEach(r => r.setAttribute('fill', S.eyeColor));
   document.querySelectorAll('.eye .shade').forEach(r => { r.setAttribute('fill', mulHex(S.eyeColor, S.eyeColor)); r.setAttribute('opacity', EYE_SHADE.op); });
   document.querySelectorAll('.shut').forEach(r => r.setAttribute('stroke', S.eyeColor));
   tongueColors();
@@ -4892,7 +5150,7 @@ const fmtOut = {
   speed: v => (+v).toFixed(2) + '×', idleTime: sec(1), postureTime: sec(2), turnTime: sec(2),
   trans: sec(2), holdStretch: sec(1), watchTime: sec(1), napTime: sec(0), jumpPrep: sec(1),
   jumpHeight: v => (+v).toFixed(2) + '×', jumpTop: v => Math.round(v * 100) + '%', hopCrouch: sec(2), hopHeight: v => (+v).toFixed(2) + '×', hopTop: v => Math.round(v * 100) + '%', hopReach: v => (+v).toFixed(1) + '×', walkSpeed: v => (+v).toFixed(2) + '×', runSpeed: v => (+v).toFixed(2) + '×', runStride: sec(2), jumpReach: v => (+v).toFixed(1) + '×',
-  licks: v => v + '×', lickFriction: v => Math.round(v * 100) + '%', size: v => v + '%', posX: v => v + '%', ground: v => v + '%',
+  irisSize: v => (+v).toFixed(2) + '×', slitH: v => (+v).toFixed(2), slitRound: v => Math.round(v * 100) + '%', licks: v => v + '×', lickFriction: v => Math.round(v * 100) + '%', size: v => v + '%', posX: v => v + '%', ground: v => v + '%',
   ...Object.fromEntries(['headSize','headWidth','eyeSize','earSize','legThick','tailThick','pawW','pawH','ribW','ribH','waistLen','waistH','pelW','pelH','neckW','tailLen','earBW','earBH','earFW','earFH','cheekRound','jawW','shoulderSpread','hipSpread','hipSize','thighW','kneeF','kneeB','kneeOut','hipW','hipLen','foldR'].map(k => [k, v => (+v).toFixed(2) + '×'])),
   eyeGap: v => v, eyeX: v => (v > 0 ? '+' : '') + v, eyeY: v => (v > 0 ? '+' : '') + v,
   ...Object.fromEntries(['earBX','earBY','earFX','earFY','cheekOut','cheekY','chinY','shoulderX','shoulderY','hipX','hipY','fPawX','fPawY','bPawX','bPawY','fMidX','fMidY','bMidX','bMidY','spineCurve','bellyX','bellyY'].map(k => [k, v => (v > 0 ? '+' : '') + v])),
@@ -5299,6 +5557,9 @@ function drawSnaps(){
     // the leg gradients are placed for the live cat: each preview keeps a copy placed for its own state
     for (const k in els.legs){ const c = $('legFill-' + k).cloneNode(true); c.id += '-st' + sec.dataset.i; g.prepend(c); g.querySelectorAll(`[fill="url(#legFill-${k})"]`).forEach(e => e.setAttribute('fill', `url(#${c.id})`)); }
     { const c = els.bellyFill.cloneNode(true); c.id += '-st' + sec.dataset.i; g.prepend(c); g.querySelectorAll('[fill="url(#bellyFill)"]').forEach(e => e.setAttribute('fill', `url(#${c.id})`)); }
+    { const fd = els.bellyFade.cloneNode(true), m = $('bellyMask').cloneNode(true); fd.id += '-st' + sec.dataset.i; m.id += '-st' + sec.dataset.i;
+      m.firstElementChild.setAttribute('fill', `url(#${fd.id})`); g.prepend(m); g.prepend(fd);
+      g.querySelectorAll('[mask="url(#bellyMask)"]').forEach(e => e.setAttribute('mask', `url(#${m.id})`)); }
     sec.querySelector('.snap').replaceChildren(g);
     // its ghost: the shape without the face, and its points
     const gs = mk('g', { class:'gShape', filter:'url(#ghostLine)' });
@@ -5358,14 +5619,87 @@ function openTransition(id){
   $('stList').innerHTML = T.states.map(([name, label], i) => `<section class="st${label ? '' : ' mainPose'}" data-i="${i}">
       <p class="sub">${JMARK[name] && JC_MODE[id] ? JMARK[name] + ' · ' : ''}${label || (i === last ? 'Finish' : 'Start') + ' · ' + GROUP_LABEL[name]}</p>
       <svg class="stView" viewBox="${GRID.x} ${GRID.y} ${GRID.size} ${GRID.size}" role="button" aria-label="Edit this state"><path class="stGrid" d="${grid}"/><g class="snap"></g></svg>
-      ${label ? `<div class="actions"><button class="btn" type="button" data-streset="${name}">Reset this state</button></div>` : ''}
+      ${label ? `<div class="actions"><button class="btn" type="button" data-streset="${name}">Reset this state</button>${i > 1 && i < last - 1 ? `<button class="btn" type="button" data-stprev="${i}">Same as previous frame</button>` : ''}</div>` : ''}
     </section>`).join('');
   document.querySelectorAll('#stList .stView').forEach(v => v.onclick = () => selectState(+v.closest('.st').dataset.i));
   document.querySelectorAll('[data-streset]').forEach(b => b.onclick = () => {
     delete S.states[b.dataset.streset]; save(); if (stateEdit === b.dataset.streset) syncShapeInputs();
   });
+  document.querySelectorAll('[data-stprev]').forEach(b => b.onclick = () => samePrevFrame(+b.dataset.stprev));
   $('stCurve').hidden = !JC_MODE[id];
   drawSnaps();
+}
+/* "Same as previous frame": frame i takes on the look of frame i − 1, so a change can be carried on from there. Its
+   sliders take the previous frame's values; then each point (whole cat, head and its tilt, tail, belly, leg points 1–3
+   and the paws' turn) is moved onto where it is in the previous frame, as if dragged there (a few rounds, since moving
+   one point can shift the next). The poses under the two frames differ, so it is their looks that match, not the numbers */
+const PT_KEY = k => LEG_KEY.test(k) || /^tail[1-3][xy]$/.test(k) || ['headX', 'headY', 'headRot', 'catX', 'catY', 'bellyX', 'bellyY'].includes(k);
+function samePrevFrame(i){
+  const L = TRANSITIONS[stateTr].states, name = L[i][0], held = HELD_LEGS.has(name), d = S.states[name] = { ...(S.states[name] || {}) };
+  const was = skelShown; skelShown = false;
+  const look = e => { refreshShapes(); const { P, T } = stateMoment(e), p = poseAt(P, T); draw(p, 0);
+    return { sh: p.shape, pts: dragPoints(p), head: [p.head.x, p.head.y + HEAD_DROP], rot: p.head.rot, belly: p.bellyAt && p.bellyAt.slice(), paw: { ...(p.pawTurn || {}) } }; };
+  const turn = v => ((v + 540) % 360) - 180;
+  let A = look(L[i - 1]);   // (measured again each round: a frame inside a move is partly made of the frames next to it)
+  // the sliders (everything but the points), layers too
+  let B = look(L[i]);
+  for (const k of new Set([...Object.keys(A.sh), ...Object.keys(B.sh)])){
+    const a = A.sh[k], b = B.sh[k];
+    if (PT_KEY(k) || (held && LEG_KEY.test(k)) || typeof a !== 'number' || typeof b !== 'number' || Math.abs(a - b) < 1e-6) continue;
+    d[k] = +((d[k] || 0) + a - b).toFixed(4);
+  }
+  // the points, the whole cat first, then the head, tail and belly, then each leg from the body down
+  const LEGS = held ? [] : Object.keys(A.pts).filter(l => l.length === 2 && B.pts[l]);
+  const stages = [
+    () => { const o = [];   // the sliders again: in a blend they may not follow their numbers one for one
+      for (const k in A.sh) if (!PT_KEY(k) && !(held && LEG_KEY.test(k)) && typeof A.sh[k] === 'number' && typeof B.sh[k] === 'number' && Math.abs(A.sh[k] - B.sh[k]) > 1e-4) o.push([k, undefined, A.sh[k] - B.sh[k]]);
+      return o; },
+    () => [['catX', 'catY', A.pts.c && B.pts.c && [A.pts.c[0], B.pts.c[0]]]],
+    () => [['headX', 'headY', [A.head, B.head], -1], ['headRot', null, A.rot - B.rot], ['bellyX', 'bellyY', A.belly && B.belly && [A.belly, B.belly]]],
+    ...[0, 1, 2].map(j => () => [['tail' + (j + 1) + 'x', 'tail' + (j + 1) + 'y', [A.pts.t[j], B.pts.t[j]]]]),   // the tail from its root out
+    ...[0, 1, 2].map(j => () => LEGS.map(l => [l + (j + 1) + 'x', l + (j + 1) + 'y', [A.pts[l][j], B.pts[l][j]]])),
+    () => LEGS.filter(l => A.paw[l] != null && B.paw[l] != null).map(l => [l + '4a', null, (A.paw[l] - B.paw[l]) * 180 / Math.PI]),
+  ];
+  // a value that doesn't move its point (it can't reach: the leg is too short there, a paw on the floor …) gets its last
+  // nudge back and is left alone, so no useless numbers pile up
+  let last = {}, stuck = new Set(), slow = {}, hist = {};
+  const rounds = list => { for (let pass = 0; pass < 6; pass++){
+    let most = 0;
+    for (const stage of list){
+      A = look(L[i - 1]); B = look(L[i]);
+      for (const [kx, ky, v, sy = 1] of stage()){
+        if (!v && v !== 0) continue;
+        const add = (k, x) => {
+          if (stuck.has(k)) return;
+          const H = hist[k] = hist[k] || [];
+          if (last[k] && Math.abs(x) > 0.85 * Math.abs(last[k]) && ++slow[k] >= 2){ d[k] = H[H.length - 2] ?? H[0]; stuck.add(k); return; }   // back to before the two nudges that did nothing
+          if (!last[k] || Math.abs(x) <= 0.85 * Math.abs(last[k])) slow[k] = 0;
+          if (Math.abs(x) < 0.01){ delete last[k]; return; }
+          H.push(d[k] || 0); d[k] = +((d[k] || 0) + x).toFixed(2); last[k] = x; most = Math.max(most, Math.abs(x));
+        };
+        if (ky === undefined){ if (Math.abs(v) > 1e-4){ d[kx] = +((d[kx] || 0) + v).toFixed(4); most = Math.max(most, Math.abs(v) > 0.01 ? 0.06 : 0); } }
+        else if (ky === null) add(kx, turn(v));
+        else { add(kx, v[0][0] - v[1][0]); add(ky, (v[0][1] - v[1][1]) * sy); }
+      }
+    }
+    if (most < 0.05) break;
+  } };
+  rounds(stages);
+  // the floor wins: a paw standing on it in the previous frame stands on it here too. Where the legs here are too short
+  // to reach it from where the body was put, the whole cat comes down until they do, and the rest is matched again from there
+  A = look(L[i - 1]); B = look(L[i]);
+  const onFloor = Object.keys(A.pts).filter(l => l.length === 2 && B.pts[l] && Math.max(A.pts[l][2][1], A.pts[l][3][1]) > FLOOR_Y - 15);
+  const drop = onFloor.length ? Math.max(...onFloor.map(l => A.pts[l][2][1] - B.pts[l][2][1])) : 0;
+  if (drop > 1){
+    d.catY = +((d.catY || 0) + drop).toFixed(2);
+    last = {}; stuck = new Set(['catX', 'catY']); slow = {}; hist = {};
+    rounds(stages.filter((s, k) => k !== 1));
+  }
+  for (const k in d) if (Math.abs(d[k]) < 1e-6) delete d[k];
+  if (!Object.keys(d).length) delete S.states[name];
+  skelShown = was; refreshShapes(); save();
+  if (stateSel === i) selectState(i); else if (stateEdit === name) syncShapeInputs();
+  drawSnaps(); toast(`${L[i][1]}: same as ${stName(L[i - 1])}`);
 }
 function closeTransition(){
   leaveState(); stateTr = null; $('statesPanel').hidden = true;
@@ -5485,7 +5819,7 @@ $('stPlay').onclick = () => {
 };
 /* ---------- Eyes tab: edit each emotion's eyes on a 20 × 20 grid ---------- */
 const NS = 'http://www.w3.org/2000/svg';
-let edId = LOOK_BY[UI.edLook] ? UI.edLook : 'round', edSel = null, edDrag = null, edPart = 'eye';   // edPart: dragging the eye's dots or the lash's
+let edId = LOOK_BY[UI.edLook] ? UI.edLook : 'round', edSel = null, edDrag = null, edPart = 'eye';   // edPart: dragging the eye's dots or the glint's
 $('edBtns').innerHTML = LOOKS.map(L => `<button class="btn edb" type="button" data-ed="${L.id}">${L.label}</button>`).join('');
 document.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => edSelect(b.dataset.ed));
 // the emotion's stored copy (created on first edit from the built-in one)
@@ -5495,20 +5829,17 @@ function edData(create){
   if (!S.eyeLooks) S.eyeLooks = {};
   return (S.eyeLooks[edId] = structuredClone(LOOK_BY[edId].shape));
 }
-// the dots being dragged: the eye's own, its lash (made from the eye the first time it is changed) or the glint
+// the dots being dragged: the eye's own or the glint's
 function edPts(i, create){
   if (edPart === 'glint'){ if (!S.glint && create) S.glint = structuredClone(GLINT_PTS); return glintPts(); }
-  const e = edData(create).eyes[i];
-  if (edPart !== 'lash') return e.pts;
-  if (!e.lash && create) e.lash = lashFor(e.pts);
-  return e.lash || lashFor(e.pts);
+  return edData(create).eyes[i].pts;
 }
 function edSelect(id){
   edId = id; UI.edLook = id; saveUI(); edSel = null;
   document.querySelectorAll('[data-ed]').forEach(b => b.classList.toggle('active', b.dataset.ed === id));
   $('edName').textContent = LOOK_BY[id].label;
   $('edSep').checked = !!edData().sep;
-  $('edLash').checked = !edData().lashOff; $('edLashBack').checked = !!edData().lashBack;
+  edLineUi();
   document.querySelectorAll('[data-edpart]').forEach(b => b.classList.toggle('active', b.dataset.edpart === edPart));
   edBuild();
   if (eyeEditing) setLook(id, Infinity);
@@ -5523,6 +5854,7 @@ function edBuild(){
     const cap = n === 1 ? ['Both eyes · right one mirrors', 'nose →'] : i === 0 ? ['Left eye', 'nose →'] : ['← nose', 'Right eye'];
     wrap.innerHTML = `<p class="edCap"><span>${cap[0]}</span><span>${cap[1]}</span></p><div class="edBox"></div>
       <div class="row"><label for="edRd${i}">Roundness</label><input type="range" id="edRd${i}" min="0" max="1" step="0.05" disabled><output for="edRd${i}">–</output></div>
+      <div class="row edTkRow"${S.eyeStroke ? '' : ' hidden'}><label for="edTk${i}">Stroke thickness</label><input type="range" id="edTk${i}" min="0" max="3" step="0.05" disabled><output for="edTk${i}">–</output></div>
       <div class="row"${edId === 'sleeping' ? ' hidden' : ''}><label for="edPr${i}">Pupil size</label><input type="range" id="edPr${i}" min="0" max="1.8" step="0.01"><output for="edPr${i}"></output></div>`;
     box.appendChild(wrap);
     const ebox = wrap.querySelector('.edBox');
@@ -5536,19 +5868,18 @@ function edBuild(){
     mk('path', { d: grid, stroke: '#ffffff', 'stroke-opacity': 0.13, 'stroke-width': 0.06, fill: 'none' }, svg);
     const frame = mk('rect', { x: -10, y: -10, width: 20, height: 20, fill: 'none', stroke: '#ffffff', 'stroke-opacity': 0.35, 'stroke-width': 0.08 }, svg);
     const view = mk('g', {}, svg);   // the eye's parts: closes in on the pupil while the glint is edited
-    const lashB = mk('path', { fill: LASH }, view);
-    const white = mk('path', { fill: S.eyeColor }, view);
-    const shade = mk('path', { fill: mulHex(S.eyeColor, S.eyeColor), opacity: EYE_SHADE.op, 'fill-rule': 'evenodd', filter: `url(#edShade${i})`, 'clip-path': `url(#edClip${i})` }, view);
+    const irisClip = mk('circle', {}, mk('clipPath', { id: 'edIris' + i }, defs));
+    const white = mk('path', { fill: S.eyeWhite }, view);
+    const iris = mk('circle', { fill: S.eyeColor, 'clip-path': `url(#edClip${i})` }, view);
+    const shade = mk('path', { fill: mulHex(S.eyeColor, S.eyeColor), opacity: EYE_SHADE.op, 'fill-rule': 'evenodd', filter: `url(#edShade${i})`, 'clip-path': `url(#edClip${i})` }, mk('g', { 'clip-path': `url(#edIris${i})` }, view));
     const pupil = mk('circle', { fill: S.coat === 'siamese' ? LASH : S.catColor, 'clip-path': `url(#edClip${i})` }, view);
+    const slit = mk('path', { fill: S.coat === 'siamese' ? LASH : S.catColor, 'clip-path': `url(#edClip${i})` }, view);
     const glint = mk('path', { fill: 'url(#glintFill)' }, mk('g', { 'clip-path': `url(#edClip${i})` }, view));   // anywhere on the eye; cut only at its edge
-    const lashF = mk('path', { fill: LASH }, view);
+    const line = mk('path', { fill: LASH }, view);
     // shaping the glint: a grid of its own over the close-up of the pupil (a line every 2 steps), crossing at its middle
-    const gridTop = mk('g', { display: 'none' }, svg), GV = glintView(), [x0, x1, y0, y1] = [GV.cx - GV.w, GV.cx + GV.w, GV.cy - GV.w, GV.cy + GV.w];
-    let wide = '';
-    for (let v = Math.ceil(x0 / 2) * 2; v <= x1; v += 2) wide += `M${v} ${y0}V${y1}`;
-    for (let v = Math.ceil(y0 / 2) * 2; v <= y1; v += 2) wide += `M${x0} ${v}H${x1}`;
+    const gridTop = mk('g', { display: 'none' }, svg), [wide, cross] = glintGridD();
     mk('path', { d: wide, stroke: '#ffffff', 'stroke-opacity': 0.13, 'stroke-width': 0.15, fill: 'none' }, gridTop);
-    mk('path', { d: `M${GV.cx} ${y0}V${y1}M${x0} ${GV.cy}H${x1}`, stroke: SK.pink, 'stroke-width': 0.25, 'stroke-opacity': 0.9, fill: 'none' }, gridTop);
+    mk('path', { d: cross, stroke: SK.pink, 'stroke-width': 0.25, 'stroke-opacity': 0.9, fill: 'none' }, gridTop);
     const axes = mk('path', { d: 'M0 -10V10M-10 0H10', stroke: SK.pink, 'stroke-width': 0.1, 'stroke-opacity': 0.9, fill: 'none' }, svg);
     const outline = mk('path', { fill: 'none', stroke: SK.pink, 'stroke-width': 0.08, 'stroke-dasharray': '0.3 0.3' }, svg);
     const fadeLine = mk('path', { stroke: SK.pink, 'stroke-width': 0.3, fill: 'none', 'pointer-events': 'none' }, svg);
@@ -5571,7 +5902,7 @@ function edBuild(){
       return g;
     };
     const fadeWhite = fadeEnd(true), fadeClear = fadeEnd(false);
-    const V = { i, svg, white, clipPath, pupil, outline, dots, gmove, fadeLine, fadeWhite, fadeClear, rd: wrap.querySelector('#edRd' + i), ebox, lashB, lashF, shade, glint, pr: wrap.querySelector('#edPr' + i), view, gridTop, frame, axes };
+    const V = { i, svg, white, clipPath, pupil, outline, dots, gmove, fadeLine, fadeWhite, fadeClear, rd: wrap.querySelector('#edRd' + i), tk: wrap.querySelector('#edTk' + i), line, ebox, slit, iris, irisClip, shade, glint, pr: wrap.querySelector('#edPr' + i), view, gridTop, frame, axes };
     edViews.push(V);
     // dragging dots (snap to whole grid steps)
     const at = e => new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse());   // grid units
@@ -5583,12 +5914,12 @@ function edBuild(){
     };
     svg.addEventListener('pointerdown', e => {
       const g = e.target.closest('.dot');
-      if (!g || g.classList.contains('locked')){ edSel = null; edDraw(); return; }
+      if (g && g.classList.contains('locked')){ edSel = { i, j: +g.dataset.j }; edDraw(); return; }
+      if (!g){ edSel = null; edDraw(); return; }
       e.preventDefault(); svg.setPointerCapture(e.pointerId);
       if (g.classList.contains('gfade')){ edSel = null; edDrag = { i, moved: false, back: +g.dataset.back }; ebox.classList.add('dragging'); edDraw(); return; }
-      if (g.classList.contains('gmove')){   // the whole shape: every dot moves as far as the handle does; the eye takes a lash shaped on its own along
-        const lash = edPart === 'eye' && edData().eyes[i].lash;
-        edSel = null; edDrag = { i, moved: false, from: at(e), all: structuredClone(edPts(i)), lash: lash && structuredClone(lash) };
+      if (g.classList.contains('gmove')){   // the whole shape: every dot moves as far as the handle does
+        edSel = null; edDrag = { i, moved: false, from: at(e), all: structuredClone(edPts(i)) };
         ebox.classList.add('dragging'); edDraw(); return;
       }
       // dots stacked on one spot (e.g. a closed eye): the drag direction picks one — up = top row, down = bottom row
@@ -5607,13 +5938,13 @@ function edBuild(){
         const dx = clamp(sn(q.x - edDrag.from.x), Math.min(0, v.cx - v.w - Math.min(...xs)), Math.max(0, v.cx + v.w - Math.max(...xs)));
         const dy = clamp(sn(q.y - edDrag.from.y), Math.min(0, v.cy - v.w - Math.min(...ys)), Math.max(0, v.cy + v.w - Math.max(...ys)));
         edPts(i, true).forEach((q, j) => { q[0] = A[j][0] + dx; q[1] = A[j][1] + dy; });
-        if (edDrag.lash) edData(true).eyes[i].lash.forEach((q, j) => { q[0] = edDrag.lash[j][0] + dx; q[1] = edDrag.lash[j][1] + dy; });
         edDrag.moved = true; edDraw(); return;
       }
       if (!edDrag || edDrag.i !== i || !edSel) return;
       const pts = edPts(i, true), [x, y] = toGrid(e);
       if (edDrag.stack.length > 1 && !edDrag.moved){
-        const q = pts[edSel.j], order = y < q[1] ? [0, 1, 2, 3, 7, 4, 5, 6] : y > q[1] ? [4, 5, 6, 3, 7, 0, 1, 2] : [3, 7, 0, 1, 2, 4, 5, 6];
+        const q = pts[edSel.j], order = pts.length === 6 ? (y < q[1] ? [1, 2, 3, 0, 4, 5] : y > q[1] ? [5, 0, 4, 1, 2, 3] : [0, 4, 1, 2, 3, 5])
+          : y < q[1] ? [0, 1, 2, 3, 7, 4, 5, 6] : y > q[1] ? [4, 5, 6, 3, 7, 0, 1, 2] : [3, 7, 0, 1, 2, 4, 5, 6];
         edSel.j = order.find(j => edDrag.stack.includes(j));
       }
       const P = pts[edSel.j];
@@ -5623,23 +5954,43 @@ function edBuild(){
     svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
     V.rd.addEventListener('input', () => { if (!edSel || edSel.i !== i) return; edPts(i, true)[edSel.j][2] = +V.rd.value; save(); edDraw(); });
     V.pr.addEventListener('input', () => { edData(true).eyes[i].pr = +V.pr.value; save(); edDraw(); });
+    V.tk.addEventListener('input', () => {
+      if (!edSel || edSel.i !== i) return;
+      const e = edData(true).eyes[i];
+      if (!e.sw) e.sw = EYE_ONES.slice();
+      e.sw[edSel.j] = +V.tk.value; save(); edDraw();
+    });
   }
   edDraw();
 }
 function edDraw(){
   const d = edData(), m = LOOK_BY[edId].motion(0);
+  // the glint's view takes in the whole iris, however small the pupil (the glint's grid is the pupil's: a smaller pupil
+  // makes the iris bigger on it)
+  const irR = IRIS_R * (S.irisSize || 1) / EYE_G;
+  glintW = Math.max(GLINT_AT.view, ...d.eyes.map(e => { const z = (edId === 'sleeping' ? 0 : 3.8 * e.pr / EYE_G) || 3.8 / EYE_G; return Math.ceil(irR * 8 / z * GLINT_AT.zoom * 1.04); }));
   for (const V of edViews){
-    const e = d.eyes[V.i], path = roundedPath(e.pts), P = edPts(V.i), lash = edPart === 'lash', glint = edPart === 'glint';   // P: the dots being dragged
+    const e = d.eyes[V.i], path = roundedPath(e.pts), P = edPts(V.i), glint = edPart === 'glint';   // P: the dots being dragged
     V.white.setAttribute('d', path); V.clipPath.setAttribute('d', path); V.shade.setAttribute('d', shadeD(e.pts));
     V.outline.setAttribute('d', 'M' + P.map(q => q[0] + ' ' + q[1]).join('L') + 'Z');
-    const ld = d.lashOff ? '' : roundedPath(e.lash || lashFor(e.pts));
-    V.lashF.setAttribute('d', d.lashBack ? '' : ld); V.lashB.setAttribute('d', d.lashBack ? ld : '');
+    V.line.setAttribute('d', S.eyeStroke ? eyeLineD(e.pts, e.sw || EYE_ONES, S.eyeStrokePx / eyePx) : '');
     const mm = m[V.i] || {}, pr = edId === 'sleeping' ? 0 : 3.8 * e.pr / EYE_G;
     const cx = (mm.dx || 0) * 3.4 / EYE_G, cy = (0.4 + (mm.dy || 0) * 2) / EYE_G, z = pr || 3.8 / EYE_G;
     V.pupil.setAttribute('r', pr.toFixed(2)); V.pupil.setAttribute('cx', cx.toFixed(2)); V.pupil.setAttribute('cy', cy.toFixed(2));
+    V.pupil.setAttribute('display', S.pupil === 'slit' ? 'none' : 'inline');
+    const ir = IRIS_R * (S.irisSize || 1) / EYE_G;
+    for (const c of [V.iris, V.irisClip]){ c.setAttribute('r', ir.toFixed(2)); c.setAttribute('cx', cx.toFixed(2)); c.setAttribute('cy', cy.toFixed(2)); }
+    V.white.setAttribute('fill', S.eyeWhite); V.iris.setAttribute('fill', S.eyeColor);
+    V.slit.setAttribute('d', S.pupil === 'slit' && pr > 0 ? slitD(pr, cx, cy, ir) : '');
+    // shaping the glint: only the iris, the whole circle, with its pupil and the glint (no eye shape, white, shading or line)
+    const cut = (el, c) => c ? el.setAttribute('clip-path', c) : el.removeAttribute('clip-path');
+    cut(V.iris, glint ? null : `url(#edClip${V.i})`); cut(V.glint.parentNode, glint ? null : `url(#edClip${V.i})`);
+    for (const el of [V.pupil, V.slit]) cut(el, `url(#${glint ? 'edIris' : 'edClip'}${V.i})`);
+    for (const el of [V.white, V.line, V.shade.parentNode]) el.setAttribute('display', glint ? 'none' : 'inline');
     // the glint rides on the pupil (its own grid: see GLINT_AT); editing it, the view closes in on it until that grid is this one
     const G = GLINT_AT, toPupil = `translate(${cx.toFixed(2)} ${cy.toFixed(2)}) scale(${(z / 8).toFixed(4)}) translate(${G.x} ${G.y}) scale(${(1 / G.zoom).toFixed(4)})`;
     V.glint.setAttribute('d', glintFit().d); V.glint.setAttribute('transform', toPupil); V.glint.setAttribute('opacity', pr || glint ? 1 : 0);
+    if (V.gridW !== glintW){ V.gridW = glintW; glintGridD().forEach((dd, j) => V.gridTop.children[j].setAttribute('d', dd)); }
     const GV = glintView(), W = GV.w + 0.5, k = glint ? W / 11 : 1;   // k: how much wider the box is (dots keep their size on screen)
     V.svg.setAttribute('viewBox', glint ? `${GV.cx - W} ${GV.cy - W} ${2 * W} ${2 * W}` : '-11 -11 22 22');
     const mid = P.reduce((a, q) => [a[0] + q[0] / P.length, a[1] + q[1] / P.length], [0, 0]);
@@ -5659,18 +6010,23 @@ function edDraw(){
     if (glint) V.view.setAttribute('transform', `scale(${G.zoom}) translate(${-G.x} ${-G.y}) scale(${(8 / z).toFixed(4)}) translate(${(-cx).toFixed(2)} ${(-cy).toFixed(2)})`);
     else V.view.removeAttribute('transform');
     V.dots.forEach(({ g, c }, j) => {
+      g.setAttribute('display', j < P.length ? 'inline' : 'none');   // the eye has 6 dots, the glint 6 too
+      if (j >= P.length) return;
       g.setAttribute('transform', `translate(${P[j][0]} ${P[j][1]})`);
       const on = edSel && edSel.i === V.i && edSel.j === j, locked = edPart === 'eye' && EYE_LOCKED[V.i].includes(j);
       g.classList.toggle('locked', locked);
       c.setAttribute('r', (on ? 0.8 : locked ? 0.42 : 0.55) * k); c.setAttribute('stroke-width', (on ? 0.22 : locked ? 0.2 : 0.12) * k); c.setAttribute('stroke', locked ? SK.pink : '#fff');
       g.firstChild.setAttribute('r', glint ? 0.62 * k : 1.1);   // grab circle: a little bigger than the dot
-      c.setAttribute('fill', locked ? '#fff' : lash ? (j % 2 ? '#6b6b6b' : LASH) : j % 2 ? SK.pink : SK.head);   // lash dots dark; locked ones hollow
+      c.setAttribute('fill', locked ? '#fff' : j % 2 ? SK.pink : SK.head);   // locked ones hollow
     });
     V.pr.value = e.pr; V.pr.nextElementSibling.textContent = (+e.pr).toFixed(2) + '×';
     // the picked dot's roundness (no dot picked in this eye: the slider rests)
     const picked = edSel && edSel.i === V.i;
     V.rd.disabled = !picked; if (picked) V.rd.value = P[edSel.j][2];
     V.rd.nextElementSibling.textContent = picked ? (+P[edSel.j][2]).toFixed(2) : '–';
+    // its stroke thickness there (the eye's dots only)
+    const tkOn = picked && edPart === 'eye', tk = tkOn ? (e.sw || EYE_ONES)[edSel.j] ?? 1 : 1;
+    V.tk.disabled = !tkOn; V.tk.value = tk; V.tk.nextElementSibling.textContent = tkOn ? (+tk).toFixed(2) + '×' : '–';
   }
   $('edFadeRow').hidden = edPart !== 'glint';
   $('edFade').value = S.glintFade; $('edFade').nextElementSibling.textContent = S.glintFade + '°';
@@ -5678,11 +6034,25 @@ function edDraw(){
 $('edFade').addEventListener('input', () => { S.glintFade = +$('edFade').value; save(); edDraw(); });
 $('edSep').addEventListener('change', () => {
   const d = edData(true); d.sep = $('edSep').checked;
-  if (d.sep && !d.eyes[1]) d.eyes[1] = { pts: mirrorPts(d.eyes[0].pts), pr: d.eyes[0].pr, lash: d.eyes[0].lash ? mirrorPts(d.eyes[0].lash) : null };
+  if (d.sep && !d.eyes[1]) d.eyes[1] = { pts: mirrorPts(d.eyes[0].pts), pr: d.eyes[0].pr, sw: d.eyes[0].sw ? EYE_MIRROR.map(j => d.eyes[0].sw[j]) : null };
   save(); edSel = null; edBuild();
 });
-$('edLash').addEventListener('change', () => { const d = edData(true); if ($('edLash').checked) delete d.lashOff; else d.lashOff = true; save(); edDraw(); });
-$('edLashBack').addEventListener('change', () => { const d = edData(true); if ($('edLashBack').checked) d.lashBack = true; else delete d.lashBack; save(); edDraw(); });
+// the stroke round the eyes and the pupil's shape, the same in every emotion
+function edLineUi(){
+  const on = !!S.eyeStroke;
+  $('edStroke').checked = on; $('edStrokeRow').hidden = !on;
+  $('edStrokePx').value = S.eyeStrokePx; $('edStrokePx').nextElementSibling.textContent = (+S.eyeStrokePx).toFixed(1) + ' px';
+  document.querySelectorAll('[data-pupil]').forEach(b => b.classList.toggle('active', b.dataset.pupil === (S.pupil === 'slit' ? 'slit' : 'round')));
+  document.querySelectorAll('.slitRow').forEach(r => r.hidden = S.pupil !== 'slit');
+  document.querySelectorAll('.edTkRow').forEach(r => r.hidden = !on);
+}
+$('edStroke').addEventListener('change', () => {
+  S.eyeStroke = $('edStroke').checked;
+  save(); edLineUi(); edDraw();
+});
+$('edStrokePx').addEventListener('input', () => { S.eyeStrokePx = +$('edStrokePx').value; save(); edLineUi(); edDraw(); });
+for (const k of ['irisSize', 'slitH', 'slitRound']) $(k).addEventListener('input', () => edDraw());
+document.querySelectorAll('[data-pupil]').forEach(b => b.onclick = () => { S.pupil = b.dataset.pupil; save(); edLineUi(); edDraw(); });
 document.querySelectorAll('[data-edpart]').forEach(b => b.onclick = () => {
   edPart = b.dataset.edpart; edSel = null;
   document.querySelectorAll('[data-edpart]').forEach(x => x.classList.toggle('active', x === b));
@@ -5863,7 +6233,7 @@ tgSvg.addEventListener('pointermove', e => {
     tgDrag.moved = true; tgDraw(); return;
   }
   if (tgSel === null) return;
-  const P = tongueKey(tgLick, tgI).pts, x = tgSnap(q.x), y = tgSnap(q.y), m = EYE_MIRROR[tgSel], mirror = $('tgMirror').checked;
+  const P = tongueKey(tgLick, tgI).pts, x = tgSnap(q.x), y = tgSnap(q.y), m = PT8_MIRROR[tgSel], mirror = $('tgMirror').checked;
   if (P[tgSel][0] === (mirror && m === tgSel ? 0 : x) && P[tgSel][1] === y) return;
   const E = tgEdit().pts;
   E[tgSel][0] = mirror && m === tgSel ? 0 : x; E[tgSel][1] = y;
@@ -5875,7 +6245,7 @@ tgSvg.addEventListener('pointerup', tgEnd); tgSvg.addEventListener('pointercance
 $('tgRd').addEventListener('input', () => {
   if (tgSel === null) return;
   const E = tgEdit().pts, v = +$('tgRd').value; E[tgSel][2] = v;
-  if ($('tgMirror').checked) E[EYE_MIRROR[tgSel]][2] = v;
+  if ($('tgMirror').checked) E[PT8_MIRROR[tgSel]][2] = v;
   save(); tgDraw(); tgRefresh();
 });
 $('tgOver').addEventListener('change', () => { tgEdit().over = $('tgOver').checked ? 1 : 0; save(); tgDraw(); tgRefresh(); });
@@ -6014,6 +6384,7 @@ requestAnimationFrame(frame);
 // settings.json next to the page (e.g. in the GitHub repo) is used when it is newer than what this browser saved
 function useSettings(j){
   const legacy = Object.fromEntries(Object.keys(SHAPE_DEFAULT).filter(k => k in j).map(k => [k, j[k]]));
+  dropOldEyes(j);
   S = { ...DEFAULTS, ...j, shapes: freshShapes(j.shapes || Object.fromEntries(SHAPE_GROUPS.map(g => [g, legacy]))), states: structuredClone(j.states || DEFAULTS.states || {}) };
   if (oldFluid(j) !== null) S.fluid = oldFluid(j);
   for (const k of Object.keys(SHAPE_DEFAULT)) delete S[k];
