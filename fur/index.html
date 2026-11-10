@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fur editor</title>
+<style>
+  :root{--bg:#3d3846;--panel:#47414f;--line:#625a6c;--text:#eee;--dim:#b4adbd;--accent:#c9b9e8}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,sans-serif}
+  main{display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px;max-width:640px;margin:auto}
+  #wrap{position:relative;width:min(94vw,560px,70vh);aspect-ratio:1;background:var(--stage);border-radius:12px}
+  #stage{position:absolute;inset:0;cursor:grab}
+  #overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .modes{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  button,select{font:inherit;padding:6px 10px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--text)}
+  button.on{background:var(--accent);color:#2a2530;border-color:var(--accent)}
+  #info{color:var(--dim);font-size:12px;text-align:center}
+  #panel{width:100%;display:flex;flex-direction:column;gap:6px}
+  details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+  summary{cursor:pointer;font-weight:600;padding:2px 0}
+  .ctl{display:grid;grid-template-columns:1fr 130px 42px;gap:8px;align-items:center;margin:6px 0;font-size:13px}
+  .ctl b{font-weight:500;text-align:right;color:var(--dim)}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  input[type=color]{width:100%;height:28px;border:none;background:none;padding:0}
+  textarea{width:100%;box-sizing:border-box;min-height:70px;background:#2f2b36;color:var(--text);border:1px solid var(--line);border-radius:8px;font:12px ui-monospace,monospace;padding:6px}
+  .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0}
+  .err{color:#ffb3b3;font-size:12px}
+  .bend{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--dim)} .bend input{width:120px} .bend[hidden]{display:none}
+</style>
+</head>
+<body>
+<main>
+  <div id="wrap">
+    <div id="stage"></div>
+    <svg id="overlay" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="modes">
+    <button data-mode="pet" class="on">Pet</button>
+    <button data-mode="source">+ Source point</button>
+    <button data-mode="swirl">+ Swirl point</button>
+    <button data-mode="remove">Remove point</button>
+    <button id="clearPts">Clear points</button>
+  </div>
+  <div id="info">loading…</div>
+
+  <div id="panel">
+    <div class="row"><select id="part"></select><select id="coat"></select><button id="regen">Regenerate</button>
+      <label id="bendCtl" class="bend">Bend <input type="range" id="bend" min="-1" max="1" step="0.01" value="0"></label><span id="shapeErr" class="err"></span></div>
+    <div id="groups"></div>
+    <details>
+      <summary>Copy &amp; load</summary>
+      <div class="row"><button id="copy">Copy settings + shape</button><button id="load">Load from box</button><span id="copyMsg" class="err" style="color:var(--dim)"></span></div>
+      <textarea id="json" spellcheck="false"></textarea>
+    </details>
+  </div>
+</main>
+
+<script type="module">
+import { createFur, DEFAULTS } from './fur.js';
+import { GAV } from './gav-parts.js';   // Gav's parts in both coats, from cat-stretch.html (node fur/make-parts.js)
+const $ = id => document.getElementById(id);
+
+/* ---------- Gav's parts, their colours from the SVG (coat, face stain, points); each part and coat keeps its own values,
+   saved as part + coat (headSiamese, legsBlack …). The bending parts carry their spines ---------- */
+const PARTS = { head: 'Head', ears: 'Ears', neck: 'Neck', body: 'Body + belly', legs: 'Legs', tail: 'Tail' };
+const COATS = { Siamese: 'siamese', Black: 'black' };
+let partName = 'head', coat = 'Siamese', part = 'headSiamese', shape = GAV.head.siamese;
+document.documentElement.style.setProperty('--stage', GAV.bg);
+
+/* ---------- slider groups: [key, label, min, max, step] ---------- */
+const GROUPS = {
+  'Fur': [
+    ['hairMin', 'Hair length inside', 2, 20, 1], ['hairMax', 'Hair length near edge', 5, 60, 1],
+    ['innerDensity', 'Inner density', 0, 1, 0.01], ['crisp', 'Sharp inner hairs', 0, 1, 0.01],
+    ['variation', 'Strand variation', 0, 0.5, 0.01],
+  ],
+  'Edge': [
+    ['edgeDensity', 'Edge density', 0.5, 4, 0.1], ['edgeLength', 'Edge hair length ×', 0, 4, 0.1],
+    ['hairInset', 'Hair inset', 0, 70, 1], ['edgeBand', 'Edge band width', 10, 120, 1],
+    ['rim', 'Edge brightness', 0, 0.6, 0.01],
+  ],
+  'Shape blur (base)': [
+    ['blur', 'Shape blur', 0, 100, 1], ['edgeInset', 'Shape inset', -30, 50, 1],
+  ],
+  'Flow': [
+    ['gravity', 'Gravity', -1, 1, 0.01], ['edgeOut', 'Edge hair points outward', 0, 1.5, 0.01],
+    ['waviness', 'Waviness', 0, 0.5, 0.01], ['petRadius', 'Pet brush size', 20, 160, 1],
+  ],
+  'Color': [
+    ['colorBlur', 'Color blur', 0, 60, 1], ['shading', 'Shading', 0, 1, 0.01], ['__bg', 'Background', 'color'],
+  ],
+};
+const INSTANT = new Set(['blur', 'edgeInset', 'petRadius']);   // no rebuild needed
+
+/* ---------- build controls ---------- */
+const inputs = {};
+for (const [name, list] of Object.entries(GROUPS)) {
+  const d = document.createElement('details'); d.open = name === 'Edge' || name === 'Shape blur (base)';
+  d.innerHTML = `<summary>${name}</summary>`;
+  for (const [key, label, min, max, step] of list) {
+    const row = document.createElement('div'); row.className = 'ctl';
+    const isColor = min === 'color', isSel = min === 'select';
+    row.innerHTML = isColor ? `<span>${label}</span><input type="color"><b></b>`
+      : isSel ? `<span>${label}</span><select>${max.map(v => `<option>${v}</option>`).join('')}</select><b></b>`
+      : `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}"><b></b>`;
+    const inp = row.querySelector('input,select'), val = row.querySelector('b');
+    inp.oninput = () => {
+      const v = isColor || isSel ? inp.value : +inp.value;
+      if (!isColor) val.textContent = v;
+      if (key === '__bg') { document.documentElement.style.setProperty('--stage', v); return; }
+      queue({ [key]: v });
+    };
+    inputs[key] = { inp, val, isColor: isColor || isSel };
+    d.appendChild(row);
+  }
+  $('groups').appendChild(d);
+}
+function syncControls(s) {
+  for (const [key, { inp, val, isColor }] of Object.entries(inputs)) {
+    if (key === '__bg') { inp.value = getComputedStyle(document.documentElement).getPropertyValue('--stage').trim(); continue; }
+    inp.value = s[key]; if (!isColor) val.textContent = s[key];
+  }
+}
+
+/* ---------- fur: medium quality, hair coloured by the SVG; the values kept in settings.json, which the cat reads ---------- */
+const all = await fetch('settings.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+// a part not tuned yet starts from the head's values in its coat, with fur starting at its own roots
+const valuesOf = p => {
+  const name = p.replace(/(Siamese|Black)$/, ''), c = p.slice(name.length), head = all['head' + c] || all.headSiamese;
+  return { ...DEFAULTS, quality: 'medium', colorSource: 'svg', ...(all[p] || { ...head, points: GAV[name].points }) };
+};
+const fur = createFur($('stage'), { ...valuesOf(part), pet: true });
+// every change is saved (into fur/settings.json, through the edit server) and sent to an open cat page, which makes its fur again
+const chan = 'BroadcastChannel' in window ? new BroadcastChannel('gav-fur') : null;
+let saveT = null, savePart = part;
+function save() {
+  clearTimeout(saveT); saveT = null;
+  const settings = fur.get(), p = savePart;
+  all[p] = settings;
+  fetch('__save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ part: p, settings }) })
+    .then(r => { if (!r.ok) throw r.status; $('shapeErr').textContent = ''; }).catch(() => { $('shapeErr').textContent = 'Not saved'; });
+  chan?.postMessage({ part: p, settings });
+}
+function set(patch) {
+  const r = fur.set(patch);
+  clearTimeout(saveT); savePart = part; saveT = setTimeout(save, 300);
+  return r;
+}
+let pending = {}, timer;
+function queue(patch) {                       // instant for base/brush, debounced rebuild for the rest
+  Object.assign(pending, patch);
+  const instant = Object.keys(pending).every(k => INSTANT.has(k));
+  clearTimeout(timer);
+  const run = () => { set(pending); pending = {}; info(); };
+  if (instant) run(); else timer = setTimeout(run, 140);
+}
+function info() {
+  const s = fur.stats();
+  $('info').textContent = `${s.lines.toLocaleString()} lines · built in ${s.buildMs} ms · petting ${s.fps ? s.fps + ' fps' : '–'}`;
+}
+setInterval(info, 500);
+
+async function applyShape(svg, points) {
+  $('shapeErr').textContent = '';
+  try {
+    if (points) { set({ points }); drawPoints(); }
+    await fur.setShape(svg);
+    if (+$('bend').value) $('bend').oninput();   // (a new drawing starts unbent)
+    info();
+  } catch (e) { $('shapeErr').textContent = e.message; }
+}
+
+/* ---------- part and coat ---------- */
+for (const [k, v] of Object.entries(PARTS)) $('part').append(new Option(v, k));
+for (const k of Object.keys(COATS)) $('coat').append(new Option(k, k));
+// another part or coat: what is still waiting is saved for this one first, then that one's own values and drawing come in
+async function pick() {
+  clearTimeout(timer); if (Object.keys(pending).length) { set(pending); pending = {}; }
+  if (saveT) save();
+  partName = $('part').value; coat = $('coat').value; part = partName + coat; shape = GAV[partName][COATS[coat]];
+  await fur.set({ ...valuesOf(part), pet: mode === 'pet' });
+  syncControls(fur.get()); drawPoints();
+  $('bendCtl').hidden = !GAV[partName].spines; $('bend').value = 0;
+  await applyShape(shape);
+}
+$('part').onchange = $('coat').onchange = pick;
+// Bend (only to look, never saved): each spine curls, every joint turning a little more, to see the fur go with it
+$('bend').oninput = () => {
+  const b = +$('bend').value, S = GAV[partName].spines;
+  if (!S || Math.abs(b) < 0.005) { fur.bend(null); return; }
+  fur.bend(S.map(P => { let x = P[0][0], y = P[0][1], a = 0; const out = [[x, y]];
+    for (let i = 1; i < P.length; i++) { const dx = P[i][0] - P[i - 1][0], dy = P[i][1] - P[i - 1][1], c = Math.cos(a += b * 0.5), s = Math.sin(a);
+      x += dx * c - dy * s; y += dx * s + dy * c; out.push([x, y]); }
+    return out; }));
+};
+
+/* ---------- points ---------- */
+let mode = 'pet';
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b));
+  set({ pet: mode === 'pet' });
+  $('stage').style.cursor = mode === 'pet' ? 'grab' : 'crosshair';
+});
+$('clearPts').onclick = () => { set({ points: [] }); drawPoints(); info(); };
+$('stage').addEventListener('pointerdown', e => {
+  if (mode === 'pet') return;
+  const p = fur.toStage(e.clientX, e.clientY), pts = fur.get().points;
+  if (mode === 'remove') {
+    let best = -1, bd = 0.05;
+    pts.forEach((q, i) => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } });
+    if (best >= 0) pts.splice(best, 1);
+  } else pts.push({ x: +p.x.toFixed(4), y: +p.y.toFixed(4), type: mode, strength: 1 });
+  set({ points: pts }); drawPoints(); info();
+});
+function drawPoints() {
+  $('overlay').innerHTML = fur.get().points.map(p =>
+    `<circle cx="${p.x}" cy="${p.y}" r="0.018" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>` +
+    (p.type === 'swirl'
+      ? `<path d="M${p.x - 0.01} ${p.y}a0.01 0.01 0 1 1 0.01 0.01" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`
+      : `<circle cx="${p.x}" cy="${p.y}" r="0.005" fill="#fff"/>`)).join('');
+}
+
+/* ---------- copy & load ---------- */
+$('regen').onclick = () => { set({ seed: fur.get().seed + 1 }); info(); };
+const exportJSON = () => JSON.stringify({ settings: fur.get(), shape }, null, 1);
+$('copy').onclick = async () => {
+  $('json').value = exportJSON();
+  try { await navigator.clipboard.writeText($('json').value); $('copyMsg').textContent = 'Copied'; }
+  catch { $('json').select(); $('copyMsg').textContent = 'Select & copy from the box'; }
+};
+$('load').onclick = async () => {
+  try {
+    const j = JSON.parse($('json').value);
+    if (j.settings) { await set(j.settings); syncControls(fur.get()); drawPoints(); }   // (one shape at a time: a new margin re-fits first)
+    if (j.shape) { shape = j.shape; await applyShape(j.shape); }
+    $('copyMsg').textContent = 'Loaded';
+  } catch (e) { $('copyMsg').textContent = 'Invalid JSON'; }
+};
+
+/* ---------- start ---------- */
+syncControls(fur.get());
+$('part').value = partName; $('coat').value = coat; $('bendCtl').hidden = true;
+drawPoints();
+applyShape(shape);
+</script>
+</body>
+</html>

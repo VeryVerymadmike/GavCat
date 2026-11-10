@@ -6,7 +6,7 @@ from functools import partial
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse
 from bake_in import bake, SRC
-ROOT = os.path.dirname(SRC); LOCK = threading.Lock()
+ROOT = os.path.dirname(SRC); LOCK = threading.Lock(); FUR = os.path.join(ROOT, 'fur', 'settings.json')
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8766
 
 class Handler(SimpleHTTPRequestHandler):
@@ -20,10 +20,12 @@ class Handler(SimpleHTTPRequestHandler):
         if urlparse(self.path).path.endswith('/__edit'): return self.reply(200, {'ok': True})
         super().do_GET()
     def do_POST(self):
-        if not urlparse(self.path).path.endswith('/__save'): return self.reply(404, {'error': 'not found'})
+        path = urlparse(self.path).path
+        if not path.endswith('/__save'): return self.reply(404, {'error': 'not found'})
         origin = self.headers.get('Origin')
         if self.headers.get('Content-Type', '').split(';')[0] != 'application/json' or (origin and urlparse(origin).hostname not in ('127.0.0.1', 'localhost')):
             return self.reply(403, {'error': 'only the page served here can save'})
+        if path == '/fur/__save': return self.save_fur()
         try:
             J = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
             assert isinstance(J, dict), 'settings must be an object'
@@ -34,6 +36,22 @@ class Handler(SimpleHTTPRequestHandler):
             print('save failed:', e); return self.reply(400, {'error': str(e)})
         if changed: print('saved → cat-stretch.html, index.html')
         self.reply(200, {'ok': True, 'changed': changed})
+    # the fur page (fur/index.html): one part's fur.js settings into fur/settings.json, which the cat reads
+    def save_fur(self):
+        try:
+            J = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
+            part, settings = J.get('part'), J.get('settings')
+            assert isinstance(part, str) and part.isalpha() and isinstance(settings, dict), 'needs a part name and its settings'
+            with LOCK:
+                try:
+                    with open(FUR) as f: allp = json.load(f)
+                except FileNotFoundError: allp = {}
+                allp[part] = settings
+                with open(FUR + '.tmp', 'w') as f: json.dump(allp, f, indent=1)
+                os.replace(FUR + '.tmp', FUR)
+        except Exception as e:
+            print('fur save failed:', e); return self.reply(400, {'error': str(e)})
+        self.reply(200, {'ok': True})
 
 print(f'Edit mode: open http://127.0.0.1:{PORT}/  (changes are written into cat-stretch.html; Ctrl+C to stop)')
 ThreadingHTTPServer(('127.0.0.1', PORT), partial(Handler, directory=ROOT)).serve_forever()
