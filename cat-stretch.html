@@ -29,7 +29,7 @@ html.wallpaper #panel,html.wallpaper #showBtn,html.wallpaper #statesPanel,html.w
 #stage svg{width:100%;height:100%;display:block}
 #skel,#ghosts{display:none}
 #skel .grab{cursor:grab}
-#refHandle,#refTurn,#refSize,#refPic{cursor:grab}
+#refHandle,#refTurn,#refSize{cursor:grab}
 html.skel-on #skel,html.skel-on #ghosts{display:inline}
 html.wallpaper #skel,html.wallpaper #ghosts{display:none!important}
 .earSpine{display:none}
@@ -200,6 +200,8 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
 </style>
 
 <div id="stage">
+  <!-- the picture behind Gav (see refShow): under everything on the stage, the fur layer (z-index -1) too; placed in Gav's frame like it -->
+  <svg id="refLayer" aria-hidden="true" style="position:absolute;inset:0;z-index:-2;pointer-events:none;overflow:visible"><g id="refG" display="none"><image id="refPic" preserveAspectRatio="none"/></g></svg>
   <svg id="art" xmlns="http://www.w3.org/2000/svg" aria-label="Black cat that stretches, sits, watches, licks its paw, turns, naps and jumps" role="img">
     <defs>
       <!-- the bell of light above the nose (see muzzleParts): clear up top, full down where it meets the nose's wings -->
@@ -297,7 +299,6 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
     <rect id="bg" x="0" y="0" width="100%" height="100%"/>
     <g id="cat">
       <ellipse id="shadow"/>
-      <g id="refG" pointer-events="none" display="none"><image id="refPic" preserveAspectRatio="none"/></g>
       <g id="catBody">
         <!-- edge fur: behind the whole cat, only what sticks out of its outline shows -->
         <g id="edgeFurTail" pointer-events="none"></g>
@@ -4264,6 +4265,7 @@ function refShow(){
   im.setAttribute('width', w); im.setAttribute('height', h);
   g.setAttribute('display', shown ? 'inline' : 'none');
   catBody.style.opacity = shown ? 1 - refState.fade : '';
+  $('bg').style.fillOpacity = shown || BODY_FUR.ready ? 0 : '';   // (the wall made clear, so the picture shows: the page behind has its colour)
   for (const id of ['refChips', 'refFadeRow', 'refActs']) $(id).hidden = !refState.src;
   $('refOn').checked = refState.on; $('refFade').value = refState.fade; document.querySelector('output[for="refFade"]').textContent = Math.round(refState.fade * 100) + '%';
 }
@@ -5501,10 +5503,11 @@ function draw(p, ht, dt){
   els.face.setAttribute('transform', `${headAt} scale(${hs.toFixed(3)})`);      // face is not stretched; eyes spread instead
   const wtx = (Math.max(0, HEAD.rx * sh.cheekW - 55.3) * 0.8).toFixed(1);
   drawWhiskers(p, ht, hs, +wtx, dt);   // whiskers start in the brown either side of the nose, at its height, and bend as the head moves
+  { const L = BODY_FUR.layer, o = refState.on && refState.src ? +(1 - refState.fade).toFixed(2) + '' : ''; if (L && L.style.opacity !== o) L.style.opacity = o; }
   if (refState.on && refState.src){
     const head = refOnHead(), edit = shapeOpen || eyeEditing, { M, w, h } = refMat();
     const at = head ? `translate(0 ${(-ht).toFixed(1)}) ${headAt} scale(${hs.toFixed(3)}) translate(${(faceX(p) - REF.face).toFixed(2)} 0)` : '';
-    $('refG').setAttribute('transform', at); $('refG').setAttribute('pointer-events', edit ? 'auto' : 'none');   // held only while editing
+    $('refG').setAttribute('transform', `${cat.getAttribute('transform') || ''} ${at}`);   // (its own layer: Gav's frame, then the head's for the kitten face)
     $('refPic').setAttribute('transform', `matrix(${M.map(v => +v.toFixed(5)).join(' ')})`);
     // the handles: moving on the middle of its top edge, turning on its top corner, sizing on the bottom one; always the same size and upright, and kept
     // on the stage however big the picture is
@@ -6709,7 +6712,12 @@ function refDown(e){
   const M = $('refG').getScreenCTM().inverse(), P = refPlace();
   refDrag = { M, P, kind: { refTurn:'turn', refSize:'size' }[e.currentTarget.id] || 'move', q0: refLocal(e, M), mid: refMat().mid, x: P.x || 0, y: P.y || 0, r: P.r || 0, s: P.s || 1 };
 }
-for (const id of ['refHandle', 'refTurn', 'refSize', 'refPic']) $(id).addEventListener('pointerdown', refDown);
+for (const id of ['refHandle', 'refTurn', 'refSize']) $(id).addEventListener('pointerdown', refDown);
+$('art').addEventListener('pointerdown', e => {
+  if ((e.target !== $('bg') && e.target !== $('art')) || !refState.on || !refState.src || !(shapeOpen || eyeEditing)) return;
+  const q = new DOMPoint(e.clientX, e.clientY).matrixTransform($('refPic').getScreenCTM().inverse()), im = $('refPic');   // (in the picture's own pixels)
+  if (q.x >= 0 && q.y >= 0 && q.x <= +im.getAttribute('width') && q.y <= +im.getAttribute('height')) refDown(e);
+});
 addEventListener('pointermove', e => {
   const D = refDrag; if (!D) return;
   const q = refLocal(e, D.M), P = D.P, ang = v => Math.atan2(v[1] - D.mid[1], v[0] - D.mid[0]);
