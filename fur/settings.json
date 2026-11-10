@@ -68,5 +68,46 @@
   ],
   "pet": true,
   "petRadius": 70
+ },
+ "earsSiamese": {
+  "quality": "medium",
+  "seed": 7,
+  "margin": 110,
+  "hairMin": 4,
+  "hairMax": 16,
+  "innerDensity": 0.83,
+  "crisp": 0.99,
+  "variation": 0.49,
+  "edgeDensity": 1.1,
+  "edgeLength": 0,
+  "hairInset": 27,
+  "edgeBand": 95,
+  "rim": 0,
+  "blur": 17,
+  "edgeInset": 23,
+  "colorSource": "svg",
+  "colorBlur": 12,
+  "colorInner": "#c9b293",
+  "colorOuter": "#f3e9d8",
+  "shading": 0.5,
+  "gravity": 0.25,
+  "edgeOut": 0.5,
+  "waviness": 0.12,
+  "points": [
+   {
+    "x": 0.2811,
+    "y": 0.5542,
+    "type": "source",
+    "strength": 1
+   },
+   {
+    "x": 0.7155,
+    "y": 0.5542,
+    "type": "source",
+    "strength": 1
+   }
+  ],
+  "pet": true,
+  "petRadius": 70
  }
 }
