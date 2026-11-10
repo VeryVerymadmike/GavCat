@@ -33,7 +33,7 @@ html.wallpaper #panel,html.wallpaper #showBtn,html.wallpaper #statesPanel,html.w
 #stage svg{width:100%;height:100%;display:block}
 #skel,#ghosts{display:none}
 #skel .grab{cursor:grab}
-#refHandle,#refTurn,#refPic{cursor:grab}
+#refHandle,#refTurn,#refSize,#refPic{cursor:grab}
 html.skel-on #skel,html.skel-on #ghosts{display:inline}
 html.wallpaper #skel,html.wallpaper #ghosts{display:none!important}
 .earSpine{display:none}
@@ -389,6 +389,7 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
       <!-- moves the picture behind Gav (see refDown); over him, and not faded with him -->
       <g id="refHandle" display="none" pointer-events="all"><title>Move picture</title><circle r="12" fill="#fff" stroke="#1e201e" stroke-width="1.5"/><path d="M12 1l4 4h-3v6h6V8l4 4-4 4v-3h-6v6h3l-4 4-4-4h3v-6H5v3l-4-4 4-4v3h6V5H8z" fill="#1e201e" transform="translate(-8.5 -8.5) scale(0.71)"/></g>
       <g id="refTurn" display="none" pointer-events="all"><title>Turn picture</title><circle r="12" fill="#fff" stroke="#1e201e" stroke-width="1.5"/><path d="M5.2 -1.8A5.5 5.5 0 1 1 0.4 -5.5" fill="none" stroke="#1e201e" stroke-width="1.8"/><path d="M0.4 -8.7L4.6 -5.5L0.4 -2.3Z" fill="#1e201e"/></g>
+      <g id="refSize" display="none" pointer-events="all"><title>Size of picture</title><circle r="12" fill="#fff" stroke="#1e201e" stroke-width="1.5"/><path d="M-7 7L7 -7M-7 7h5.5M-7 7v-5.5M7 -7h-5.5M7 -7v5.5" fill="none" stroke="#1e201e" stroke-width="1.8" stroke-linecap="round"/></g>
     </g>
   </svg>
 </div>
@@ -630,9 +631,10 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
     <div id="shapeRefHome"><div id="refControls">
       <p class="sub">Picture behind</p>
       <div class="group">
-        <div class="chips"><label class="chip"><input type="checkbox" id="refOn">Show picture</label></div>
-        <div class="row"><label for="refFade">See through Gav</label><input type="range" id="refFade" min="0" max="1" step="0.01"><output for="refFade"></output></div>
-        <div class="actions"><button class="btn" id="refReset" type="button">Reset picture</button></div>
+        <div class="row"><label for="refSrc">Picture</label><select id="refSrc"><option value="">None</option></select></div>
+        <div class="chips" id="refChips"><label class="chip"><input type="checkbox" id="refOn">Show picture</label></div>
+        <div class="row" id="refFadeRow"><label for="refFade">See through Gav</label><input type="range" id="refFade" min="0" max="1" step="0.01"><output for="refFade"></output></div>
+        <div class="actions" id="refActs"><button class="btn" id="refReset" type="button">Reset picture</button></div>
       </div>
     </div></div>
     <p class="sub">Head</p>
@@ -1960,7 +1962,7 @@ Object.assign(DEFAULTS, {
   furShade:0, furShine:1.3, mouthOpen:0, coatWhite:"#f5e5d9", coatDark:"#312526", coatBrown:"#6b5250",
   coatBrownLight:"#755e5d", coatFaint:"#aea9b2", coatEarTop:"#a9756d", coatEarBottom:"#bf776c", coat:"siamese",
   catColor:"#191a19", eyeColor:"#2eafff", tongueColor:"#f92f24", bgColor:"#8f938b", shadowColor:"#6f6a4b",
-  size:48, posX:5, ground:8, flip:false, showSkel:false, fluid:6.2, glint:null, glintFade:135,
+  size:46, posX:5, ground:8, flip:false, showSkel:false, fluid:6.2, glint:null, glintFade:135,
   glintDot:[20, 4.5, 2.9], stainBlur:7.5, pupil:"slit", eyeWhite:"#f4f1ea", irisSize:0.9, eyeTop:"#0a1440",
   eyeGlow:"#6fd3ff", slitW:0.74, slitH:1.2, slitRound:1, eyebrowAngle:90, eyebrowColor:"#756361", pupilRef:1,
   turnBack:false,
@@ -1985,7 +1987,7 @@ function migrateShape(g){
 }
 // tuned shape for each position (built in; "Reset this position" goes back to it)
 const SHAPE_PRESET = {
-  stand: { headSize:1.1, headWidth:1, headX:2, headY:30, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:0.43, toeR:0.61, legThick:1.16, legLength:1, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.66, eyeGap:21.5, eyeX:0.3, eyeShift:-1.5, eyeY:-5.5, earScale:0.94, cheekW:0.96, cheekUp:3.5, chinUp:8, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:10, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4.5, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1, foldR:1.12, bellyX:-17.59, bellyY:-1.14, bellyShade:51.5, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:-31.14, fn1y:-1.2, fn2x:-36.79, fn2y:-6.94, fn3x:-31.88, fn3y:7.36, ff1x:-5.54, ff1y:-1.2, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:0.15, bn1y:-13.6, bn2x:-20.02, bn2y:18.5, bn4x:13.51, bf1x:-1.79, bf1y:-13.6, bf2x:19.56, bf2y:18.33, bf4x:-10.15, fn4a:22.4, ff4a:-172.2, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0y:5.5, stp0x:-9, stp1y:-28.5, stp1x:-2, stp1w:80, stp1h:12, stp1ruy:-5, stp1rux:8, stp1rdy:12.5, stp1rdx:-14.5, stp1luy:-7, stp1lux:-5.5, stp1ldy:10.5, stp1ldx:15.5, stp1ly:0, stp1ry:0, stp0l:16.386, stp0r:0, stp0t:4.5, stp0b:-12.875, muzzleX:-0.5, muzzleY:-19, muzzleSize:0.88, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, tail1x:-18.5, tail1y:2.4, tail2x:-1.94, tail2y:19.53 },
+  stand: { headSize:1.1, headWidth:1, headX:2, headY:6, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.55, toeR:0.61, legThick:1.16, legLength:1, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.66, eyeGap:21.5, eyeX:0.3, eyeShift:-1.5, eyeY:-5.5, earScale:0.94, cheekW:0.96, cheekUp:3.5, chinUp:8, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:10, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4.5, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1, foldR:1.12, bellyX:-17.59, bellyY:-1.14, bellyShade:51.5, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:-31.14, fn1y:-1.2, fn2x:-36.79, fn2y:-6.94, fn3x:-31.88, fn3y:7.36, ff1x:-5.54, ff1y:-1.2, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:0.15, bn1y:-13.6, bn2x:-20.02, bn2y:18.5, bn4x:13.51, bf1x:-1.79, bf1y:-13.6, bf2x:19.56, bf2y:18.33, bf4x:-10.15, fn4a:22.4, ff4a:-172.2, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0y:5.5, stp0x:-9, stp1y:-28.5, stp1x:-2, stp1w:80, stp1h:12, stp1ruy:-5, stp1rux:8, stp1rdy:12.5, stp1rdx:-14.5, stp1luy:-7, stp1lux:-5.5, stp1ldy:10.5, stp1ldx:15.5, stp1ly:0, stp1ry:0, stp0l:16.386, stp0r:0, stp0t:4.5, stp0b:-12.875, muzzleX:-0.5, muzzleY:-19, muzzleSize:0.88, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, tail1x:-18.5, tail1y:2.4, tail2x:-1.94, tail2y:19.53 },
   sit: { headSize:1.1, headWidth:1, headX:2, headY:30, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:0.43, toeR:0.61, legThick:1.16, legLength:1, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.66, eyeGap:21.5, eyeX:0.3, eyeShift:-1.5, eyeY:-5.5, earScale:0.94, cheekW:0.96, cheekUp:3.5, chinUp:8, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:10, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4.5, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1, foldR:1.12, bellyX:-17.59, bellyY:-1.14, bellyShade:51.5, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:-31.14, fn1y:-1.2, fn2x:-36.79, fn2y:-6.94, fn3x:-31.88, fn3y:7.36, ff1x:-5.54, ff1y:-1.2, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:0.15, bn1y:-13.6, bn2x:-20.02, bn2y:18.5, bn4x:13.51, bf1x:-1.79, bf1y:-13.6, bf2x:19.56, bf2y:18.33, bf4x:-10.15, fn4a:22.4, ff4a:-172.2, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0y:5.5, stp0x:-9, stp1y:-28.5, stp1x:-2, stp1w:80, stp1h:12, stp1ruy:-5, stp1rux:8, stp1rdy:12.5, stp1rdx:-14.5, stp1luy:-7, stp1lux:-5.5, stp1ldy:10.5, stp1ldx:15.5, stp1ly:0, stp1ry:0, stp0l:16.386, stp0r:0, stp0t:4.5, stp0b:-12.875, muzzleX:-0.5, muzzleY:-19, muzzleSize:0.88, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, tail1x:-18.5, tail1y:2.4, tail2x:-1.94, tail2y:19.53 },
   lie: { headSize:1.1, headWidth:1, headX:2, headY:30, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:0.43, toeR:0.61, legThick:1.16, legLength:1, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.66, eyeGap:21.5, eyeX:0.3, eyeShift:-1.5, eyeY:-5.5, earScale:0.94, cheekW:0.96, cheekUp:3.5, chinUp:8, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:10, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4.5, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1, foldR:1.12, bellyX:-17.59, bellyY:-1.14, bellyShade:51.5, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:-31.14, fn1y:-1.2, fn2x:-36.79, fn2y:-6.94, fn3x:-31.88, fn3y:7.36, ff1x:-5.54, ff1y:-1.2, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:0.15, bn1y:-13.6, bn2x:-20.02, bn2y:18.5, bn4x:13.51, bf1x:-1.79, bf1y:-13.6, bf2x:19.56, bf2y:18.33, bf4x:-10.15, fn4a:22.4, ff4a:-172.2, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0y:5.5, stp0x:-9, stp1y:-28.5, stp1x:-2, stp1w:80, stp1h:12, stp1ruy:-5, stp1rux:8, stp1rdy:12.5, stp1rdx:-14.5, stp1luy:-7, stp1lux:-5.5, stp1ldy:10.5, stp1ldx:15.5, stp1ly:0, stp1ry:0, stp0l:16.386, stp0r:0, stp0t:4.5, stp0b:-12.875, muzzleX:-0.5, muzzleY:-19, muzzleSize:0.88, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, tail1x:-18.5, tail1y:2.4, tail2x:-1.94, tail2y:19.53 },
   stretch: { headSize:1.1, headWidth:1, headX:2, headY:30, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:0.43, toeR:0.61, legThick:1.16, legLength:1, tailThick:1.04, tailLen:1, pawW:0.6, pawH:0.68, eyeSize:1.66, eyeGap:21.5, eyeX:0.3, eyeShift:-1.5, eyeY:-5.5, earScale:0.94, cheekW:0.96, cheekUp:3.5, chinUp:8, shoulderSpread:1.03, shoulderX:11, shoulderY:-5.5, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.79, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:10, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4.5, thighW:2.71, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1, foldR:1.12, bellyX:-17.59, bellyY:-1.14, bellyShade:51.5, bellyTilt:0, bellyHf:1, bellyHr:1, fn1x:-31.14, fn1y:-1.2, fn2x:-36.79, fn2y:-6.94, fn3x:-31.88, fn3y:7.36, ff1x:-5.54, ff1y:-1.2, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:0.15, bn1y:-13.6, bn2x:-20.02, bn2y:18.5, bn4x:13.51, bf1x:-1.79, bf1y:-13.6, bf2x:19.56, bf2y:18.33, bf4x:-10.15, fn4a:22.4, ff4a:-172.2, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0y:5.5, stp0x:-9, stp1y:-28.5, stp1x:-2, stp1w:80, stp1h:12, stp1ruy:-5, stp1rux:8, stp1rdy:12.5, stp1rdx:-14.5, stp1luy:-7, stp1lux:-5.5, stp1ldy:10.5, stp1ldx:15.5, stp1ly:0, stp1ry:0, stp0l:16.386, stp0r:0, stp0t:4.5, stp0b:-12.875, muzzleX:-0.5, muzzleY:-19, muzzleSize:0.88, groundFlat:0.5, groundReach:14, hipSquare:0, shoulderSquare:0, tail1x:-18.5, tail1y:2.4, tail2x:-1.94, tail2y:19.53 },
@@ -4235,17 +4237,38 @@ const EAR = {
    its face's middle is, so it stays under his as his face turns. On or off and how see-through he is: this browser's only,
    never saved into the project. Loaded only when shown */
 const REF = { src:'reference/kitten-face.png', w:554, h:454, m:[0.26804, 0.02423, -0.02423, 0.26804, -61.451, -70.412], face:4.3, key:'gav-picture' };
-const refState = { on:false, fade:0.5, x:0, y:0, r:0 };   // x, y: how far it has been moved, in the head's units; r: turned, degrees
+/* the picture behind Gav: any file in reference/ (src; '' none). The kitten face (REF_FILE) sits on his head, fitted there; any other on the stage in his
+   frame (so it zooms with the editing view and turns with him), first fitted into the editing grid. at[file]: where each one was left: moved x, y,
+   turned r (degrees) and s times bigger round its middle. w, h: the picture's size in pixels */
+const REF_FILE = 'kitten-face.png';
+const refState = { on:false, fade:0.5, src:REF_FILE, w:REF.w, h:REF.h, at:{} };
 try { Object.assign(refState, JSON.parse(localStorage.getItem(REF.key) || '{}')); } catch (e) {}
-// a point of the picture (its pixels) on the head, then turned with it round the picture's middle
-const refOnHead = (u, v) => [REF.m[0] * u + REF.m[2] * v + REF.m[4], REF.m[1] * u + REF.m[3] * v + REF.m[5]], refMid = refOnHead(REF.w / 2, REF.h / 2);
-function refPoint(u, v){ const [x, y] = refOnHead(u, v), t = refState.r * Math.PI / 180, c = Math.cos(t), n = Math.sin(t), dx = x - refMid[0], dy = y - refMid[1]; return [refMid[0] + c * dx - n * dy, refMid[1] + n * dx + c * dy]; }
+if ('x' in refState){ refState.at[REF_FILE] = { x:refState.x || 0, y:refState.y || 0, r:refState.r || 0, s:1 }; delete refState.x; delete refState.y; delete refState.r; }   // (saved before there was a choice)
+const refPlace = () => refState.at[refState.src] ||= { x:0, y:0, r:0, s:1 };
+const refOnHead = () => refState.src === REF_FILE;
+// where its pixels go before it is placed (B), and the numbers that place it
+function refBase(){
+  const at = refPlace();
+  if (refOnHead()) return { w: REF.w, h: REF.h, B: REF.m, at };
+  const w = refState.w, h = refState.h, k = GRID.size / Math.max(w, h);
+  return { w, h, B: [k, 0, 0, k, GRID.x + (GRID.size - k * w) / 2, GRID.y + (GRID.size - k * h) / 2], at };
+}
+const matMul = (A, B) => [A[0] * B[0] + A[2] * B[1], A[1] * B[0] + A[3] * B[1], A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3], A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5]];
+const refAt = (M, u, v) => [M[0] * u + M[2] * v + M[4], M[1] * u + M[3] * v + M[5]];
+// its pixels → the frame it is drawn in: its base, then sized and turned round its middle, then moved
+function refMat(){
+  const { w, h, B, at } = refBase(), c = refAt(B, w / 2, h / 2), t = (at.r || 0) * Math.PI / 180, k = at.s || 1, mid = [c[0] + (at.x || 0), c[1] + (at.y || 0)];
+  const R = [k * Math.cos(t), k * Math.sin(t), -k * Math.sin(t), k * Math.cos(t), 0, 0];
+  return { M: matMul([1, 0, 0, 1, mid[0], mid[1]], matMul(R, matMul([1, 0, 0, 1, -c[0], -c[1]], B))), w, h, mid };
+}
 function refShow(){
   try { localStorage.setItem(REF.key, JSON.stringify(refState)); } catch (e) {}
-  const g = $('refG'), im = $('refPic');
-  if (refState.on && !im.hasAttribute('href')){ im.setAttribute('href', REF.src); im.setAttribute('width', REF.w); im.setAttribute('height', REF.h); }
-  g.setAttribute('display', refState.on ? 'inline' : 'none');
-  catBody.style.opacity = refState.on ? 1 - refState.fade : '';
+  const g = $('refG'), im = $('refPic'), src = refState.src && 'reference/' + encodeURIComponent(refState.src), shown = refState.on && !!src, { w, h } = refBase();
+  if (shown && im.getAttribute('href') !== src) im.setAttribute('href', src);   // (only loaded once it is shown)
+  im.setAttribute('width', w); im.setAttribute('height', h);
+  g.setAttribute('display', shown ? 'inline' : 'none');
+  catBody.style.opacity = shown ? 1 - refState.fade : '';
+  for (const id of ['refChips', 'refFadeRow', 'refActs']) $(id).hidden = !refState.src;
   $('refOn').checked = refState.on; $('refFade').value = refState.fade; document.querySelector('output[for="refFade"]').textContent = Math.round(refState.fade * 100) + '%';
 }
 const EAR_NOW = {};   // each ear's anchor (B) and tip (T) as last drawn
@@ -4297,7 +4320,7 @@ const bendD = (S, b) => b ? 'M' + segsPoly(S).map(q => fmt(b.bend(q))).join('L')
 // ear e drawn at size es, turned ang, bent th: sets its inner part and spine, returns its outline
 function earPath(e, es, ang, th){
   const D = EAR[e], f = earMap(e, es, ang), E = spineEven(D.spine.map(f)), b = earBend(E, th), S = b ? b.spine : E.rest;
-  EAR_NOW[e] = { B: E.B, T: E.rest[EAR_N] };
+  EAR_NOW[e] = { B: E.B, T: E.rest[EAR_N], S };   // (S: its spine as drawn now, for its fur)
   $('ptInner' + e).setAttribute('d', bendD(earSegs(D.inner, f), b));
   // its spine (skeleton view): the line, with a dot at the anchor, each joint and the tip
   $('earSpine' + e).setAttribute('d', 'M' + S.map(fmt).join('L'));
@@ -5187,6 +5210,106 @@ async function headFurBuild(job){
   H.busy = false;
   if (H.again){ const j = H.again; H.again = null; headFurBuild(j); }
 }
+/* ---------- the rest of the fur, by fur.js too: ears, neck, body + belly, legs, tail ----------
+   Each group is fur.js drawing one of the parts in fur/gav-parts.js (as tuned on the fur page), live: its canvas lies in
+   the fur layer behind the SVG (WebKit paints no GPU canvas inside an SVG), put over Gav each frame by a CSS transform,
+   and bend() carries the fur along the part's spine as Gav moves (no rebuild). Above it the SVG goes on drawing the head,
+   face, whiskers and toes; its wall is made clear (the page behind has the same colour) and the floor shadow is drawn in
+   the fur layer instead. The parts' own paint, their old outline fur and the Siamese bands step aside once all are ready.
+   The legs are two groups of the same drawing: the farther pair behind the body, the closer pair in front of it (each
+   sends the other pair's spines far away). A part not tuned yet looks as it does on the fur page: the head's values. */
+const BODY_FUR = { groups:null, gav:null, cfg:null, coat:'', ready:false, busy:false };
+const FUR_GROUPS = [   // back to front; show: which of the part's spines it draws; pad: room round the spines for the fur (body units)
+  { part:'tail', pad:30 }, { part:'legs', show:[0, 2], pad:55 }, { part:'body', pad:75 }, { part:'neck', pad:45 }, { part:'legs', show:[1, 3], pad:55 }, { part:'ears', pad:40 },
+];
+// each part's spines as Gav has them now (body units), in its drawing's order (see fur/make-parts.js)
+const FUR_SPINES = {
+  tail: p => [p.tail],
+  legs: p => ['bf', 'bn', 'ff', 'fn'].map(k => p.legs[k]),
+  body: p => p.skel && p.skel.spine ? [p.skel.spine] : null,
+  neck: p => p.neck ? [[p.neck, [p.head.x, p.head.y + HEAD_DROP]]] : null,
+  ears: p => {   // each ear's spine (drawn in the head's frame), six points of it, as the drawing took them
+    const sh = p.shape, hs = HEAD_SCALE * sh.headSize, sx = hs * sh.headWidth, a = p.head.rot * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), hx = p.head.x, hy = p.head.y + HEAD_DROP;
+    const E = ['L', 'R'].map(e => EAR_NOW[e] && EAR_NOW[e].S);
+    return E.every(Boolean) ? E.map(S => Array.from({ length: 6 }, (_, i) => { const q = S[Math.round(i * (S.length - 1) / 5)]; return [hx + c * q[0] * sx - s * q[1] * hs, hy + s * q[0] * sx + c * q[1] * hs]; })) : null;
+  },
+};
+const furCoat = () => S.coat === 'siamese' ? 'Siamese' : 'Black';
+const bodyFurValues = (part, coat) => { const C = BODY_FUR.cfg; return { ...(C[part + coat] || { ...(C['head' + coat] || C.headSiamese), points: BODY_FUR.gav[part].points }), pet:false }; };
+const spineLen = P => P.reduce((t, q, i) => i ? t + Math.hypot(q[0] - P[i - 1][0], q[1] - P[i - 1][1]) : 0, 0);
+// what fur.js takes over: the parts' paint, the old fur round them and the Siamese bands (each put back in the panel's previews by furUnhide)
+const furHidden = () => [els.body, $('bellyBlob'), $('bellyShade'), els.massRib, els.massPel, ...Object.values(els.massW), ...els.vol, ...Object.values(els.legs), ...Object.values(els.low),
+  els.neck, els.tail, $('tailFront'), $('tailHalo'), $('tailOnTop'), els.earL, els.earR, $('ptInnerL'), $('ptInnerR'), $('ptTailCoat'), ...['bf', 'bn', 'ff', 'fn'].map(k => $('ptLow-' + k)?.parentNode),
+  $('edgeFurG'), $('edgeFurTail'), ...document.querySelectorAll('[id^="legTop-"]')].filter(e => e && e.id !== 'catBody');
+const furUnhide = g => { g.querySelectorAll('.furFO').forEach(e => e.remove()); g.querySelectorAll('[data-fur-hidden]').forEach(e => e.style.opacity = ''); };
+async function bodyFurStart(){
+  if (!location.protocol.startsWith('http')) return;
+  try {
+    const [mod, parts, cfg] = await Promise.all([import('./fur/fur.js'), import('./fur/gav-parts.js'), fetch('fur/settings.json', { cache:'no-store' }).then(r => r.json())]);
+    const F = BODY_FUR; F.gav = parts.GAV; F.cfg = cfg; F.coat = furCoat();
+    // the fur layer (behind the SVG: #stage stacks it under), first the floor shadow, then a box per group, back to front
+    const layer = F.layer = document.createElement('div');
+    layer.style.cssText = 'position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden';
+    $('stage').prepend(layer);
+    F.shadow = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); F.shadow.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;overflow:visible');
+    F.shadowG = svgEl('g', {}, F.shadow); F.shadowE = svgEl('ellipse', {}, F.shadowG); layer.appendChild(F.shadow);
+    F.groups = FUR_GROUPS.map(d => {
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;left:0;top:0;width:100px;height:100px;transform-origin:0 0;visibility:hidden';
+      layer.appendChild(box);
+      return { ...d, box, side:0, fur: mod.createFur(box, bodyFurValues(d.part, F.coat)), rest: F.gav[d.part].spines };
+    });
+    for (const g of F.groups) await g.fur.setShape(F.gav[g.part][F.coat.toLowerCase()]);
+    for (const e of [...furHidden(), els.shadow]){ e.style.opacity = 0; e.setAttribute('data-fur-hidden', ''); }
+    $('bg').style.fillOpacity = 0;   // (the wall: the page's own background, behind the fur)
+    F.ready = true;
+    // the fur page sends a part's values as they change: kept, and if they are this coat's that part is made again at once
+    if ('BroadcastChannel' in window) new BroadcastChannel('gav-fur').onmessage = async e => {
+      const m = /^(ears|neck|body|legs|tail)(Siamese|Black)$/.exec((e.data && e.data.part) || ''); if (!m) return;
+      F.cfg[e.data.part] = e.data.settings;
+      if (m[2] === F.coat) for (const g of F.groups) if (g.part === m[1]) await g.fur.set(bodyFurValues(m[1], m[2]));
+    };
+    addEventListener('resize', () => { for (const g of F.groups){ g.side += 0.01; g.box.style.width = g.box.style.height = g.side + 'px'; } });   // (fur.js sizes its canvas again)
+  } catch (e) { console.warn('body fur: not loaded', e); BODY_FUR.groups = null; }
+}
+bodyFurStart();
+// the other coat: each part in its drawing and values for it
+async function bodyFurCoat(coat){
+  const F = BODY_FUR; F.busy = true; F.coat = coat;
+  try { for (const g of F.groups){ await g.fur.set(bodyFurValues(g.part, coat)); await g.fur.setShape(F.gav[g.part][coat.toLowerCase()]); } }
+  catch (e) { console.warn('body fur:', e); }
+  F.busy = false;
+}
+// each frame: every group's box goes round its spines (grown when they reach further, never shrunk) and its fur bends with them
+function bodyFur(p){
+  const F = BODY_FUR; if (!F.ready) return;
+  if (furCoat() !== F.coat && !F.busy) bodyFurCoat(furCoat());
+  // the body's units on screen, from the fur layer's corner: each box is put there by this, moved to its own corner
+  const M = catBody.getScreenCTM(), L = F.layer.getBoundingClientRect(), at = (x, y) => `matrix(${M.a},${M.b},${M.c},${M.d},${M.e - L.left + M.a * x + M.c * y},${M.f - L.top + M.b * x + M.d * y})`;
+  // the floor shadow, as the SVG has it (its frame: the SVG's view and the cat's own transform)
+  const art = $('art'), cat = $('cat');
+  for (const [a, e] of [['viewBox', art], ['preserveAspectRatio', art]]) if (e.getAttribute(a) !== F.shadow.getAttribute(a)) e.hasAttribute(a) ? F.shadow.setAttribute(a, e.getAttribute(a)) : F.shadow.removeAttribute(a);
+  if (F.shadowG.getAttribute('transform') !== cat.getAttribute('transform')) F.shadowG.setAttribute('transform', cat.getAttribute('transform') || '');
+  for (const a of ['cx', 'cy', 'rx', 'ry', 'fill', 'fill-opacity', 'filter', 'transform']){ const v = els.shadow.getAttribute(a); if (v !== F.shadowE.getAttribute(a)) v === null ? F.shadowE.removeAttribute(a) : F.shadowE.setAttribute(a, v); }
+  // the tail wrapped round in front (lying): its fur goes in front of the body's too
+  const tail = F.groups[0].box, front = $('tailOnTop').nextElementSibling === $('face');
+  if (front !== (tail.nextElementSibling === F.groups[5].box)) (front ? F.groups[5].box.before(tail) : F.groups[1].box.before(tail));
+  for (const g of F.groups){
+    let sp = FUR_SPINES[g.part](p);
+    if (!sp || sp.length !== g.rest.length || sp.some((P, i) => !P || P.length !== g.rest[i].length)){ g.box.style.visibility = 'hidden'; continue; }
+    if (g.part === 'ears') sp = sp.map((P, i) => { const w = spineLen(P) / (spineLen(g.rest[i]) || 1); return P.map(q => [q[0], q[1], w]); });   // (an ear grows and shrinks all over)
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    sp = sp.map((P, i) => { if (g.show && !g.show.includes(i)) return P.map(q => [q[0] + 1e5, q[1], q[2]]);
+      for (const q of P){ x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }
+      return P; });
+    const need = Math.max(x1 - x0, y1 - y0) + 2 * g.pad;
+    if (need > g.side){ g.side = Math.ceil(need * 1.15); g.box.style.width = g.box.style.height = g.side + 'px'; }
+    const vx = (x0 + x1 - g.side) / 2, vy = (y0 + y1 - g.side) / 2;
+    g.box.style.transform = at(vx, vy);
+    if (g.box.style.visibility !== 'visible') g.box.style.visibility = 'visible';
+    try { g.fur.bend(sp, { x:vx, y:vy, width:g.side, height:g.side }); } catch (e) {}   // (between two drawings, while the coat changes)
+  }
+}
 function drawEdgeFur(p){
   if (!furParts) buildFur();
   const g = $('edgeFurG'), amt = OUTLINE_FUR * (S.furLen ?? 1), on = (S.furDens ?? 1) > 0, disp = on ? '' : 'none';   // Hair length, Fur density
@@ -5382,16 +5505,23 @@ function draw(p, ht, dt){
   els.face.setAttribute('transform', `${headAt} scale(${hs.toFixed(3)})`);      // face is not stretched; eyes spread instead
   const wtx = (Math.max(0, HEAD.rx * sh.cheekW - 55.3) * 0.8).toFixed(1);
   drawWhiskers(p, ht, hs, +wtx, dt);   // whiskers start in the brown either side of the nose, at its height, and bend as the head moves
-  if (refState.on){
-    const at = `translate(0 ${(-ht).toFixed(1)}) ${headAt} scale(${hs.toFixed(3)}) translate(${(faceX(p) - REF.face + refState.x).toFixed(2)} ${refState.y.toFixed(2)})`, edit = shapeOpen || eyeEditing, H = $('refHandle');
+  if (refState.on && refState.src){
+    const head = refOnHead(), edit = shapeOpen || eyeEditing, { M, w, h } = refMat();
+    const at = head ? `translate(0 ${(-ht).toFixed(1)}) ${headAt} scale(${hs.toFixed(3)}) translate(${(faceX(p) - REF.face).toFixed(2)} 0)` : '';
     $('refG').setAttribute('transform', at); $('refG').setAttribute('pointer-events', edit ? 'auto' : 'none');   // held only while editing
-    $('refPic').setAttribute('transform', `rotate(${refState.r} ${refMid[0].toFixed(3)} ${refMid[1].toFixed(3)}) matrix(${REF.m.join(' ')})`);
-    // the handles: moving on the middle of its top edge, turning on its corner, always the same size and upright
-    [[H, refPoint(REF.w / 2, 0)], [$('refTurn'), refPoint(REF.w, 0)]].forEach(([e, q]) => {
+    $('refPic').setAttribute('transform', `matrix(${M.map(v => +v.toFixed(5)).join(' ')})`);
+    // the handles: moving on the middle of its top edge, turning on its top corner, sizing on the bottom one; always the same size and upright, and kept
+    // on the stage however big the picture is
+    const C = edit && $('refG').getScreenCTM(), I = C && C.inverse(), m = 26;
+    [[$('refHandle'), w / 2, 0], [$('refTurn'), w, 0], [$('refSize'), w, h]].forEach(([e, u, v]) => {
       e.setAttribute('display', edit ? 'inline' : 'none');
-      if (edit) e.setAttribute('transform', `${at} translate(${q[0].toFixed(2)} ${q[1].toFixed(2)}) rotate(${(-p.head.rot).toFixed(2)}) scale(${(1 / (viewScale * hs)).toFixed(4)})`);
+      if (!edit) return;
+      let q = refAt(M, u, v); const sx = C.a * q[0] + C.c * q[1] + C.e, sy = C.b * q[0] + C.d * q[1] + C.f;
+      const X = clamp(sx, stageX + m, stageX + stageW - m), Y = clamp(sy, stageY + m, stageY + stageH - m);
+      if (X !== sx || Y !== sy) q = [I.a * X + I.c * Y + I.e, I.b * X + I.d * Y + I.f];
+      e.setAttribute('transform', `${at} translate(${q[0].toFixed(2)} ${q[1].toFixed(2)})${head ? ` rotate(${(-p.head.rot).toFixed(2)})` : ''} scale(${(1 / (viewScale * (head ? hs : 1))).toFixed(4)})`);
     });
-  } else for (const e of [$('refHandle'), $('refTurn')]) e.setAttribute('display', 'none');
+  } else for (const e of [$('refHandle'), $('refTurn'), $('refSize')]) e.setAttribute('display', 'none');
   updateSkull(sh, HEAD.follow * faceX(p));
   const ef = p.head.flex || [[0, 0, 0], [0, 0, 0]];   // the flick bends each ear up its spine (see earFlexStep)
   els.earL.setAttribute('d', earPath('L', sh.earScale, -p.head.ear, ef[0].map(a => -a)));
@@ -5482,6 +5612,7 @@ function draw(p, ht, dt){
   drawCoat(p, tailC, tailR);
   drawEdgeFur(p);
   headFur(p);
+  if (dt !== undefined) bodyFur(p);   // (only the live cat: previews of other moments draw with two arguments)
   if (skelShown) drawSkel(p);
   // the soft merge only draws inside its filter region: round the editing grid (states and ghosts are drawn there) and,
   // fitted every frame, wherever the parts reach beyond it (a jump, a stretch, the tail), with room for the blur
@@ -6572,26 +6703,52 @@ function selectGroup(g){
 document.querySelectorAll('.ptab').forEach(b => b.onclick = () => selectGroup(b.dataset.group));
 $('refOn').addEventListener('change', () => { refState.on = $('refOn').checked; refShow(); });
 $('refFade').addEventListener('input', () => { refState.fade = +$('refFade').value; refShow(); });
-// one hold moves the picture, by its handle or on the picture itself, as far as the pointer goes; on the corner's handle it turns it round its middle (M: the
-// head's units as they were when it was picked up)
-const refAngle = (e, M) => Math.atan2(M.b * e.clientX + M.d * e.clientY + M.f - refMid[1], M.a * e.clientX + M.c * e.clientY + M.e - refMid[0]) * 180 / Math.PI;
+// one hold moves the picture, by its handle or on the picture itself, as far as the pointer goes; on its corners' handles it turns and sizes it round its
+// middle (M: the frame it is drawn in, as it was when it was picked up)
 let refDrag = null;
+const refLocal = (e, M) => [M.a * e.clientX + M.c * e.clientY + M.e, M.b * e.clientX + M.d * e.clientY + M.f];
 function refDown(e){
   e.preventDefault(); e.stopPropagation();
   e.currentTarget.setPointerCapture(e.pointerId);
-  const M = $('refG').getScreenCTM().inverse();
-  refDrag = { M, cx: e.clientX, cy: e.clientY, x: refState.x, y: refState.y, turn: e.currentTarget.id === 'refTurn', r: refState.r, a: refAngle(e, M) };
+  const M = $('refG').getScreenCTM().inverse(), P = refPlace();
+  refDrag = { M, P, kind: { refTurn:'turn', refSize:'size' }[e.currentTarget.id] || 'move', q0: refLocal(e, M), mid: refMat().mid, x: P.x || 0, y: P.y || 0, r: P.r || 0, s: P.s || 1 };
 }
-for (const id of ['refHandle', 'refTurn', 'refPic']) $(id).addEventListener('pointerdown', refDown);
+for (const id of ['refHandle', 'refTurn', 'refSize', 'refPic']) $(id).addEventListener('pointerdown', refDown);
 addEventListener('pointermove', e => {
   const D = refDrag; if (!D) return;
-  if (D.turn){ refState.r = +(((D.r + refAngle(e, D.M) - D.a + 540) % 360) - 180).toFixed(1); return; }
-  const dx = e.clientX - D.cx, dy = e.clientY - D.cy;
-  refState.x = +(D.x + D.M.a * dx + D.M.c * dy).toFixed(1); refState.y = +(D.y + D.M.b * dx + D.M.d * dy).toFixed(1);
+  const q = refLocal(e, D.M), P = D.P, ang = v => Math.atan2(v[1] - D.mid[1], v[0] - D.mid[0]);
+  if (D.kind === 'turn') P.r = +(((D.r + (ang(q) - ang(D.q0)) * 180 / Math.PI + 540) % 360) - 180).toFixed(1);
+  else if (D.kind === 'size') P.s = +clamp(D.s * dist(q, D.mid) / (dist(D.q0, D.mid) || 1), 0.05, 40).toFixed(4);
+  else { P.x = +(D.x + q[0] - D.q0[0]).toFixed(1); P.y = +(D.y + q[1] - D.q0[1]).toFixed(1); }
 });
+// show one of the pictures in reference/ ('': none), where it was left
+async function refChoose(name){
+  refState.src = name;
+  if (name && !refOnHead()){
+    const im = new Image(); im.src = 'reference/' + encodeURIComponent(name);
+    const ok = await im.decode().then(() => true, () => false);
+    if (refState.src !== name) return;   // (another one was picked meanwhile)
+    if (ok){ refState.w = im.naturalWidth || 300; refState.h = im.naturalHeight || 300; }
+    else { refState.src = ''; $('refSrc').value = ''; toast('That picture could not be opened'); }
+  }
+  if (refState.src) refState.on = true;
+  refShow();
+}
+// what the folder holds now, from the preview server's listing of it (where there is none, just the picture shown)
+async function refList(){
+  const page = await fetch('reference/', { cache:'no-store' }).then(r => r.ok ? r.text() : null, () => null), sel = $('refSrc'), stem = n => n.replace(/\.[^.]+$/, '');
+  const names = page === null ? [refState.src].filter(Boolean) : [...new DOMParser().parseFromString(page, 'text/html').querySelectorAll('a')].map(a => decodeURIComponent(a.getAttribute('href'))).filter(n => /^[^/]+\.(png|jpe?g|webp|gif|avif)$/i.test(n));
+  names.sort((a, b) => stem(a).localeCompare(stem(b), undefined, { numeric:true }));
+  if (names.join('\n') !== [...sel.options].slice(1).map(o => o.value).join('\n')) sel.replaceChildren(new Option('None', ''), ...names.map(n => new Option(stem(n), n)));
+  sel.value = refState.src;
+  if (page !== null && refState.src && !names.includes(refState.src)) refChoose('');   // it has left the folder
+}
+$('refSrc').addEventListener('change', e => refChoose(e.target.value));
+$('refSrc').addEventListener('focus', refList);
+if (!WALL) refList();
 const refUp = () => { if (refDrag){ refDrag = null; refShow(); } };
 addEventListener('pointerup', refUp); addEventListener('pointercancel', refUp);
-$('refReset').onclick = () => { refState.x = refState.y = refState.r = 0; refShow(); };
+$('refReset').onclick = () => { Object.assign(refPlace(), { x:0, y:0, r:0, s:1 }); refShow(); };
 refShow();
 $('holdPose').addEventListener('change', () => { if (!$('holdPose').checked) leaveState(); holdPosition($('holdPose').checked); });
 $('copyShape').onclick = () => { for (const g of SHAPE_GROUPS) S.shapes[g] = { ...S.shapes[editGroup] }; save(); toast('Shape copied to all positions'); };
@@ -6761,7 +6918,7 @@ function drawSnaps(){
     draw(pose, 0);
     const g = catBody.cloneNode(true); g.removeAttribute('transform');
     // (no coat markings: they are cut to the live cat's parts, which go on moving)
-    g.querySelectorAll('#skel, #ghosts, #edgeFurG, #skullOverLegs, .coat, .earSpine, [id^="legTop-"]').forEach(e => e.remove());
+    g.querySelectorAll('#skel, #ghosts, #edgeFurG, #skullOverLegs, .coat, .earSpine, [id^="legTop-"]').forEach(e => e.remove()); furUnhide(g);   // (the previews keep the parts' own paint)
     g.querySelectorAll('[id]').forEach(e => e.removeAttribute('id')); g.removeAttribute('id');
     // the leg gradients are placed for the live cat: each preview keeps a copy placed for its own state
     for (const k in els.legs){ const c = $('legFill-' + k).cloneNode(true); c.id += '-st' + sec.dataset.i; g.prepend(c); g.querySelectorAll(`[fill="url(#legFill-${k})"]`).forEach(e => e.setAttribute('fill', `url(#${c.id})`)); }
@@ -6774,7 +6931,7 @@ function drawSnaps(){
     const gs = mk('g', { class:'gShape', filter:'url(#ghostLine)' });
     for (const id of ['silhouette', 'ears', 'lowerLegs', 'lowerFront', 'legsTop']) gs.appendChild($(id).cloneNode(true));
     for (const e of Object.values(els.low)) if (e.parentNode === catBody) gs.prepend(e.cloneNode(true));   // the far hind lower leg, behind the body
-    gs.querySelectorAll('.coat, .earSpine, [id^="legTop-"]').forEach(e => e.remove());
+    gs.querySelectorAll('.coat, .earSpine, [id^="legTop-"]').forEach(e => e.remove()); furUnhide(gs);
     gs.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
     snapGhost[+sec.dataset.i] = { shape: gs, pts: dragPoints(pose) };
   });
@@ -7579,7 +7736,7 @@ function tgSnaps(){
     lick.w = tgLick === 'cursor' ? 1 : 0; lick.t = m.u !== undefined ? m.u * LICK_T : 0;
     draw(poseAt(m.P, m.T), 0);
     const g = catBody.cloneNode(true); g.removeAttribute('transform');
-    g.querySelectorAll('#skel, #ghosts, #edgeFurG, #skullOverLegs, #tailOnTop, .earSpine, [id^="legTop-"]').forEach(e => e.remove());
+    g.querySelectorAll('#skel, #ghosts, #edgeFurG, #skullOverLegs, #tailOnTop, .earSpine, [id^="legTop-"]').forEach(e => e.remove()); furUnhide(g);
     g.querySelectorAll('[id]').forEach(e => e.removeAttribute('id')); g.removeAttribute('id');
     g.querySelectorAll('[clip-path]').forEach((e, n) => {
       const id = /#([\w-]+)/.exec(e.getAttribute('clip-path'))[1];
