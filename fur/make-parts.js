@@ -1,5 +1,6 @@
 // Snapshots Gav's parts from cat-stretch.html into gav-parts.js for the fur page, in both coats:
-//   head (sitting, face front, with the face stain on the Siamese) and ears, neck, body + belly, legs, tail (standing),
+//   head (sitting, face front, with the face stain on the Siamese) and ears (the dark outer ear), inner ears (the pink part
+//   on top, with the dark ear round it as colour; Siamese only: the black cat has none), neck, body + belly, legs, tail (standing),
 //   each with its spine (the line it bends along: data-fur-spine) and a flow source where its fur starts.
 // Run again after changing a part's drawing:  node fur/make-parts.js
 // Uses file:// so nothing is saved into the project (see tools/edit_server.py).
@@ -49,19 +50,27 @@ function snap(which) {
     for (let i = 0; i + 1 < n.length; i += 2) { const q = new DOMPoint(n[i], n[i + 1]).matrixTransform(m); out.push([q.x, q.y]); }
     return out; };
   const fewer = (P, k) => Array.from({ length: k }, (_, i) => P[Math.round(i * (P.length - 1) / (k - 1))]);
-  const L = which === 'ears' ? [['L', 'earL', 'ptInnerL', 'earSpineL'], ['R', 'earR', 'ptInnerR', 'earSpineR']].map(([, o, i, sp]) => item([$(o), $(i)], [$(o)], fewer(pathPts($(sp)), 6)))
-    : which === 'neck' ? [item([$('neck')], [$('neck')], [p.neck, [p.head.x, p.head.y + HEAD_DROP]])]
-    : which === 'body' ? [item(['body', 'massRib', 'massPel', 'bellyBlob', 'bellyShade'].map($), ['body', 'massRib', 'massPel', 'bellyBlob'].map($), p.skel.spine)]
-    : which === 'legs' ? ['bf', 'bn', 'ff', 'fn'].map(k => item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], p.legs[k]))
+  const leg = k => item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], p.legs[k]);
+  const bodyItem = () => item(['body', 'massRib', 'massPel', 'bellyBlob', 'bellyShade'].map($), ['body', 'massRib', 'massPel', 'bellyBlob'].map($), p.skel.spine);
+  const neckItem = () => item([$('neck')], [$('neck')], [p.neck, [p.head.x, p.head.y + HEAD_DROP]]);
+  const whole = which === 'fullBody';   // neck, body + belly and the four legs where Gav has them, painted in his order: one fur over all of them
+  const L = whole ? [leg('bf'), leg('ff'), bodyItem(), neckItem(), leg('bn'), leg('fn')]
+    : which === 'ears' || which === 'innerEars' ? [['earL', 'ptInnerL', 'earSpineL'], ['earR', 'ptInnerR', 'earSpineR']]   // (the two layers: same spines)
+      .map(([o, i, sp]) => which === 'ears' ? item([$(o)], [$(o)], fewer(pathPts($(sp)), 6))
+        : item([$(o), $(i)], [$(i)], fewer(pathPts($(sp)), 6)))   // (inner ears: the dark ear round each only gives colour, to the hairs that lie in over it)
+    : which === 'neck' ? [neckItem()]
+    : which === 'body' ? [bodyItem()]
+    : which === 'legs' ? ['bf', 'bn', 'ff', 'fn'].map(leg)
     : [item([$('tail'), $('ptTailCoat')], [$('tail')], p.tail)];
+  if (L.every(it => !it.outline)) return null;   // (nothing of it in this coat)
   // side by side (legs: two rows, the back pair over the front pair), apart enough that every spot of each lies nearer its own spine than any other (a round shoulder reaches far from its spine)
   const perRow = which === 'legs' ? 2 : L.length, GAP = 42, boxes = L.map(it => { const h = holder(`<g>${it.outline}</g>`), b = h.firstChild.getBBox(); h.remove(); return b; });   // (the outline only: colour bands are bigger, cut to it)
   let body = '', y = null; const spines = [], refs = new Set();
   for (let r = 0; r * perRow < L.length; r++) {
     const row = L.slice(r * perRow, (r + 1) * perRow), rb = boxes.slice(r * perRow, (r + 1) * perRow), top = Math.min(...rb.map(b => b.y));
-    const dy = y === null ? 0 : y - top; let x = null;
+    const dy = whole || y === null ? 0 : y - top; let x = null;
     row.forEach((it, i) => {
-      const b = rb[i], dx = x === null ? 0 : x - b.x; x = (x === null ? b.x : x) + b.width + GAP;
+      const b = rb[i], dx = whole || x === null ? 0 : x - b.x; x = (x === null ? b.x : x) + b.width + GAP;
       body += `<g transform="translate(${f(dx)} ${f(dy)})">${it.s}<polyline data-fur-spine="" fill="none" points="${it.spine.map(q => q[0] + ',' + q[1]).join(' ')}"/></g>`;
       spines.push(it.spine.map(q => [f(q[0] + dx), f(q[1] + dy)]));
       it.refs.forEach(k => refs.add(k));
@@ -73,7 +82,7 @@ function snap(which) {
   const add = id => { if (done.has(id) || have.has(id)) return; done.add(id); const e = $(id); if (!e) return; const r = new Set(); refsOf(e, r); r.forEach(add); defs.push(e.outerHTML); };
   refs.forEach(add);
   // fur starts at the root of each: legs, tail, ears at their first point; neck and body from the head's end
-  const from = spines.map(s => which === 'neck' || which === 'body' ? s[s.length - 1] : s[0]);
+  const from = spines.map((s, i) => which === 'neck' || which === 'body' || (whole && (i === 2 || i === 3)) ? s[s.length - 1] : s[0]);
   return { svg: `<svg xmlns="${NS}"><defs>${defs.join('')}</defs>${body}</svg>`, spines, from };
 }
 
@@ -98,11 +107,12 @@ function stagePoints([svg, pts]) {
   const GAV = {};
   for (const coat of ['siamese', 'black']) {
     await page.evaluate(c => document.querySelector(`input[name=coat][value=${c}]`).click(), coat);
-    for (const [pose, parts] of [['sit', ['head']], ['stand', ['ears', 'neck', 'body', 'legs', 'tail']]]) {
+    for (const [pose, parts] of [['sit', ['head']], ['stand', ['ears', 'innerEars', 'neck', 'body', 'legs', 'fullBody', 'tail']]]) {
       await page.evaluate(n => catDebug.pose(n), pose);
       await page.waitForTimeout(500);
       for (const part of parts) {
         const r = await page.evaluate(snap, part);
+        if (!r) continue;
         const P = GAV[part] = GAV[part] || {};
         P[coat] = r.svg;
         if (r.spines) P.spines = r.spines;
@@ -115,5 +125,5 @@ function stagePoints([svg, pts]) {
   fs.writeFileSync(path.join(__dirname, 'gav-parts.js'),
     `// made by make-parts.js from cat-stretch.html (${new Date().toISOString().slice(0, 10)}): Gav's parts in both coats\n` +
     `export const GAV = ${JSON.stringify(GAV, null, 1)};\n`);
-  for (const [k, v] of Object.entries(GAV)) if (v.siamese) console.log(k.padEnd(5), 'siamese', v.siamese.length, 'black', v.black.length, 'spines', (v.spines || []).map(s => s.length).join('+') || '-', 'points', v.points.length);
+  for (const [k, v] of Object.entries(GAV)) if (v.siamese) console.log(k.padEnd(9), 'siamese', v.siamese.length, 'black', v.black ? v.black.length : '-', 'spines', (v.spines || []).map(s => s.length).join('+') || '-', 'points', v.points.length);
 })();

@@ -10,6 +10,7 @@
   main{display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px;max-width:640px;margin:auto}
   #wrap{position:relative;width:min(94vw,560px,70vh);aspect-ratio:1;background:var(--stage);border-radius:12px}
   #stage{position:absolute;inset:0;cursor:grab}
+  #under{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
   #overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
   .modes{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
   button,select{font:inherit;padding:6px 10px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--text)}
@@ -31,6 +32,7 @@
 <body>
 <main>
   <div id="wrap">
+    <svg id="under" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>
     <div id="stage"></div>
     <svg id="overlay" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>
   </div>
@@ -39,13 +41,16 @@
     <button data-mode="source">+ Source point</button>
     <button data-mode="swirl">+ Swirl point</button>
     <button data-mode="remove">Remove point</button>
+    <button data-mode="glow" id="glowMode" hidden>Move gradient</button>
     <button id="clearPts">Clear points</button>
   </div>
   <div id="info">loading…</div>
 
   <div id="panel">
     <div class="row"><select id="part"></select><select id="coat"></select><button id="regen">Regenerate</button>
-      <label id="bendCtl" class="bend">Bend <input type="range" id="bend" min="-1" max="1" step="0.01" value="0"></label><span id="shapeErr" class="err"></span></div>
+      <label class="bend"><input type="checkbox" id="fullBody" style="width:auto">Full body fur</label>
+      <label id="bendCtl" class="bend">Bend <input type="range" id="bend" min="-1" max="1" step="0.01" value="0"></label>
+      <label id="glowCtl" class="bend" hidden>Gradient size <input type="range" id="glowSize" min="0.2" max="1.5" step="0.01" value="0.6"></label><span id="shapeErr" class="err"></span></div>
     <div id="groups"></div>
     <details>
       <summary>Copy &amp; load</summary>
@@ -58,11 +63,13 @@
 <script type="module">
 import { createFur, DEFAULTS } from './fur.js';
 import { GAV } from './gav-parts.js';   // Gav's parts in both coats, from cat-stretch.html (node fur/make-parts.js)
+import { earGlow, glowOf } from './ear-glow.js';   // the inner ears' gradients
 const $ = id => document.getElementById(id);
 
 /* ---------- Gav's parts, their colours from the SVG (coat, face stain, points); each part and coat keeps its own values,
    saved as part + coat (headSiamese, legsBlack …). The bending parts carry their spines ---------- */
-const PARTS = { head: 'Head', ears: 'Ears', neck: 'Neck', body: 'Body + belly', legs: 'Legs', tail: 'Tail' };
+const PARTS = { head: 'Head', ears: 'Ears', innerEars: 'Inner ears', neck: 'Neck', body: 'Body + belly', legs: 'Legs', fullBody: 'Full body', tail: 'Tail' };
+const SEPARATE = ['neck', 'body', 'legs'];   // what Full body fur replaces
 const COATS = { Siamese: 'siamese', Black: 'black' };
 let partName = 'head', coat = 'Siamese', part = 'headSiamese', shape = GAV.head.siamese;
 document.documentElement.style.setProperty('--stage', GAV.bg);
@@ -126,16 +133,20 @@ function syncControls(s) {
 const all = await fetch('settings.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
 // a part not tuned yet starts from the head's values in its coat, with fur starting at its own roots
 const valuesOf = p => {
-  const name = p.replace(/(Siamese|Black)$/, ''), c = p.slice(name.length), head = all['head' + c] || all.headSiamese;
-  return { ...DEFAULTS, quality: 'medium', colorSource: 'svg', ...(all[p] || { ...head, points: GAV[name].points }) };
+  const name = p.replace(/(Siamese|Black)$/, ''), c = p.slice(name.length), head = (name === 'innerEars' && all['ears' + c]) || (name === 'fullBody' && all['legs' + c]) || all['head' + c] || all.headSiamese;
+  const { glow, glowSize, ...v } = all[p] || { ...head, points: GAV[name].points };   // (the gradient is kept with them, not fur.js's)
+  return { ...DEFAULTS, quality: 'medium', colorSource: 'svg', ...v, invert: name === 'innerEars' };   // (inner ears: the dark ear's hairs lie in over them)
 };
 const fur = createFur($('stage'), { ...valuesOf(part), pet: true });
+// the inner ears' gradients as placed now (G), and the drawing as shown
+let G = glowOf(null);
+const inner = () => partName === 'innerEars', shapeNow = () => inner() ? earGlow(shape, G) : shape;
 // every change is saved (into fur/settings.json, through the edit server) and sent to an open cat page, which makes its fur again
 const chan = 'BroadcastChannel' in window ? new BroadcastChannel('gav-fur') : null;
 let saveT = null, savePart = part;
 function save() {
   clearTimeout(saveT); saveT = null;
-  const settings = fur.get(), p = savePart;
+  const settings = { ...fur.get(), ...(/^innerEars/.test(savePart) ? G : {}) }, p = savePart;
   all[p] = settings;
   fetch('__save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ part: p, settings }) })
     .then(r => { if (!r.ok) throw r.status; $('shapeErr').textContent = ''; }).catch(() => { $('shapeErr').textContent = 'Not saved'; });
@@ -171,19 +182,37 @@ async function applyShape(svg, points) {
 }
 
 /* ---------- part and coat ---------- */
-for (const [k, v] of Object.entries(PARTS)) $('part').append(new Option(v, k));
+// Full body fur on: one Full body in the menu instead of Neck, Body + belly and Legs (off: the other way round)
+let fullOn = !!all.options?.fullBody;
+const fillParts = () => $('part').replaceChildren(...Object.entries(PARTS).filter(([k]) => k === 'fullBody' ? fullOn : !(fullOn && SEPARATE.includes(k))).map(([k, v]) => new Option(v, k)));
+fillParts();
 for (const k of Object.keys(COATS)) $('coat').append(new Option(k, k));
 // another part or coat: what is still waiting is saved for this one first, then that one's own values and drawing come in
 async function pick() {
   clearTimeout(timer); if (Object.keys(pending).length) { set(pending); pending = {}; }
   if (saveT) save();
+  for (const o of $('coat').options) o.disabled = !GAV[$('part').value][COATS[o.value]];   // (the black cat has no inner ears)
+  if ($('coat').selectedOptions[0].disabled) $('coat').value = 'Siamese';
   partName = $('part').value; coat = $('coat').value; part = partName + coat; shape = GAV[partName][COATS[coat]];
+  G = glowOf(all[part]); $('glowSize').value = G.glowSize; mapEars();
+  $('glowCtl').hidden = $('glowMode').hidden = !inner();
+  if (mode === 'glow' && !inner()) document.querySelector('[data-mode=pet]').click();
   await fur.set({ ...valuesOf(part), pet: mode === 'pet' });
   syncControls(fur.get()); drawPoints();
   $('bendCtl').hidden = !GAV[partName].spines; $('bend').value = 0;
-  await applyShape(shape);
+  await applyShape(shapeNow());
 }
 $('part').onchange = $('coat').onchange = pick;
+$('fullBody').checked = fullOn;
+$('fullBody').onchange = async () => {
+  const was = $('part').value; fullOn = $('fullBody').checked; all.options = { fullBody: fullOn };
+  fetch('__save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ part: 'options', settings: all.options }) })
+    .then(r => { if (!r.ok) throw r.status; }).catch(() => { $('shapeErr').textContent = 'Not saved'; });
+  chan?.postMessage({ part: 'options', settings: all.options });
+  fillParts();
+  $('part').value = SEPARATE.includes(was) || was === 'fullBody' ? (fullOn ? 'fullBody' : 'body') : was;
+  await pick();
+};
 // Bend (only to look, never saved): each spine curls, every joint turning a little more, to see the fur go with it
 $('bend').oninput = () => {
   const b = +$('bend').value, S = GAV[partName].spines;
@@ -203,7 +232,49 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
   $('stage').style.cursor = mode === 'pet' ? 'grab' : 'crosshair';
 });
 $('clearPts').onclick = () => { set({ points: [] }); drawPoints(); info(); };
+
+/* the inner ears' gradients: dragged in "Move gradient", the nearer ear's middle goes where the pointer is (0–1 of its box) */
+let ears = null;   // each inner ear: its box (its own units) and its units → stage (0–1)
+function mapEars() {
+  ears = null; $('under').innerHTML = ''; if (!inner()) return;
+  const NS = 'http://www.w3.org/2000/svg', h = document.createElementNS(NS, 'svg');
+  h.setAttribute('style', 'position:absolute;left:-99999px;top:0;visibility:hidden');
+  h.innerHTML = new DOMParser().parseFromString(shape, 'image/svg+xml').documentElement.innerHTML;
+  document.body.appendChild(h);
+  const els = [...h.querySelectorAll('[data-fur-shape]')], root = h.getScreenCTM().inverse();
+  const E = els.map(el => ({ b: el.getBBox(), m: root.multiply(el.getScreenCTM()) }));
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;   // the outline's box, as fur.js fits it into the stage
+  for (const { b, m } of E) for (const [u, v] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    const q = new DOMPoint(b.x + u * b.width, b.y + v * b.height).matrixTransform(m);
+    x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }
+  h.remove();
+  const M = fur.get().margin, k = Math.min((780 - 2 * M) / (x1 - x0), (780 - 2 * M) / (y1 - y0)), tx = (780 - (x1 - x0) * k) / 2 - x0 * k, ty = (780 - (y1 - y0) * k) / 2 - y0 * k;
+  ears = E.map(({ b, m }) => ({ b, m: new DOMMatrix([k / 780, 0, 0, k / 780, tx / 780, ty / 780]).multiply(m) }));
+  // behind the fur, the dark ear round each (as Gav has it under them), where the fur fits it
+  const d = new DOMParser().parseFromString(shape, 'image/svg+xml').documentElement;
+  d.querySelectorAll('[data-fur-shape], [data-fur-spine]').forEach(el => el.remove());
+  $('under').innerHTML = `<g transform="matrix(${k / 780} 0 0 ${k / 780} ${tx / 780} ${ty / 780})">${d.innerHTML}</g>`;
+}
+const glowAt = i => { const { b, m } = ears[i], q = G.glow[i]; return new DOMPoint(b.x + q.x * b.width, b.y + q.y * b.height).matrixTransform(m); };
+let drag = -1, reshapeT = null;
+function glowMoved() {   // drawn again (a drawing takes a moment: not more often than this) and saved
+  drawPoints();
+  if (!reshapeT) reshapeT = setTimeout(async () => { reshapeT = null; await applyShape(shapeNow()); }, 120);
+  clearTimeout(saveT); savePart = part; saveT = setTimeout(save, 300);
+}
+function glowDrag(e) {
+  const p = fur.toStage(e.clientX, e.clientY);
+  if (drag < 0) { let bd = Infinity; ears.forEach((_, i) => { const q = glowAt(i), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; drag = i; } }); }
+  const { b, m } = ears[drag], q = new DOMPoint(p.x, p.y).matrixTransform(m.inverse()), r = v => +Math.min(1.5, Math.max(-0.5, v)).toFixed(3);
+  G = { ...G, glow: G.glow.map((g, i) => i === drag ? { x: r((q.x - b.x) / b.width), y: r((q.y - b.y) / b.height) } : g) };
+  glowMoved();
+}
+$('stage').addEventListener('pointermove', e => { if (mode === 'glow' && drag >= 0) glowDrag(e); });
+addEventListener('pointerup', () => { drag = -1; });
+$('glowSize').oninput = () => { G = { ...G, glowSize: +$('glowSize').value }; glowMoved(); };
+
 $('stage').addEventListener('pointerdown', e => {
+  if (mode === 'glow') { if (ears) { drag = -1; glowDrag(e); } return; }
   if (mode === 'pet') return;
   const p = fur.toStage(e.clientX, e.clientY), pts = fur.get().points;
   if (mode === 'remove') {
@@ -214,7 +285,10 @@ $('stage').addEventListener('pointerdown', e => {
   set({ points: pts }); drawPoints(); info();
 });
 function drawPoints() {
-  $('overlay').innerHTML = fur.get().points.map(p =>
+  const glows = ears ? ears.map((E, i) => { const q = glowAt(i), { b, m } = E, c = G.glow[i];   // each gradient's middle, and its edge
+    return `<g transform="matrix(${[m.a, m.b, m.c, m.d, m.e, m.f].join(' ')})"><ellipse cx="${b.x + c.x * b.width}" cy="${b.y + c.y * b.height}" rx="${G.glowSize * b.width}" ry="${G.glowSize * b.height}" fill="none" stroke="#fff" stroke-opacity="0.6" stroke-width="1" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/></g>` +
+      `<path d="M${q.x - 0.012} ${q.y}h0.024M${q.x} ${q.y - 0.012}v0.024" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`; }).join('') : '';
+  $('overlay').innerHTML = glows + fur.get().points.map(p =>
     `<circle cx="${p.x}" cy="${p.y}" r="0.018" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>` +
     (p.type === 'swirl'
       ? `<path d="M${p.x - 0.01} ${p.y}a0.01 0.01 0 1 1 0.01 0.01" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`
@@ -223,7 +297,7 @@ function drawPoints() {
 
 /* ---------- copy & load ---------- */
 $('regen').onclick = () => { set({ seed: fur.get().seed + 1 }); info(); };
-const exportJSON = () => JSON.stringify({ settings: fur.get(), shape }, null, 1);
+const exportJSON = () => JSON.stringify({ settings: fur.get(), shape: shapeNow() }, null, 1);
 $('copy').onclick = async () => {
   $('json').value = exportJSON();
   try { await navigator.clipboard.writeText($('json').value); $('copyMsg').textContent = 'Copied'; }

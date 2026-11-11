@@ -44,6 +44,7 @@ export const DEFAULTS = {
   gravity: 0.25,            // downward pull on hair direction
   edgeOut: 0.5,             // how much edge hair turns to point outward
   waviness: 0.12,
+  invert: false,            // edge hairs grow from outside the outline (where the SVG paints round it) and lie in over the shape
   points: [],               // [{ x, y (0–1 of stage), type: 'source' | 'swirl', strength: 1 }]; empty = auto (centre)
   // petting
   pet: true,
@@ -56,7 +57,7 @@ const QUALITY = {
   low:    { cover: 0.5,  hw: 2.0, seg: 2, dpr: 1.5 },
 };
 const BASE_KEYS = new Set(['blur', 'edgeInset']);
-const COLOR_KEYS = new Set(['colorInner', 'colorOuter', 'shading', 'colorSource', 'colorBlur']);
+const COLOR_KEYS = new Set(['colorInner', 'colorOuter', 'shading', 'colorSource', 'colorBlur', 'invert']);
 const LIVE_KEYS = new Set(['pet', 'petRadius']);
 
 /* ---------- small helpers ---------- */
@@ -270,15 +271,20 @@ export function createFur(container, options = {}) {
   function prepColors() {
     const ci = hex(o.colorInner), co = hex(o.colorOuter);
     const useSvg = o.colorSource === 'svg' || (o.colorSource === 'auto' && svgHasColour());
-    let S4 = null;
+    let S4 = null, S4o = null;
     if (useSvg) {                                       // premultiplied SVG colour, outside cells borrow the nearest inside cell
       S4 = new Float32Array(NC * 4);
       for (let i = 0; i < NC; i++) {
         const s = NEAR[i] >= 0 ? NEAR[i] : i, a = SVG_PX[s * 4 + 3] / 255;
         S4[i * 4] = SVG_PX[s * 4] * a; S4[i * 4 + 1] = SVG_PX[s * 4 + 1] * a; S4[i * 4 + 2] = SVG_PX[s * 4 + 2] * a; S4[i * 4 + 3] = a;
       }
+      if (o.invert) {                                   // inverted: outside, each cell's own colour (the hairs growing there)
+        S4o = new Float32Array(NC * 4);
+        for (let i = 0; i < NC; i++) if (!IN[i]) { const a = SVG_PX[i * 4 + 3] / 255;
+          S4o[i * 4] = SVG_PX[i * 4] * a; S4o[i * 4 + 1] = SVG_PX[i * 4 + 1] * a; S4o[i * 4 + 2] = SVG_PX[i * 4 + 2] * a; S4o[i * 4 + 3] = a; }
+      }
       const r = Math.round(o.colorBlur / GS);
-      if (r > 0) for (let k = 0; k < 3; k++) boxBlur(S4, GN, GN, r);   // soft stain edges
+      if (r > 0) for (let k = 0; k < 3; k++) { boxBlur(S4, GN, GN, r); if (S4o) boxBlur(S4o, GN, GN, r); }   // soft stain edges
     }
     COL = new Float32Array(NC * 3); const C = new Float32Array(NC * 4);
     for (let i = 0; i < NC; i++) {
@@ -292,6 +298,7 @@ export function createFur(container, options = {}) {
         const base = S4 && a > 0.05 ? S4[i * 4 + q] / a : ci[q] + (co[q] - ci[q]) * u;
         const c = base * k; COL[i * 3 + q] = c; C[i * 4 + q] = c;
       }
+      if (S4o && !IN[i] && S4o[i * 4 + 3] > 0.05) for (let q = 0; q < 3; q++) COL[i * 3 + q] = S4o[i * 4 + q] / S4o[i * 4 + 3] * k;   // (hair only: the base keeps the shape's)
       C[i * 4 + 3] = 1;
     }
     boxBlur(C, GN, GN, 3); boxBlur(C, GN, GN, 3);
@@ -314,7 +321,7 @@ export function createFur(container, options = {}) {
 
   /* --- hair direction --- */
   const edgeOf = d => { const t = clamp(1 - (d - o.hairInset) / o.edgeBand, 0, 1); return t * t * (3 - 2 * t); };
-  function flow(x, y) {
+  function flow(x, y, out) {   // out: an inverted edge hair (see makeLines)
     const pts = o.points.some(p => p.type !== 'swirl') ? o.points       // no source placed → auto source at the centre
       : [{ x: CEN.x / W, y: CEN.y / H, type: 'source', strength: 1 }, ...o.points];
     let vx = 0, vy = 0;
@@ -327,7 +334,8 @@ export function createFur(container, options = {}) {
     }
     const l = Math.hypot(vx, vy) || 1; vx /= l; vy /= l;
     const i = gi(x, y);
-    if (i >= 0) { const e = clamp(1 - SDF[i] / (o.hairInset + o.edgeBand), 0, 1); vx += o.edgeOut * e * NX[i]; vy += o.edgeOut * e * NY[i]; }
+    if (i >= 0 && !o.invert) { const e = clamp(1 - SDF[i] / (o.hairInset + o.edgeBand), 0, 1); vx += o.edgeOut * e * NX[i]; vy += o.edgeOut * e * NY[i]; }
+    else if (i >= 0 && out) { const e = clamp(1 + SDF[i] / (o.hairInset + o.edgeBand), 0, 1); vx -= o.edgeOut * e * NX[i]; vy -= o.edgeOut * e * NY[i]; }   // (turned in)
     vy += o.gravity;
     return Math.atan2(vy, vx) + o.waviness * Math.sin(x * 0.035 + y * 0.02) * Math.cos(y * 0.03 - x * 0.012);
   }
@@ -368,7 +376,7 @@ export function createFur(container, options = {}) {
   /* --- lines --- */
   function makeLines() {
     rand = seeded(o.seed);
-    const q = Q(), S = 2.0, out = [];
+    const q = Q(), S = 2.0, out = [], inv = !!o.invert;
     const passes = [
       { cover: 2.1, len: 1.0, op: [0.6, 0.35], jit: 1.0, inner: o.innerDensity }, // main layer
       { cover: 1.4, len: 0.6, op: [0.65, 0.3], jit: 1.85, inner: 0 },             // fine detail at the edge
@@ -379,29 +387,35 @@ export function createFur(container, options = {}) {
         let count = -1, edge = 0;
         for (let k = 0; k !== count; k++) {
           const x = ox + (rand() - 0.5) * S, y = oy + (rand() - 0.5) * S, i = gi(x, y);
-          if (i < 0 || SDF[i] < o.hairInset) break;                      // roots inside the hair outline
-          const dn = clamp(1 - SDF[i] / DMAX, 0, 1), e = edgeOf(SDF[i]);
+          if (i < 0) break;
+          // inverted: the edge hairs root outside the outline (hairInset to hairInset + edgeBand out, only where the SVG paints:
+          // the ear round an inner ear) and lie in over the shape, which keeps only its inner hairs. d: how far from the outline
+          const ex = inv && SDF[i] < 0, d = ex ? -SDF[i] : SDF[i];
+          if (ex ? d < o.hairInset || d > o.hairInset + o.edgeBand || SVG_PX[i * 4 + 3] < 128 : !inv && d < o.hairInset) break;   // roots inside the hair outline
+          const dn = clamp(1 - d / DMAX, 0, 1), e = inv && !ex ? 0 : edgeOf(d);
           const len0 = (o.hairMin + (o.hairMax - o.hairMin) * dn ** 1.6) * P.len * (0.75 + 0.5 * rand());
           let len = len0 * (1 + o.edgeLength * e * e);                   // longer toward the edge
-          const a = flow(x, y) + (rand() - 0.5) * 0.22;
-          const ai = gi(x + Math.cos(a) * 12, y + Math.sin(a) * 12), rim = ai < 0 || SDF[ai] < o.hairInset;
+          const a = flow(x, y, ex) + (rand() - 0.5) * 0.22;
+          const ai = gi(x + Math.cos(a) * 12, y + Math.sin(a) * 12), rim = !(inv && !ex) && (ai < 0 || (ex ? -SDF[ai] : SDF[ai]) < o.hairInset);
           if (rim) len *= 1.2 + 0.6 * rand();                            // wispy outline
+          if (inv && !ex) { const ti = gi(x + Math.cos(a) * len, y + Math.sin(a) * len), dt = ti < 0 ? -len : SDF[ti];
+            if (dt < 0) len *= clamp(d / (d - dt), 0.15, 1); }           // (inverted, inside: ends at the outline)
           const c0 = [COL[i * 3], COL[i * 3 + 1], COL[i * 3 + 2]];
           if (count < 0) {
             edge = e;
             const lum = (0.3 * c0[0] + 0.59 * c0[1] + 0.11 * c0[2]) / 255;
-            const dens = P.inner + (o.edgeDensity - P.inner) * edge;
+            const dens = ex ? o.edgeDensity * edge : P.inner + (o.edgeDensity - P.inner) * edge;
             const m = dens * P.cover * q.cover * (1 + 0.6 * (1 - lum) ** 2) * S * S / (len0 * 0.92 * q.hw * 1.2);
             count = Math.floor(m) + (rand() < m % 1 ? 1 : 0);
             if (!count) break;
           }
           const mi = gi(x + Math.cos(a) * len * 0.4, y + Math.sin(a) * len * 0.4);
-          const c1 = mi >= 0 && IN[mi] ? [COL[mi * 3], COL[mi * 3 + 1], COL[mi * 3 + 2]] : c0;
+          const c1 = mi >= 0 && (ex ? !IN[mi] && SVG_PX[mi * 4 + 3] > 127 : IN[mi]) ? [COL[mi * 3], COL[mi * 3 + 1], COL[mi * 3 + 2]] : c0;
           const soft = rand() < edge + (1 - edge) * o.crisp ? 0 : 0.85;
           const j = (1 + o.rim * edge + o.variation * P.jit * (soft ? 0.6 : 1 + 0.4 * (1 - edge)) * (1.3 * rand() - 0.3)) / 255;
           list.push({ x, y, a, len, op: P.op[0] + P.op[1] * rand(), hw: (0.75 + 0.35 * rand()) * q.hw * (rim ? 0.75 : 1),
-            bend: angDiff(flow(x + Math.cos(a) * len, y + Math.sin(a) * len), a) + (rand() - 0.5) * (rim ? 0.7 : 0.15),
-            soft, fade: 0.3 + 0.45 * edge, c: [0, 1, 2].map(n => clamp((c0[n] + c1[n]) / 2 * j, 0, 1)), z: SDF[i] });
+            bend: angDiff(flow(x + Math.cos(a) * len, y + Math.sin(a) * len, ex), a) + (rand() - 0.5) * (rim ? 0.7 : 0.15),
+            soft, fade: 0.3 + 0.45 * edge, c: [0, 1, 2].map(n => clamp((c0[n] + c1[n]) / 2 * j, 0, 1)), z: ex ? 1e4 + d : SDF[i] });   // (inverted edge hairs on top)
         }
       }
       list.sort((a, b) => a.z - b.z);                                    // edge first, inner on top

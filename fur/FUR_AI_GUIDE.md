@@ -7,7 +7,12 @@ Read this before writing code that uses it. Prefer changing **settings** over ed
 - `fur.js` — ES module, no dependencies, needs **WebGL2** (throws `'fur.js needs WebGL2'` otherwise).
 - `index.html` — my editor: presets, sliders for every setting, point placement, and **Copy settings + shape** (exports JSON).
 - In GavCat (`fur/`), the editor is cut down for Gav:
-  - A Part menu (Head, Ears, Neck, Body + belly, Legs, Tail) and a cat menu (Siamese, Black). Medium quality.
+  - A Part menu (Head, Ears, Inner ears, Neck, Body + belly, Legs, Tail) and a cat menu (Siamese, Black). Medium quality.
+  - The ears are two layers on the same spines: Ears is the dark ear, Inner ears the pink part drawn on top of it (Siamese only).
+    Inner ears is always `invert: true` (the dark ear's hairs lie in over it; its drawing carries the dark ear as colour). Its colour
+    is a radial gradient per ear (light middle, the ear's dark at the edge): "Move gradient" drags each one's middle, "Gradient size"
+    sets its size. They are kept with its values as `glow` / `glowSize` (`ear-glow.js`), not passed to fur.js.
+  - The Full body fur toggle (`options.fullBody` in `settings.json`) swaps Neck, Body + belly and Legs for one part, Full body (`fullBodySiamese`, `fullBodyBlack`): one fur over all of them, tied to six spines. On Gav those three parts then draw only a thin, unshaded coat under it, so nothing shows through the gaps in its soft base between spines, or where it moves away when a leg folds.
   - Every change saves to `settings.json`, keyed part + coat (`headSiamese`, `legsBlack` …), through the edit server (`POST /fur/__save`). An open Gav tab gets it live over BroadcastChannel `gav-fur`.
   - `gav-parts.js` holds Gav's parts, made by `node fur/make-parts.js` from `cat-stretch.html`.
   - Gav's head is furred by this module (`HEAD_FUR` in `cat-stretch.html`).
@@ -70,6 +75,7 @@ fur.spines();                                  // the shape's spines as drawn (i
 | `gravity` | 0.25 | Downward pull on hair direction (negative = upward). |
 | `edgeOut` | 0.5 | How strongly edge hair turns to point outward. |
 | `waviness` | 0.12 | Gentle large-scale waves in direction. |
+| `invert` | `false` | Inverted edge: edge hairs root *outside* the outline (`hairInset` to `hairInset + edgeBand` out, only where the SVG paints round the shape) and lie in over it, coloured by what is painted there; the shape keeps only its inner hairs, which end at the outline. For a part that sits inside another (an inner ear). |
 | `points` | `[]` | Flow control (see below). |
 | `pet` / `petRadius` | `true` / 70 | Enable petting / brush size. |
 
