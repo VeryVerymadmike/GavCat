@@ -183,7 +183,7 @@ export function createFur(container, options = {}) {
   if (!gl) throw new Error('fur.js needs WebGL2');
 
   let rand, lastShape = null;
-  let SVG_PX = null, IN = null, SDF, NEAR, NX, NY, COL, BASE_RGB, DMAX = 1, CEN = { x: W / 2, y: H / 2 };
+  let SVG_PX = null, LIGHT_PX = null, IN = null, SDF, NEAR, NX, NY, COL, BASE_RGB, DMAX = 1, CEN = { x: W / 2, y: H / 2 };
   // spines: as drawn (shape units, SPINES_SVG) and in stage units (SPINES; SP all their points, FLAG first/last, RT directions);
   // FIT: how the shape sits in the stage (stage = shape × s + t); BENT: the spines as they are now (see bend)
   let SPINES_SVG = [], SPINES = [], SP = [], SPID = [], FLAG = [], RT = [], FIT = { tx: 0, ty: 0, s: 1 }, BENT = null;
@@ -216,6 +216,15 @@ export function createFur(container, options = {}) {
       return pts;
     }).filter(p => p.length >= 2);
     for (const r of [g, outline]) r.querySelectorAll('[data-fur-spine]').forEach(el => el.remove());
+    // light (data-fur-light: a grey picture of how much each spot is darkened, 0 none … white all, times shading): shades the fur
+    // instead of its own outline, so parts made from one light look like one animal. Only light pictures, then left out of the others
+    let lightSrc = null;
+    if (g.querySelector('[data-fur-light]')) {
+      const L = g.cloneNode(true);
+      L.querySelectorAll('path,ellipse,circle,rect,polygon,polyline,line,text,use,image').forEach(el => { if (!el.closest('[data-fur-light]') && !el.closest('defs')) el.remove(); });
+      lightSrc = L.innerHTML;
+      for (const r of [g, outline]) r.querySelectorAll('[data-fur-light]').forEach(el => el.remove());
+    }
     const bb = outline.getBBox(), maskSrc = outline.innerHTML, colorSrc = g.innerHTML;
     holder.remove();
     if (!bb.width || !bb.height) throw new Error('The shape is empty');
@@ -237,6 +246,7 @@ export function createFur(container, options = {}) {
     const mpx = await raster(maskSrc, true), m = new Uint8Array(NC);
     for (let i = 0; i < NC; i++) m[i] = mpx[i * 4 + 3] > 127 ? 1 : 0;
     SVG_PX = await raster(colorSrc, false);                         // the SVG's own colours
+    LIGHT_PX = lightSrc ? await raster(lightSrc, false) : null;     // the light, if given
     return m;
   }
 
@@ -297,7 +307,7 @@ export function createFur(container, options = {}) {
       const u = clamp(1 - d / (DMAX * 0.55), 0, 1) ** 2;
       const t = clamp(1 - d / (DMAX * 0.7), 0, 1), nz = Math.sqrt(1 - t * t);
       const lit = (-0.45 * NX[s] - 0.55 * NY[s]) * t + 0.7 * nz;
-      const k = 1 - o.shading * clamp(0.75 - lit, 0, 1);
+      const k = 1 - o.shading * (LIGHT_PX && LIGHT_PX[s * 4 + 3] > 127 ? LIGHT_PX[s * 4] / 255 : clamp(0.75 - lit, 0, 1));   // (a light given: shaded by it)
       for (let q = 0; q < 3; q++) {
         const a = S4 ? S4[i * 4 + 3] : 0;
         const base = S4 && a > 0.05 ? S4[i * 4 + q] / a : ci[q] + (co[q] - ci[q]) * u;

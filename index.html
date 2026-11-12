@@ -5202,7 +5202,7 @@ function coatMerge(on){
   svgEl('feComposite', { class:'coatPaint', in:'paint', in2:'shape', operator:'in' }, f);
 }
 let coatBuilt = false, coatKey = '';
-const toeEls = Object.fromEntries(Object.keys(els.low).map(k => [k, svgEl('path', { class:'coat', fill:'none', 'stroke-width':TOES.w, 'stroke-linecap':'round', 'stroke-opacity':TOES.op, 'pointer-events':'none' }, $('lowerLegs'))]));
+const toeEls = Object.fromEntries(Object.keys(els.low).map(k => [k, svgEl('path', { class:'coat', fill:'none', 'stroke-width':TOES.w, 'stroke-linecap':'round', 'stroke-opacity':TOES.op, 'pointer-events':'none', display:'none' }, $('lowerLegs'))]));   // (not drawn since 2026-11-12: the user didn't want the claw lines)
 // the Siamese colours (the Colors panel) into everything made from them; eyebrow dabs in the body's colour stay in it
 function coatRead(){
   if (S.eyebrowColor === COAT.pale && S.coatWhite !== COAT.pale){ S.eyebrowColor = S.coatWhite; $('eyebrowColor').value = S.coatWhite; }
@@ -5367,8 +5367,9 @@ const headFurValues = part => ({ ...(HEAD_FUR.cfg[part] || HEAD_FUR.cfg.headSiam
 async function headFurStart(){
   if (!location.protocol.startsWith('http')) return;
   try {
-    const [mod, cfg] = await Promise.all([import('./fur/fur.js'), fetch('fur/settings.json', { cache:'no-store' }).then(r => r.json())]);
+    const [mod, cfg, parts] = await Promise.all([import('./fur/fur.js'), fetch('fur/settings.json', { cache:'no-store' }).then(r => r.json()), import('./fur/gav-parts.js').catch(() => null)]);
     if (!cfg.headSiamese && !cfg.headBlack) return;
+    HEAD_FUR.light = (parts && parts.GAV.head && parts.GAV.head.light) || '';   // (the head's share of the one light over the whole cat, see fur/make-parts.js)
     const box = document.createElement('div');   // fur.js draws here, out of sight; its picture is copied into the head
     box.style.cssText = 'position:fixed;left:-20000px;top:0;width:300px;height:300px;pointer-events:none;visibility:hidden';
     document.body.appendChild(box);
@@ -5413,7 +5414,7 @@ async function headFurBuild(job){
     if (part !== H.part){ H.part = part; await H.fur.set(headFurValues(part)); }
     else { const u = headFurUnit(); if (Math.abs(u / H.fur.get().unit - 1) > 0.01) await H.fur.set({ unit:u }); }   // (head size changed)   // the other coat: its own values
     const svg = `<svg xmlns="http://www.w3.org/2000/svg"><defs>${sia ? ['stainMap', 'cheekGrad3', 'cheekGrad4', 'cheekSoft', 'mainGrad', 'stainGrad', 'thirdGrad', 'thirdSoft'].map(id => $(id).outerHTML).join('') : ''}</defs>` +
-      `<path data-fur-shape="" fill="${sia ? COAT.pale : S.catColor}" d="${d}"/>` +
+      `<path data-fur-shape="" fill="${sia ? COAT.pale : S.catColor}" d="${d}"/>` + (H.light || '') +
       (sia ? `<g transform="translate(${fx.toFixed(2)} 0)${turn < 0 ? ' scale(-1 1)' : ''}">` + cheeks.map((c, n) => `<path fill="url(#cheekGrad${STAIN_CHEEKS[n]})" filter="url(#cheekSoft)" d="${c}"/>`).join('') +
         `<path fill="url(#thirdGrad)" filter="url(#thirdSoft)" d="${third}"/><path filter="url(#stainMap)" d="${stain}"/><path fill="url(#mainGrad)" filter="url(#stainGrad)" opacity="${S.mainMix ?? 0.5}" d="${main}"/></g>` : '') + '</svg>';
     await H.fur.setShape(svg);
@@ -5510,7 +5511,7 @@ async function bodyFurStart(){
     layer.style.cssText = 'position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden';
     $('stage').prepend(layer);
     F.shadow = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); F.shadow.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;overflow:visible');
-    F.shadowG = svgEl('g', {}, F.shadow); F.shadowE = svgEl('ellipse', {}, F.shadowG); layer.appendChild(F.shadow);
+    F.shadowG = svgEl('g', {}, F.shadow); F.shadowE = svgEl('ellipse', { display:'none' }, F.shadowG); layer.appendChild(F.shadow);
     // Gav's own drawing as the least the furred cat ever is: the body's parts as drawn now, flat in their colours, under all the fur
     // (see furUnder), so wherever the fur doesn't reach (a position whose shape the standing snapshot can't bend into) the drawn shape shows
     { const f = svgEl('filter', { id:'furUnderSoft', x:-0.1, y:-0.1, width:1.2, height:1.2 }, svgEl('defs', {}, F.shadow));   // (pulled in a little and soft: no bold line of its own under the fur's edge)
@@ -5556,6 +5557,7 @@ function bodyFurWatch(){
       const changed = Object.keys(G).filter(k => JSON.stringify(G[k]) !== JSON.stringify(was[k]));
       if (!changed.length) return;
       F.busy = true; F.gav = G;
+      if (G.head && G.head.light !== HEAD_FUR.light){ HEAD_FUR.light = G.head.light || ''; HEAD_FUR.want = ''; }   // (the light changed: the head made again)
       for (const g of F.groups) if (changed.includes(g.part)){ g.rest = G[g.part].spines; if (furUsed(g) && furDrawing(g.part, F.coat)) await g.fur.setShape(furDrawing(g.part, F.coat)); }
     } catch (e) { console.warn('body fur: new parts not taken in', e); }
     F.busy = false;
@@ -6231,7 +6233,7 @@ function applyColors(){
   document.querySelectorAll('.shut').forEach(r => r.setAttribute('fill', S.coat === 'siamese' ? LASH : S.eyeColor));
   tongueColors();
   $('bg').setAttribute('fill', WALL ? 'none' : S.bgColor);
-  els.shadow.setAttribute('fill', S.shadowColor);
+  els.shadow.setAttribute('fill', S.shadowColor); els.shadow.setAttribute('display', 'none');   // (no floor shadow since 2026-11-12: the user didn't want it)
   document.documentElement.style.setProperty('--stage', WALL ? 'transparent' : S.bgColor);
   coatColors();
 }

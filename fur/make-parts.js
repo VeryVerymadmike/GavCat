@@ -28,9 +28,9 @@ function snap(which) {
     const n = new DOMPoint(nb.x + nb.width / 2, nb.y + nb.height / 2).matrixTransform(toSkull(nose));
     const fill = getComputedStyle(skull).fill, svg = `<svg xmlns="${NS}">` + (sia ? `<defs>${$('stainMap').outerHTML}</defs>` : '') +
       `<path data-fur-shape="" fill="${fill}" d="${skull.getAttribute('d')}"/>` +
-      (sia ? `<g transform="${Mx(toSkull(stain))}"><path filter="url(#stainMap)" d="${stain.getAttribute('d')}"/></g>` : '') + '</svg>';
+      (sia ? `<g transform="${Mx(toSkull(stain))}"><path filter="url(#stainMap)" d="${stain.getAttribute('d')}"/></g>` : '') + (window.__L ? window.__L.head : '') + '</svg>';
     const sc = el => { const m = el.getCTM(); return Math.hypot(m.a, m.b); };
-    return { svg, from: [[n.x, n.y]], bg: S.bgColor, scale: +(sc(skull) / sc($('catBody'))).toFixed(4) };   // (scale: body units per head unit)
+    return { svg, from: [[n.x, n.y]], bg: S.bgColor, scale: +(sc(skull) / sc($('catBody'))).toFixed(4), light: window.__L ? window.__L.head : '' };   // (scale: body units per head unit; light: the head's share of the one light)
   }
 
   // one item: Gav's elements as drawn (catBody units), shape: the ones that make the outline, and its spine
@@ -51,7 +51,7 @@ function snap(which) {
     for (let i = 0; i + 1 < n.length; i += 2) { const q = new DOMPoint(n[i], n[i + 1]).matrixTransform(m); out.push([q.x, q.y]); }
     return out; };
   const fewer = (P, k) => Array.from({ length: k }, (_, i) => P[Math.round(i * (P.length - 1) / (k - 1))]);
-  const leg = k => item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], p.legs[k]);
+  const leg = k => ({ ...item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], p.legs[k]), far: k[1] === 'f' });   // (far: the pair behind the body, its own light)
   const bodyItem = () => item(['body', 'massRib', 'massPel', 'bellyBlob', 'bellyShade'].map($), ['body', 'massRib', 'massPel', 'bellyBlob'].map($), p.skel.spine);
   const neckItem = () => item([$('neck')], [$('neck')], [p.neck, [p.head.x, p.head.y + HEAD_DROP]]);
   const whole = which === 'fullBody';   // neck, body + belly and the four legs where Gav has them, painted in his order: one fur over all of them
@@ -72,7 +72,7 @@ function snap(which) {
     const dy = whole || y === null ? 0 : y - top; let x = null;
     row.forEach((it, i) => {
       const b = rb[i], dx = whole || x === null ? 0 : x - b.x; x = (x === null ? b.x : x) + b.width + GAP;
-      body += `<g transform="translate(${f(dx)} ${f(dy)})">${it.s}<polyline data-fur-spine="" fill="none" points="${it.spine.map(q => q[0] + ',' + q[1]).join(' ')}"/></g>`;
+      body += `<g transform="translate(${f(dx)} ${f(dy)})">${it.s}${window.__L ? window.__L.crop(b, it.far) : ''}<polyline data-fur-spine="" fill="none" points="${it.spine.map(q => q[0] + ',' + q[1]).join(' ')}"/></g>`;
       spines.push(it.spine.map(q => [f(q[0] + dx), f(q[1] + dy)]));
       it.refs.forEach(k => refs.add(k));
     });
@@ -85,6 +85,68 @@ function snap(which) {
   // fur starts at the root of each: legs, tail, ears at their first point; neck and body from the head's end
   const from = spines.map((s, i) => which === 'neck' || which === 'body' || (whole && (i === 2 || i === 3)) ? s[s.length - 1] : s[0]);
   return { svg: `<svg xmlns="${NS}"><defs>${defs.join('')}</defs>${body}</svg>`, spines, from };
+}
+
+// in the page, standing: one light over Gav's whole outline (body units), so the fur is shaded as one cat, not part by part. His
+// outline is puffed up into a soft round surface (a spot R units in from the edge is as high as it gets: a leg is a round tube,
+// the body a cushion with a flat top) and lit from straight above and a little from the front: how much each spot is darkened
+// (0…1, times a part's Shading). The far legs get their own (with the body they come from), as they are seen behind the near ones.
+// Each part gets its piece of it (data-fur-light, an image under its own box, carried with it when the parts are laid out apart);
+// fur.js shades with it instead of with the part's own outline. The head gets its piece in its own units.
+async function makeLight() {
+  const $ = id => document.getElementById(id), NS = 'http://www.w3.org/2000/svg';
+  const Mx = m => `matrix(${[m.a, m.b, m.c, m.d, m.e, m.f].map(v => +v.toFixed(4)).join(' ')})`, f = v => +v.toFixed(2);
+  const inv = $('catBody').getCTM().inverse(), toBody = el => inv.multiply(el.getCTM());
+  const R = 16, LIGHT = [0, -0.6, 0.8];   // (how far in the surface rounds off, units; the light's direction: up, toward you)
+  const BODY = ['tail', 'body', 'massRib', 'massPel', 'bellyBlob', 'neck', 'earL', 'earR', 'skull'], FAR = ['leg-bf', 'low-bf', 'leg-ff', 'low-ff'], NEAR = ['leg-bn', 'low-bn', 'leg-fn', 'low-fn'];
+  const svgOf = ids => ids.map($).filter(e => e && getComputedStyle(e).display !== 'none').map(e => `<g transform="${Mx(toBody(e.parentNode))}">${e.outerHTML}</g>`).join('');
+  const h = document.createElementNS(NS, 'svg'); h.setAttribute('style', 'position:absolute;left:-99999px;top:0;visibility:hidden'); h.innerHTML = `<g>${svgOf([...BODY, ...FAR, ...NEAR])}</g>`;
+  document.body.appendChild(h); const b = h.firstChild.getBBox(); h.remove();
+  const pad = 30, x0 = b.x - pad, y0 = b.y - pad, W = Math.ceil(b.width + 2 * pad), H = Math.ceil(b.height + 2 * pad), N = W * H;
+  const blur = (a, r) => { const t = new Float32Array(N);
+    for (let y = 0; y < H; y++) { let s = 0; for (let x = -r; x < W + r; x++) { if (x + r < W) s += a[y * W + x + r]; if (x - r - 1 >= 0) s -= a[y * W + x - r - 1]; if (x >= 0 && x < W) t[y * W + x] = s / (2 * r + 1); } }
+    for (let x = 0; x < W; x++) { let s = 0; for (let y = -r; y < H + r; y++) { if (y + r < H) s += t[(y + r) * W + x]; if (y - r - 1 >= 0) s -= t[(y - r - 1) * W + x]; if (y >= 0 && y < H) a[y * W + x] = s / (2 * r + 1); } } };
+  const lightOf = async ids => {
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="${NS}" width="${W}" height="${H}" viewBox="${x0} ${y0} ${W} ${H}">` +
+      `<style>*{fill:#000!important;fill-opacity:1!important;opacity:1!important;stroke:none!important;filter:none!important}</style>${svgOf(ids)}</svg>`);
+    await img.decode();
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0);
+    const px = cx.getImageData(0, 0, W, H).data, IN = new Uint8Array(N); for (let i = 0; i < N; i++) IN[i] = px[i * 4 + 3] > 127 ? 1 : 0;
+    // distance in from the outline; outside spots remember the nearest inside one
+    const din = new Float32Array(N), dout = new Float32Array(N), near = new Int32Array(N);
+    for (let i = 0; i < N; i++) { din[i] = IN[i] ? 1e9 : 0; dout[i] = IN[i] ? 0 : 1e9; near[i] = IN[i] ? i : -1; }
+    const F = [[-1, 0, 1], [-1, -1, 1.414], [0, -1, 1], [1, -1, 1.414]];
+    for (const [d, nr] of [[din, null], [dout, near]]) for (const dir of [1, -1]) for (let k = 0; k < N; k++) {
+      const i = dir > 0 ? k : N - 1 - k, x = i % W, y = i / W | 0;
+      for (const [fx, fy, c] of F) { const X = x + fx * dir, Y = y + fy * dir; if (X < 0 || Y < 0 || X >= W || Y >= H) continue; const j = Y * W + X;
+        if (d[j] + c < d[i]) { d[i] = d[j] + c; if (nr) nr[i] = nr[j]; } }
+    }
+    // the puffed-up surface (round over its first R units in), smoothed, and its slope
+    const Z = new Float32Array(N); for (let i = 0; i < N; i++) { const d = IN[i] ? Math.min(din[i] - 0.5, R) : 0; Z[i] = Math.sqrt(Math.max(0, R * R - (R - d) * (R - d))); }
+    blur(Z, 1); blur(Z, 1);
+    const out = cx.createImageData(W, H), shade = new Float32Array(N);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (!IN[i]) continue;
+      const gx = (Z[y * W + Math.min(W - 1, x + 1)] - Z[y * W + Math.max(0, x - 1)]) / 2, gy = (Z[Math.min(H - 1, y + 1) * W + x] - Z[Math.max(0, y - 1) * W + x]) / 2;
+      const l = Math.hypot(gx, gy, 1), lit = (-gx * LIGHT[0] - gy * LIGHT[1] + LIGHT[2]) / l;
+      shade[i] = Math.min(1, Math.max(0, (LIGHT[2] - lit) / 1.1)); }   // (facing you: none, facing up: a little, side on: more, facing down: all)
+    for (let i = 0; i < N; i++) { const v = Math.round(255 * shade[near[i] >= 0 ? near[i] : i]); out.data[i * 4] = out.data[i * 4 + 1] = out.data[i * 4 + 2] = v; out.data[i * 4 + 3] = 255; }
+    cx.putImageData(out, 0, 0);
+    return cv;
+  };
+  const maps = { near: await lightOf([...BODY, ...NEAR]), far: await lightOf([...BODY, ...FAR]) };
+  // a piece of it (box in body units, a little round it), as an image in body units
+  const crop = (bb, far, m = 12) => {
+    const X0 = Math.max(0, Math.floor(bb.x - m - x0)), Y0 = Math.max(0, Math.floor(bb.y - m - y0)), X1 = Math.min(W, Math.ceil(bb.x + bb.width + m - x0)), Y1 = Math.min(H, Math.ceil(bb.y + bb.height + m - y0));
+    if (X1 <= X0 || Y1 <= Y0) return '';
+    const c = document.createElement('canvas'); c.width = X1 - X0; c.height = Y1 - Y0; c.getContext('2d').drawImage(far ? maps.far : maps.near, X0, Y0, c.width, c.height, 0, 0, c.width, c.height);
+    return `<image data-fur-light="" preserveAspectRatio="none" x="${f(x0 + X0)}" y="${f(y0 + Y0)}" width="${c.width}" height="${c.height}" href="${c.toDataURL('image/png')}"/>`;
+  };
+  // the head: its box in body units, placed in the skull's own units (as it stands)
+  const sk = $('skull'), sb = sk.getBBox(), m = toBody(sk), cs = [[sb.x, sb.y], [sb.x + sb.width, sb.y], [sb.x, sb.y + sb.height], [sb.x + sb.width, sb.y + sb.height]].map(([x, y]) => new DOMPoint(x, y).matrixTransform(m));
+  const hb = { x: Math.min(...cs.map(q => q.x)), y: Math.min(...cs.map(q => q.y)) }; hb.width = Math.max(...cs.map(q => q.x)) - hb.x; hb.height = Math.max(...cs.map(q => q.y)) - hb.y;
+  const toSkull = sk.getCTM().inverse().multiply($('catBody').getCTM());
+  window.__L = { crop, head: `<g data-fur-light="" transform="${Mx(toSkull)}">${crop(hb, false, 16)}</g>` };
 }
 
 // in the page: where points land in fur.js's stage (0–1), as it fits the outline (margin 110)
@@ -115,6 +177,10 @@ function stagePoints([svg, pts]) {
   await page.goto('file://' + path.join(ROOT, 'cat-stretch.html'));
   await page.waitForFunction(() => window.catDebug);
   const GAV = {};
+  // the one light, from Gav standing (the Siamese: the outline is the same in both coats)
+  await page.evaluate(() => document.querySelector('input[name=coat][value=siamese]').click());
+  await page.evaluate(() => catDebug.pose('stand')); await page.evaluate(() => __tick(40));
+  await page.evaluate(makeLight);
   for (const coat of ['siamese', 'black']) {
     await page.evaluate(c => document.querySelector(`input[name=coat][value=${c}]`).click(), coat);
     for (const [pose, parts] of [['sit', ['head']], ['stand', ['ears', 'innerEars', 'neck', 'body', 'legs', 'fullBody', 'tail']]]) {
@@ -129,6 +195,7 @@ function stagePoints([svg, pts]) {
         P.points = await page.evaluate(stagePoints, [r.svg, r.from]);
         if (r.bg) GAV.bg = r.bg;
         if (r.scale) P.scale = r.scale;
+        if (r.light) P.light = r.light;
       }
     }
   }
