@@ -29,7 +29,8 @@ function snap(which) {
     const fill = getComputedStyle(skull).fill, svg = `<svg xmlns="${NS}">` + (sia ? `<defs>${$('stainMap').outerHTML}</defs>` : '') +
       `<path data-fur-shape="" fill="${fill}" d="${skull.getAttribute('d')}"/>` +
       (sia ? `<g transform="${Mx(toSkull(stain))}"><path filter="url(#stainMap)" d="${stain.getAttribute('d')}"/></g>` : '') + '</svg>';
-    return { svg, from: [[n.x, n.y]], bg: S.bgColor };
+    const sc = el => { const m = el.getCTM(); return Math.hypot(m.a, m.b); };
+    return { svg, from: [[n.x, n.y]], bg: S.bgColor, scale: +(sc(skull) / sc($('catBody'))).toFixed(4) };   // (scale: body units per head unit)
   }
 
   // one item: Gav's elements as drawn (catBody units), shape: the ones that make the outline, and its spine
@@ -102,6 +103,15 @@ function stagePoints([svg, pts]) {
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+  // a still cat: a clock that only moves when stepped and the same 'random' numbers every run (breathing, the tail's sway), so the same
+  // drawing always gives the same snapshot (the edit server makes it again after saves, and only a real change should reach the fur)
+  await page.addInitScript(() => {
+    let T = 1000, q = [], r = 7;
+    performance.now = () => T; Date.now = () => 1.7e12 + T;
+    Math.random = () => { r = (r * 16807) % 2147483647; return (r - 1) / 2147483646; };
+    window.requestAnimationFrame = cb => { q.push(cb); return q.length; }; window.cancelAnimationFrame = () => {};
+    window.__tick = (n, ms = 16) => { for (let i = 0; i < n; i++){ T += ms; const run = q; q = []; run.forEach(cb => cb(T)); } };
+  });
   await page.goto('file://' + path.join(ROOT, 'cat-stretch.html'));
   await page.waitForFunction(() => window.catDebug);
   const GAV = {};
@@ -109,7 +119,7 @@ function stagePoints([svg, pts]) {
     await page.evaluate(c => document.querySelector(`input[name=coat][value=${c}]`).click(), coat);
     for (const [pose, parts] of [['sit', ['head']], ['stand', ['ears', 'innerEars', 'neck', 'body', 'legs', 'fullBody', 'tail']]]) {
       await page.evaluate(n => catDebug.pose(n), pose);
-      await page.waitForTimeout(500);
+      await page.evaluate(() => __tick(40));
       for (const part of parts) {
         const r = await page.evaluate(snap, part);
         if (!r) continue;
@@ -118,12 +128,16 @@ function stagePoints([svg, pts]) {
         if (r.spines) P.spines = r.spines;
         P.points = await page.evaluate(stagePoints, [r.svg, r.from]);
         if (r.bg) GAV.bg = r.bg;
+        if (r.scale) P.scale = r.scale;
       }
     }
   }
   await browser.close();
-  fs.writeFileSync(path.join(__dirname, 'gav-parts.js'),
-    `// made by make-parts.js from cat-stretch.html (${new Date().toISOString().slice(0, 10)}): Gav's parts in both coats\n` +
-    `export const GAV = ${JSON.stringify(GAV, null, 1)};\n`);
+  // (written whole, then put in place: an open Gav page reading it never gets half of it)
+  const to = path.join(__dirname, 'gav-parts.js'), body = `export const GAV = ${JSON.stringify(GAV, null, 1)};\n`;
+  if (fs.existsSync(to) && fs.readFileSync(to, 'utf8').endsWith(body)){ console.log('gav-parts.js: no change'); return; }   // (the same drawings: an open Gav page has nothing to make again)
+  fs.writeFileSync(to + '.tmp', `// made by make-parts.js from cat-stretch.html (${new Date().toISOString().slice(0, 10)}): Gav's parts in both coats\n` +
+    body);
+  fs.renameSync(to + '.tmp', to);
   for (const [k, v] of Object.entries(GAV)) if (v.siamese) console.log(k.padEnd(9), 'siamese', v.siamese.length, 'black', v.black ? v.black.length : '-', 'spines', (v.spines || []).map(s => s.length).join('+') || '-', 'points', v.points.length);
 })();

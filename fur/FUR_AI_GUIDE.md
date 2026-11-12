@@ -68,6 +68,8 @@ fur.spines();                                  // the shape's spines as drawn (i
 | `rim` | 0.22 | Brightening of edge hairs (backlit look). |
 | `blur` | 23 | Base shape edge softness. |
 | `edgeInset` | −8 | Where the soft base edge sits: + inside, − outside the outline. |
+| `keepShape` | `false` | Keeps the soft base from shrinking inside the shape: a number is how far inside the outline it may end at most (units; `true` = 0, solid right up to the outline), whatever `edgeInset` says; it can still fade out past it. Added 2026-11-11; Gav's parts use it (the fur page's "Most inset", 6 unless set). |
+| `unit` | `false` | Makes the sizes the same on every part, however each shape is fitted into the stage. Covers hair length and width, `hairInset`, `edgeBand`, `blur`, `edgeInset`, `keepShape`, `colorBlur`, the flow's reach and the waviness. A number is the stage units per shape unit the sizes are meant at; each size is scaled by the shape's fit ÷ `unit`. A small part fitted large gets finer hair, and more of it. Added 2026-11-12. Gav and the fur page pass it, not saved: 5.05 per body unit (the head's fit), and for the head × its scale in `gav-parts.js`. |
 | `colorSource` | `'auto'` | `'svg'` = hair takes the SVG's own fills (stains, gradients). `'flat'` = `colorInner` → `colorOuter`. `'auto'` = svg unless the artwork is plain black. |
 | `colorBlur` | 12 | Softens SVG colour edges (stain feathering). |
 | `colorInner` / `colorOuter` | `#c9b293` / `#f3e9d8` | Flat mode only: colour deep inside → colour at the edge. **Hex `#rrggbb` only.** |
@@ -125,6 +127,8 @@ For a part that bends (a tail, a leg), fur.js can move the fur with it **without
 - The nearest point dominates.
 - **Empty list:** one automatic source at the shape's centre.
 - **Only swirls:** the automatic centre source is still added.
+- **A shape in separate pieces** (four legs, two ears): each piece follows only the points nearest it. A piece with no points of its own borrows the nearest piece's, moved to the same place on its own box, so one point above one leg works for every leg. With no points at all, each piece gets its own centre source.
+- Specks under about 40 grid cells join the nearest real piece.
 - Typical face: one source near the nose. Use extra sources for cowlicks, swirls for whorls.
 
 ## Performance

@@ -62,7 +62,9 @@
 
 <script type="module">
 import { createFur, DEFAULTS } from './fur.js';
-import { GAV } from './gav-parts.js';   // Gav's parts in both coats, from cat-stretch.html (node fur/make-parts.js)
+import { GAV } from './gav-parts.js';
+// sizes mean the same on every part: fur.js units per Gav (body) unit they are meant at, the head's fit (Gav keeps the same, FUR_UNIT)
+const FUR_UNIT = 5.05;   // Gav's parts in both coats, from cat-stretch.html (node fur/make-parts.js)
 import { earGlow, glowOf } from './ear-glow.js';   // the inner ears' gradients
 const $ = id => document.getElementById(id);
 
@@ -87,7 +89,7 @@ const GROUPS = {
     ['rim', 'Edge brightness', 0, 0.6, 0.01],
   ],
   'Shape blur (base)': [
-    ['blur', 'Shape blur', 0, 100, 1], ['edgeInset', 'Shape inset', -30, 50, 1],
+    ['blur', 'Shape blur', 0, 100, 1], ['edgeInset', 'Shape inset', -30, 50, 1], ['keepShape', 'Most inset', 0, 30, 1],
   ],
   'Flow': [
     ['gravity', 'Gravity', -1, 1, 0.01], ['edgeOut', 'Edge hair points outward', 0, 1.5, 0.01],
@@ -97,7 +99,7 @@ const GROUPS = {
     ['colorBlur', 'Color blur', 0, 60, 1], ['shading', 'Shading', 0, 1, 0.01], ['__bg', 'Background', 'color'],
   ],
 };
-const INSTANT = new Set(['blur', 'edgeInset', 'petRadius']);   // no rebuild needed
+const INSTANT = new Set(['blur', 'edgeInset', 'keepShape', 'petRadius']);   // no rebuild needed
 
 /* ---------- build controls ---------- */
 const inputs = {};
@@ -135,7 +137,7 @@ const all = await fetch('settings.json', { cache: 'no-store' }).then(r => r.ok ?
 const valuesOf = p => {
   const name = p.replace(/(Siamese|Black)$/, ''), c = p.slice(name.length), head = (name === 'innerEars' && all['ears' + c]) || (name === 'fullBody' && all['legs' + c]) || all['head' + c] || all.headSiamese;
   const { glow, glowSize, ...v } = all[p] || { ...head, points: GAV[name].points };   // (the gradient is kept with them, not fur.js's)
-  return { ...DEFAULTS, quality: 'medium', colorSource: 'svg', ...v, invert: name === 'innerEars' };   // (inner ears: the dark ear's hairs lie in over them)
+  return { ...DEFAULTS, quality: 'medium', colorSource: 'svg', ...v, invert: name === 'innerEars', keepShape: typeof v.keepShape === 'number' ? v.keepShape : 6, unit: FUR_UNIT * (GAV[name].scale || 1) };   // (inner ears: the dark ear's hairs lie in over them; keepShape: how far inside Gav's drawing the solid fur may end, Most inset)
 };
 const fur = createFur($('stage'), { ...valuesOf(part), pet: true });
 // the inner ears' gradients as placed now (G), and the drawing as shown
@@ -146,7 +148,7 @@ const chan = 'BroadcastChannel' in window ? new BroadcastChannel('gav-fur') : nu
 let saveT = null, savePart = part;
 function save() {
   clearTimeout(saveT); saveT = null;
-  const settings = { ...fur.get(), ...(/^innerEars/.test(savePart) ? G : {}) }, p = savePart;
+  const { unit, ...v } = fur.get(), settings = { ...v, ...(/^innerEars/.test(savePart) ? G : {}) }, p = savePart;   // (unit: set by the part, not saved)
   all[p] = settings;
   fetch('__save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ part: p, settings }) })
     .then(r => { if (!r.ok) throw r.status; $('shapeErr').textContent = ''; }).catch(() => { $('shapeErr').textContent = 'Not saved'; });

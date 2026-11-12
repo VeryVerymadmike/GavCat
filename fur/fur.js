@@ -45,6 +45,8 @@ export const DEFAULTS = {
   edgeOut: 0.5,             // how much edge hair turns to point outward
   waviness: 0.12,
   invert: false,            // edge hairs grow from outside the outline (where the SVG paints round it) and lie in over the shape
+  unit: false,              // false, or the stage units per shape unit the sizes below are meant at: then every part shows them the same size, however it is fitted in
+  keepShape: false,         // false, or how far inside the outline the soft base may end at most (units; true = 0, right at it), whatever edgeInset says
   points: [],               // [{ x, y (0–1 of stage), type: 'source' | 'swirl', strength: 1 }]; empty = auto (centre)
   // petting
   pet: true,
@@ -56,8 +58,8 @@ const QUALITY = {
   medium: { cover: 0.65, hw: 1.4, seg: 3, dpr: 2 },
   low:    { cover: 0.5,  hw: 2.0, seg: 2, dpr: 1.5 },
 };
-const BASE_KEYS = new Set(['blur', 'edgeInset']);
-const COLOR_KEYS = new Set(['colorInner', 'colorOuter', 'shading', 'colorSource', 'colorBlur', 'invert']);
+const BASE_KEYS = new Set(['blur', 'edgeInset', 'keepShape']);
+const COLOR_KEYS = new Set(['unit', 'colorInner', 'colorOuter', 'shading', 'colorSource', 'colorBlur', 'invert']);
 const LIVE_KEYS = new Set(['pet', 'petRadius']);
 
 /* ---------- small helpers ---------- */
@@ -187,6 +189,8 @@ export function createFur(container, options = {}) {
   let SPINES_SVG = [], SPINES = [], SP = [], SPID = [], FLAG = [], RT = [], FIT = { tx: 0, ty: 0, s: 1 }, BENT = null;
   const gi = (x, y) => { x = x / GS | 0; y = y / GS | 0; return x < 0 || y < 0 || x >= GN || y >= GN ? -1 : y * GN + x; };
   const Q = () => QUALITY[o.quality] || QUALITY.high;
+  // sizes (hair length and width, insets, bands, blurs) are in stage units; with unit set they are meant at that fit, so scaled by how this shape is fitted
+  const Z = () => typeof o.unit === 'number' && o.unit > 0 ? FIT.s / o.unit : 1;
 
   /* --- shape → mask --- */
   async function rasterize(svg) {
@@ -248,6 +252,7 @@ export function createFur(container, options = {}) {
     SDF = new Float32Array(NC); DMAX = 1;
     for (let i = 0; i < NC; i++) { SDF[i] = (IN[i] ? din[i] - 0.5 : -(dout[i] - 0.5)) * GS; if (SDF[i] > DMAX) DMAX = SDF[i]; }
     CEN = cnt ? { x: (sx / cnt + 0.5) * GS, y: (sy / cnt + 0.5) * GS } : { x: W / 2, y: H / 2 };
+    prepPieces();
     const N4 = new Float32Array(NC * 4);
     for (let y = 0; y < GN; y++) for (let x = 0; x < GN; x++) {
       const i = y * GN + x;
@@ -283,7 +288,7 @@ export function createFur(container, options = {}) {
         for (let i = 0; i < NC; i++) if (!IN[i]) { const a = SVG_PX[i * 4 + 3] / 255;
           S4o[i * 4] = SVG_PX[i * 4] * a; S4o[i * 4 + 1] = SVG_PX[i * 4 + 1] * a; S4o[i * 4 + 2] = SVG_PX[i * 4 + 2] * a; S4o[i * 4 + 3] = a; }
       }
-      const r = Math.round(o.colorBlur / GS);
+      const r = Math.round(o.colorBlur * Z() / GS);
       if (r > 0) for (let k = 0; k < 3; k++) { boxBlur(S4, GN, GN, r); if (S4o) boxBlur(S4o, GN, GN, r); }   // soft stain edges
     }
     COL = new Float32Array(NC * 3); const C = new Float32Array(NC * 4);
@@ -308,7 +313,7 @@ export function createFur(container, options = {}) {
   /* --- soft base: alpha = smooth step across the outline --- */
   function paintBase() {
     const b = baseCv.getContext('2d'), img = b.createImageData(GN, GN);
-    const lo = o.edgeInset - o.blur / 2, w = Math.max(o.blur, 0.01);
+    const z = Z(), w = Math.max(o.blur * z, 0.01), k = o.keepShape === true ? 0 : typeof o.keepShape === 'number' ? o.keepShape * z : o.keepShape, lo = typeof k === 'number' ? Math.min((o.edgeInset - o.blur / 2) * z, k - w) : (o.edgeInset - o.blur / 2) * z;   // (keepShape: solid by then at the latest)
     for (let i = 0; i < NC; i++) {
       const t = clamp((SDF[i] - lo) / w, 0, 1), al = t * t * (3 - 2 * t);
       if (al <= 0) continue;
@@ -319,25 +324,75 @@ export function createFur(container, options = {}) {
     sendBase();
   }
 
+  /* --- pieces: a shape in separate parts (four legs, two ears) — each piece's hair follows only its own points --- */
+  // PIECE: each cell's piece (outside cells: the nearest inside cell's), PIECES: their boxes; specks join the nearest real piece
+  let PIECE = null, PIECES = [], PIECE_PTS = null;
+  function prepPieces() {
+    PIECE = new Int32Array(NC).fill(-1); PIECES = [];
+    const stack = [];
+    for (let s = 0; s < NC; s++) {
+      if (!IN[s] || PIECE[s] >= 0) continue;
+      const id = PIECES.length, P = { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9, sx: 0, sy: 0, n: 0 };
+      PIECE[s] = id; stack.push(s);
+      while (stack.length) {
+        const i = stack.pop(), x = i % GN, y = i / GN | 0;
+        P.x0 = Math.min(P.x0, x); P.x1 = Math.max(P.x1, x); P.y0 = Math.min(P.y0, y); P.y1 = Math.max(P.y1, y); P.sx += x; P.sy += y; P.n++;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const X = x + dx, Y = y + dy, j = Y * GN + X;
+          if (X >= 0 && Y >= 0 && X < GN && Y < GN && IN[j] && PIECE[j] < 0) { PIECE[j] = id; stack.push(j); }
+        }
+      }
+      PIECES.push(P);
+    }
+    const big = PIECES.map((P, k) => k).filter(k => PIECES[k].n >= 40), to = PIECES.map((P, k) => {
+      if (P.n >= 40 || !big.length) return k;
+      let b = big[0], bd = Infinity;
+      for (const q of big) { const Q = PIECES[q], d = Math.hypot(Q.sx / Q.n - P.sx / P.n, Q.sy / Q.n - P.sy / P.n); if (d < bd) { bd = d; b = q; } }
+      return b;
+    });
+    for (let i = 0; i < NC; i++) { const s = IN[i] ? i : NEAR[i]; PIECE[i] = s >= 0 ? to[PIECE[s]] : -1; }
+    for (const P of PIECES) Object.assign(P, { x0: P.x0 * GS, y0: P.y0 * GS, x1: (P.x1 + 1) * GS, y1: (P.y1 + 1) * GS, cx: (P.sx / P.n + 0.5) * GS, cy: (P.sy / P.n + 0.5) * GS });
+    PIECE_PTS = null;
+  }
+  // the points each piece's hair follows: the ones placed by it (nearest to it); a piece with none borrows the nearest
+  // piece's, moved to the same place on its own box (one point above a leg → above every leg); none at all → its centre
+  function piecePoints() {
+    const n = PIECES.length, own = PIECES.map(() => []), all = o.points;
+    if (n <= 1) return [all.some(p => p.type !== 'swirl') ? all : [{ x: CEN.x / W, y: CEN.y / H, type: 'source', strength: 1 }, ...all]];
+    for (const p of all) { const i = gi(p.x * W, p.y * H), k = i >= 0 ? PIECE[i] : -1; if (k >= 0) own[k].push(p); else own[0].push(p); }
+    return PIECES.map((P, k) => {
+      let pts = own[k];
+      if (!pts.length) {
+        let b = -1, bd = Infinity;
+        own.forEach((q, j) => { if (!q.length) return; const Q = PIECES[j], d = Math.hypot(Q.cx - P.cx, Q.cy - P.cy); if (d < bd) { bd = d; b = j; } });
+        if (b >= 0) { const Q = PIECES[b], sx = (P.x1 - P.x0) / (Q.x1 - Q.x0 || 1), sy = (P.y1 - P.y0) / (Q.y1 - Q.y0 || 1);
+          pts = own[b].map(p => ({ ...p, x: (P.x0 + (p.x * W - Q.x0) * sx) / W, y: (P.y0 + (p.y * H - Q.y0) * sy) / H })); }
+      }
+      return pts.some(p => p.type !== 'swirl') ? pts : [{ x: P.cx / W, y: P.cy / H, type: 'source', strength: 1 }, ...pts];
+    });
+  }
+
   /* --- hair direction --- */
-  const edgeOf = d => { const t = clamp(1 - (d - o.hairInset) / o.edgeBand, 0, 1); return t * t * (3 - 2 * t); };
+  const edgeOf = d => { const z = Z(), t = clamp(1 - (d - o.hairInset * z) / (o.edgeBand * z), 0, 1); return t * t * (3 - 2 * t); };
   function flow(x, y, out) {   // out: an inverted edge hair (see makeLines)
-    const pts = o.points.some(p => p.type !== 'swirl') ? o.points       // no source placed → auto source at the centre
-      : [{ x: CEN.x / W, y: CEN.y / H, type: 'source', strength: 1 }, ...o.points];
+    if (!PIECE_PTS) PIECE_PTS = piecePoints();
+    const i0 = gi(x, y), pts = PIECE_PTS[PIECE_PTS.length > 1 && i0 >= 0 && PIECE[i0] >= 0 ? PIECE[i0] : 0];
+    const z = Z(), z2 = z * z, band = (o.hairInset + o.edgeBand) * z;
     let vx = 0, vy = 0;
     for (const p of pts) {                                       // nearest point dominates (1/d²)
       const dx = x - p.x * W, dy = y - p.y * H, d2 = dx * dx + dy * dy, d = Math.sqrt(d2) || 1;
       if (p.type === 'swirl') {                                  // swirls are local (fade out ~160 units away)
-        const w = 3 * (p.strength ?? 1) / (d2 + 1600) * Math.exp(-d2 / 25600);
+        const w = 3 * (p.strength ?? 1) / (d2 + 1600 * z2) * Math.exp(-d2 / (25600 * z2));
         vx += -dy / d * w; vy += dx / d * w;
-      } else { const w = (p.strength ?? 1) / (d2 + 1600); vx += dx / d * w; vy += dy / d * w; }
+      } else { const w = (p.strength ?? 1) / (d2 + 1600 * z2); vx += dx / d * w; vy += dy / d * w; }
     }
     const l = Math.hypot(vx, vy) || 1; vx /= l; vy /= l;
     const i = gi(x, y);
-    if (i >= 0 && !o.invert) { const e = clamp(1 - SDF[i] / (o.hairInset + o.edgeBand), 0, 1); vx += o.edgeOut * e * NX[i]; vy += o.edgeOut * e * NY[i]; }
-    else if (i >= 0 && out) { const e = clamp(1 + SDF[i] / (o.hairInset + o.edgeBand), 0, 1); vx -= o.edgeOut * e * NX[i]; vy -= o.edgeOut * e * NY[i]; }   // (turned in)
+    if (i >= 0 && !o.invert) { const e = clamp(1 - SDF[i] / band, 0, 1); vx += o.edgeOut * e * NX[i]; vy += o.edgeOut * e * NY[i]; }
+    else if (i >= 0 && out) { const e = clamp(1 + SDF[i] / band, 0, 1); vx -= o.edgeOut * e * NX[i]; vy -= o.edgeOut * e * NY[i]; }   // (turned in)
     vy += o.gravity;
-    return Math.atan2(vy, vx) + o.waviness * Math.sin(x * 0.035 + y * 0.02) * Math.cos(y * 0.03 - x * 0.012);
+    const wx = x / z, wy = y / z;
+    return Math.atan2(vy, vx) + o.waviness * Math.sin(wx * 0.035 + wy * 0.02) * Math.cos(wy * 0.03 - wx * 0.012);
   }
 
   /* --- spines: each spot tied to the nearest one --- */
@@ -375,8 +430,9 @@ export function createFur(container, options = {}) {
 
   /* --- lines --- */
   function makeLines() {
-    rand = seeded(o.seed);
-    const q = Q(), S = 2.0, out = [], inv = !!o.invert;
+    rand = seeded(o.seed); PIECE_PTS = null;   // (points may have changed)
+    const q0 = Q(), z = Z(), q = { ...q0, hw: q0.hw * z }, S = 2.0, out = [], inv = !!o.invert;
+    const hairInset = o.hairInset * z, edgeBand = o.edgeBand * z, hairMin = o.hairMin * z, hairMax = o.hairMax * z;
     const passes = [
       { cover: 2.1, len: 1.0, op: [0.6, 0.35], jit: 1.0, inner: o.innerDensity }, // main layer
       { cover: 1.4, len: 0.6, op: [0.65, 0.3], jit: 1.85, inner: 0 },             // fine detail at the edge
@@ -391,12 +447,12 @@ export function createFur(container, options = {}) {
           // inverted: the edge hairs root outside the outline (hairInset to hairInset + edgeBand out, only where the SVG paints:
           // the ear round an inner ear) and lie in over the shape, which keeps only its inner hairs. d: how far from the outline
           const ex = inv && SDF[i] < 0, d = ex ? -SDF[i] : SDF[i];
-          if (ex ? d < o.hairInset || d > o.hairInset + o.edgeBand || SVG_PX[i * 4 + 3] < 128 : !inv && d < o.hairInset) break;   // roots inside the hair outline
+          if (ex ? d < hairInset || d > hairInset + edgeBand || SVG_PX[i * 4 + 3] < 128 : !inv && d < hairInset) break;   // roots inside the hair outline
           const dn = clamp(1 - d / DMAX, 0, 1), e = inv && !ex ? 0 : edgeOf(d);
-          const len0 = (o.hairMin + (o.hairMax - o.hairMin) * dn ** 1.6) * P.len * (0.75 + 0.5 * rand());
+          const len0 = (hairMin + (hairMax - hairMin) * dn ** 1.6) * P.len * (0.75 + 0.5 * rand());
           let len = len0 * (1 + o.edgeLength * e * e);                   // longer toward the edge
           const a = flow(x, y, ex) + (rand() - 0.5) * 0.22;
-          const ai = gi(x + Math.cos(a) * 12, y + Math.sin(a) * 12), rim = !(inv && !ex) && (ai < 0 || (ex ? -SDF[ai] : SDF[ai]) < o.hairInset);
+          const ai = gi(x + Math.cos(a) * 12 * z, y + Math.sin(a) * 12 * z), rim = !(inv && !ex) && (ai < 0 || (ex ? -SDF[ai] : SDF[ai]) < hairInset);
           if (rim) len *= 1.2 + 0.6 * rand();                            // wispy outline
           if (inv && !ex) { const ti = gi(x + Math.cos(a) * len, y + Math.sin(a) * len), dt = ti < 0 ? -len : SDF[ti];
             if (dt < 0) len *= clamp(d / (d - dt), 0.15, 1); }           // (inverted, inside: ends at the outline)
@@ -609,6 +665,7 @@ export function createFur(container, options = {}) {
     rebuild: build,
     toStage,                                   // client px → 0–1 stage coords (for placing points)
     stats: () => ({ lines: N, buildMs, fps }),
+    fit: () => ({ ...FIT }),                   // how the shape sits in the stage (stage = shape × s + t)
     destroy() {
       ro.disconnect();
       container.removeEventListener('pointermove', onMove);
