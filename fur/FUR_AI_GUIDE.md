@@ -40,7 +40,7 @@ fur.rebuild();                                 // regenerate hairs with current 
 fur.toStage(clientX, clientY);                 // → { x, y } in 0–1 stage coords (for placing points)
 fur.stats();                                   // → { lines, buildMs, fps }
 fur.destroy();                                 // remove canvases, listeners, GL context — call on unmount
-fur.bend(spines, view);                        // bending parts: move the fur with its spines (see below); only redraws
+fur.bend(spines, view, floor);                 // bending parts: move the fur with its spines (see below); only redraws
 fur.spines();                                  // the shape's spines as drawn (its own units)
 ```
 - `containerEl` should be **square**. The module appends two absolutely-positioned canvases and sets `position: relative` and `touch-action: none`. Size it with CSS; a ResizeObserver handles the rest.
@@ -118,6 +118,7 @@ For a part that bends (a tail, a leg), fur.js can move the fur with it **without
   - `spines`: the spines as they are now, one list per `data-fur-spine` line, in the same order and with the same point counts. Each point is `[x, y]` or `[x, y, widthScale]`.
   - `view`: `{ x, y, width, height }`, the rectangle the canvas shows, in the same units. Keep it the canvas's shape. Left out, it is the stage in the shape's own units.
   - `bend(null)`: back to the shape as drawn.
+  - `bend(spines, view, floor)`: `floor` is optional, a y in view units. A hair that would go below it is pressed flat along it, spreading sideways. The soft base is cut there. Added 2026-11-18; Gav passes his floor line.
 - While bent, the soft base is drawn in WebGL (its own 2D canvas is hidden), and petting is off.
 - When several parts share one shape (four legs), lay them out apart: every spot must lie nearer its own spine than any other. Its spine must not run on toward another part either.
 

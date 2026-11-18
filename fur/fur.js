@@ -112,17 +112,17 @@ layout(location=0) in vec2 a_pos;    // grid point (stage units)
 layout(location=1) in vec4 a_sp;
 layout(location=2) in vec4 a_sp2;
 layout(location=3) in float a_w;
-uniform float u_k; uniform vec4 u_view, u_sp[${MAXP}];
-out vec2 v_uv;
+uniform float u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}];
+out vec2 v_uv; out float v_y;
 ${SPINE_GLSL}
 void main(){
-  vec2 q = mix(spineAt(a_sp).xy, spineAt(a_sp2).xy, a_w); v_uv = a_pos / 780.0;
+  vec2 q = mix(spineAt(a_sp).xy, spineAt(a_sp2).xy, a_w); v_uv = a_pos / 780.0; v_y = q.y;
   gl_Position = vec4((q.x - u_view.x) / u_view.z * 2.0 - 1.0, 1.0 - (q.y - u_view.y) / u_view.w * 2.0, 0.0, 1.0);
 }`;
 const FSB = `#version 300 es
 precision highp float;
-in vec2 v_uv; uniform sampler2D u_tex; out vec4 o;
-void main(){ o = texture(u_tex, v_uv); }`;
+in vec2 v_uv; in float v_y; uniform sampler2D u_tex; uniform float u_floor; out vec4 o;
+void main(){ o = texture(u_tex, v_uv) * (1.0 - smoothstep(u_floor - 0.3, u_floor + 0.4, v_y)); }`;   // (nothing of it below the floor)
 const VS = `#version 300 es
 layout(location=0) in vec2 a_tv;     // t along line (0 root → 1 tip), side (-1 | 1)
 layout(location=1) in vec4 a_root;   // x, y, angle, length
@@ -132,7 +132,7 @@ layout(location=4) in float a_off;   // petting offset (radians)
 layout(location=5) in vec4 a_sp;     // on its spine: segment, t along it, offsets along / across it (stage units)
 layout(location=6) in vec4 a_sp2;    // the same on the next nearest segment of that spine
 layout(location=7) in vec3 a_sw;     // share of that one, and the drawn spine's direction at each
-uniform float u_px, u_bent, u_k; uniform vec4 u_view, u_sp[${MAXP}];
+uniform float u_px, u_bent, u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}];
 out vec4 v_col; out float v_side; out float v_soft;
 ${SPINE_GLSL}
 void main(){
@@ -155,6 +155,9 @@ void main(){
   }
   float cs = cos(ang), sn = sin(ang);
   vec2 q = r + vec2(cs * p.x - sn * p.y, sn * p.x + cs * p.y) * k;
+  if (u_bent > 0.5 && q.y > u_floor) {                       // on the floor: a hair that would go through it is pressed flat along it
+    float e = q.y - max(r.y, u_floor); q = vec2(q.x + (q.x >= r.x ? 1.0 : -1.0) * e * 0.85, u_floor - e * 0.06);
+  }
   gl_Position = vec4((q.x - u_view.x) / u_view.z * 2.0 - 1.0, 1.0 - (q.y - u_view.y) / u_view.w * 2.0, 0.0, 1.0);
   v_col = vec4(a_col.rgb, a); v_side = a_tv.y; v_soft = soft;
 }`;
@@ -497,7 +500,7 @@ export function createFur(container, options = {}) {
     gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; };
   const prog = link(VS, FS), progB = link(VSB, FSB);
   const U = (p, ...n) => Object.fromEntries(n.map(k => [k, gl.getUniformLocation(p, 'u_' + k)]));
-  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp'), uB = U(progB, 'k', 'view', 'sp', 'tex');
+  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'floor'), uB = U(progB, 'k', 'view', 'sp', 'tex', 'floor');
   // the bent base: grid (x, y, then its two spine spots and the second's share: 11 floats a point), and the base picture as a texture
   const vaoB = gl.createVertexArray(), gridBuf = gl.createBuffer(), idxBuf = gl.createBuffer(), tex = gl.createTexture(); let nIdx = 0;
   gl.bindVertexArray(vaoB); gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf);
@@ -579,13 +582,13 @@ export function createFur(container, options = {}) {
     const view = BENT ? BENT.view : [0, 0, W, H], k = 1 / FIT.s;
     if (BENT && nIdx) {                                          // bent: the soft base is drawn here (its own canvas is hidden)
       gl.useProgram(progB); gl.bindVertexArray(vaoB);
-      gl.uniform1f(uB.k, k); gl.uniform4fv(uB.view, view); gl.uniform4fv(uB.sp, BENT.sp); gl.uniform1i(uB.tex, 0);
+      gl.uniform1f(uB.k, k); gl.uniform1f(uB.floor, BENT.floor); gl.uniform4fv(uB.view, view); gl.uniform4fv(uB.sp, BENT.sp); gl.uniform1i(uB.tex, 0);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.drawElements(gl.TRIANGLES, nIdx, gl.UNSIGNED_SHORT, 0);
     }
     gl.useProgram(prog); gl.bindVertexArray(vaoH);
     if (!N) return;
-    gl.uniform1f(uH.px, cv.width / view[2]); gl.uniform4fv(uH.view, view); gl.uniform1f(uH.bent, BENT ? 1 : 0); gl.uniform1f(uH.k, k);
+    gl.uniform1f(uH.px, cv.width / view[2]); gl.uniform4fv(uH.view, view); gl.uniform1f(uH.bent, BENT ? 1 : 0); gl.uniform1f(uH.k, k); gl.uniform1f(uH.floor, BENT ? BENT.floor : 1e9);
     if (BENT) gl.uniform4fv(uH.sp, BENT.sp);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, VERTS, N);
   }
@@ -648,14 +651,15 @@ export function createFur(container, options = {}) {
     },
     // the shape's spines as they are now: one list of points per data-fur-spine line (same order and counts), each point
     // [x, y] or [x, y, width scale], in the units of view {x, y, width, height} (the rectangle the canvas shows; keep it the
-    // canvas's shape). view left out: the stage in the shape's own units. null: back to the shape as drawn. Only redraws
-    bend(spines, view) {
+    // canvas's shape). view left out: the stage in the shape's own units. null: back to the shape as drawn. Only redraws.
+    // floor (optional, a y in view units): nothing goes below it; hairs that would are pressed flat along it, the soft base is cut there
+    bend(spines, view, floor) {
       if (!spines || !SPINES.length) { BENT = null; baseCv.style.visibility = ''; draw(); return; }
       if (spines.length !== SPINES.length || spines.some((p, j) => p.length !== SPINES[j].length)) throw new Error('bend needs the shape\'s spines, point for point');
       const sp = BENT?.sp || new Float32Array(MAXP * 4); let n = 0;
       spines.forEach(p => p.forEach((q, i) => sp.set([q[0], q[1], q[2] ?? 1, (i === 0 ? 1 : 0) | (i === p.length - 1 ? 2 : 0)], 4 * n++)));
       const v = view || { x: -FIT.tx / FIT.s, y: -FIT.ty / FIT.s, width: W / FIT.s, height: H / FIT.s };
-      BENT = { sp, view: [v.x, v.y, v.width, v.height] };
+      BENT = { sp, view: [v.x, v.y, v.width, v.height], floor: typeof floor === 'number' ? floor : 1e9 };
       baseCv.style.visibility = 'hidden'; draw();
     },
     spines: () => JSON.parse(JSON.stringify(SPINES_SVG)),   // the shape's spines as drawn (its own units)

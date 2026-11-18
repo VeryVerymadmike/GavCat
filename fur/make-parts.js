@@ -51,9 +51,9 @@ function snap(which) {
     for (let i = 0; i + 1 < n.length; i += 2) { const q = new DOMPoint(n[i], n[i + 1]).matrixTransform(m); out.push([q.x, q.y]); }
     return out; };
   const fewer = (P, k) => Array.from({ length: k }, (_, i) => P[Math.round(i * (P.length - 1) / (k - 1))]);
-  const leg = k => ({ ...item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], p.legs[k]), far: k[1] === 'f' });   // (far: the pair behind the body, its own light)
+  const leg = k => ({ ...item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], furLegSpine(p, k)), far: k[1] === 'f' });   // (its line starts above the hip / shoulder: see furLegSpine)   // (far: the pair behind the body, its own light)
   const bodyItem = () => item(['body', 'massRib', 'massPel', 'bellyBlob', 'bellyShade'].map($), ['body', 'massRib', 'massPel', 'bellyBlob'].map($), p.skel.spine);
-  const neckItem = () => item([$('neck')], [$('neck')], [p.neck, [p.head.x, p.head.y + HEAD_DROP]]);
+  const neckItem = () => item([$('neck')], [$('neck')], (h => [p.neck, neckMid(p, p.neck, h), h])([p.head.x, p.head.y + HEAD_DROP]));
   const whole = which === 'fullBody';   // neck, body + belly and the four legs where Gav has them, painted in his order: one fur over all of them
   const L = whole ? [leg('bf'), leg('ff'), bodyItem(), neckItem(), leg('bn'), leg('fn')]
     : which === 'ears' || which === 'innerEars' ? [['earL', 'ptInnerL', 'earSpineL'], ['earR', 'ptInnerR', 'earSpineR']]   // (the two layers: same spines)
