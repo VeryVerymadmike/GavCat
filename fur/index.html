@@ -7,11 +7,18 @@
 <style>
   :root{--bg:#3d3846;--panel:#47414f;--line:#625a6c;--text:#eee;--dim:#b4adbd;--accent:#c9b9e8}
   html,body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,sans-serif}
-  main{display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px;max-width:640px;margin:auto}
-  #wrap{position:relative;width:min(94vw,560px,70vh);aspect-ratio:1;background:var(--stage);border-radius:12px}
-  #stage{position:absolute;inset:0;cursor:grab}
-  #under{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  /* the cat on the left as big as the room left beside the controls, the controls on the right (their width dragged by the bar between) */
+  main{display:flex;height:100vh;box-sizing:border-box;padding:12px;gap:0}
+  #view{flex:1;min-width:200px;display:flex;flex-direction:column;align-items:center;gap:10px;overflow-y:auto}
+  #wrap{position:relative;width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;flex:none;background:#8f938b}
+  #split{flex:none;width:12px;cursor:col-resize;display:flex;justify-content:center}
+  #split::after{content:"";width:4px;margin:0 4px;border-radius:2px;background:var(--line)}
+  #split:hover::after,#split.drag::after{background:var(--accent)}
+  #side{flex:none;width:var(--side,420px);min-width:280px;max-width:70vw;overflow-y:auto}
+  /* Gav himself, as the project has him (the cat page in its fur page mode): only looked at, the overlay takes the pointer */
+  #cat{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
   #overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #overlay.place{pointer-events:all;cursor:crosshair}
   .modes{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
   button,select{font:inherit;padding:6px 10px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--text)}
   button.on{background:var(--accent);color:#2a2530;border-color:var(--accent)}
@@ -22,7 +29,6 @@
   .ctl{display:grid;grid-template-columns:1fr 130px 42px;gap:8px;align-items:center;margin:6px 0;font-size:13px}
   .ctl b{font-weight:500;text-align:right;color:var(--dim)}
   input[type=range]{width:100%;accent-color:var(--accent)}
-  input[type=color]{width:100%;height:28px;border:none;background:none;padding:0}
   textarea{width:100%;box-sizing:border-box;min-height:70px;background:#2f2b36;color:var(--text);border:1px solid var(--line);border-radius:8px;font:12px ui-monospace,monospace;padding:6px}
   .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0}
   .err{color:#ffb3b3;font-size:12px}
@@ -31,294 +37,320 @@
 </head>
 <body>
 <main>
+ <div id="view">
   <div id="wrap">
-    <svg id="under" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>
-    <div id="stage"></div>
-    <svg id="overlay" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>
+    <iframe id="cat" src="../?wallpaper&amp;furpage" title="Gav"></iframe>
+    <svg id="overlay"></svg>
   </div>
   <div class="modes">
-    <button data-mode="pet" class="on">Pet</button>
+    <button data-mode="move" class="on">Move</button>
     <button data-mode="source">+ Source point</button>
-    <button data-mode="swirl">+ Swirl point</button>
     <button data-mode="remove">Remove point</button>
-    <button data-mode="glow" id="glowMode" hidden>Move gradient</button>
-    <button id="clearPts">Clear points</button>
+    <button data-mode="glow" id="glowMode">Move gradient</button>
   </div>
   <div id="info">loading…</div>
-
+ </div>
+ <div id="split" title="Drag to resize"></div>
+ <div id="side">
   <div id="panel">
-    <div class="row"><select id="part"></select><select id="coat"></select><button id="regen">Regenerate</button>
+    <div class="row"><select id="target"></select><select id="coat"></select>
       <label class="bend"><input type="checkbox" id="fullBody" style="width:auto">Full body fur</label>
-      <label id="bendCtl" class="bend">Bend <input type="range" id="bend" min="-1" max="1" step="0.01" value="0"></label>
-      <label id="glowCtl" class="bend" hidden>Gradient size <input type="range" id="glowSize" min="0.2" max="1.5" step="0.01" value="0.6"></label><span id="shapeErr" class="err"></span></div>
+      <label class="bend">Pose <select id="pose"></select></label>
+      <label id="glowCtl" class="bend" hidden>Gradient size <input type="range" id="glowSize" min="0.2" max="1.5" step="0.01" value="0.6"></label><span id="saveErr" class="err"></span></div>
     <div id="groups"></div>
     <details>
       <summary>Copy &amp; load</summary>
-      <div class="row"><button id="copy">Copy settings + shape</button><button id="load">Load from box</button><span id="copyMsg" class="err" style="color:var(--dim)"></span></div>
+      <div class="row"><button id="copy">Copy settings</button><button id="load">Load from box</button><span id="copyMsg" class="err" style="color:var(--dim)"></span></div>
       <textarea id="json" spellcheck="false"></textarea>
     </details>
   </div>
+ </div>
 </main>
 
+<script>
+// the controls' width: dragged by the bar beside them, remembered in this browser
+(() => {
+  const root = document.documentElement, split = document.getElementById('split');
+  let w = 0; try { w = +localStorage.getItem('furSideW'); } catch (e) {}
+  root.style.setProperty('--side', (w || Math.round(Math.min(Math.max(innerWidth - (innerHeight - 90) - 36, 280), innerWidth * 0.7))) + 'px');   // (first time: the cat fits the window's height)
+  split.addEventListener('pointerdown', e => {
+    e.preventDefault(); split.setPointerCapture(e.pointerId); split.classList.add('drag');
+    const move = ev => { const w = Math.round(Math.min(Math.max(innerWidth - ev.clientX - 18, 280), innerWidth * 0.7)); root.style.setProperty('--side', w + 'px'); };
+    const up = () => { split.classList.remove('drag'); split.removeEventListener('pointermove', move); split.removeEventListener('pointerup', up);
+      try { localStorage.setItem('furSideW', parseInt(getComputedStyle(root).getPropertyValue('--side'))); } catch (e) {} };
+    split.addEventListener('pointermove', move); split.addEventListener('pointerup', up);
+  });
+})();
+</script>
 <script type="module">
-import { createFur, DEFAULTS } from './fur.js';
+import { DEFAULTS } from './fur.js';
 import { GAV } from './gav-parts.js';
-// sizes mean the same on every part: fur.js units per Gav (body) unit they are meant at, the head's fit (Gav keeps the same, FUR_UNIT)
-const FUR_UNIT = 5.05;   // Gav's parts in both coats, from cat-stretch.html (node fur/make-parts.js)
-import { earGlow, glowOf } from './ear-glow.js';   // the inner ears' gradients
-const $ = id => document.getElementById(id);
+import { glowOf } from './ear-glow.js';   // the inner ears' gradients
+const $ = id => document.getElementById(id), NS = 'http://www.w3.org/2000/svg';
 
-/* ---------- Gav's parts, their colours from the SVG (coat, face stain, points); each part and coat keeps its own values,
-   saved as part + coat (headSiamese, legsBlack …). The bending parts carry their spines ---------- */
-const PARTS = { head: 'Head', ears: 'Ears', innerEars: 'Inner ears', neck: 'Neck', body: 'Body + belly', legs: 'Legs', fullBody: 'Full body', tail: 'Tail' };
-const SEPARATE = ['neck', 'body', 'legs'];   // what Full body fur replaces
+/* ---------- the whole cat: Gav in the frame is what the cat page shows (the same page, drawing, values and fur.js), held in a pose.
+   The sliders set a value on every part of what is chosen at once: the cat (head, body, legs, tail), or the ears, or the inner ears,
+   each with its own values (the inner ears' fur lies in the other way, see ear-glow.js) ---------- */
+const PARTS = ['head', 'ears', 'innerEars', 'body', 'legs', 'fullBody', 'tail'];   // (every part with its points)
+const TARGETS = { Cat: ['head', 'body', 'legs', 'fullBody', 'tail'], Ears: ['ears'], 'Inner ears': ['innerEars'] };
+let target = 'Cat';
 const COATS = { Siamese: 'siamese', Black: 'black' };
-let partName = 'head', coat = 'Siamese', part = 'headSiamese', shape = GAV.head.siamese;
-document.documentElement.style.setProperty('--stage', GAV.bg);
+const all = await fetch('settings.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+let coat = 'Siamese', fullOn = !!all.options?.fullBody;
+// a part's values as the cat takes them (one not tuned yet in this coat: the ones it falls back on, with its own flow points)
+const valuesOf = (part, c = coat) => {
+  const v = all[part + c]; if (v) return v;
+  const from = (part === 'innerEars' && all['ears' + c]) || (part === 'fullBody' && all['legs' + c]) || all['head' + c] || all.headSiamese || DEFAULTS;
+  return { ...from, points: (GAV[part] && GAV[part].points) || [] };
+};
+const mainPart = () => target === 'Cat' ? (fullOn ? 'fullBody' : 'body') : TARGETS[target][0];   // (the sliders show its values)
+
+/* ---------- saving: each part into fur/settings.json (the edit server), and sent to every open cat page (the one here too) ---------- */
+const chan = new BroadcastChannel('gav-fur');
+function savePart(key, settings) {
+  all[key] = settings;
+  fetch('__save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ part: key, settings }) })
+    .then(r => { if (!r.ok) throw r.status; $('saveErr').textContent = ''; }).catch(() => { $('saveErr').textContent = 'Not saved'; });
+  chan.postMessage({ part: key, settings });
+}
 
 /* ---------- slider groups: [key, label, min, max, step] ---------- */
 const GROUPS = {
   'Fur': [
     ['hairMin', 'Hair length inside', 2, 20, 1], ['hairMax', 'Hair length near edge', 5, 60, 1],
-    ['innerDensity', 'Inner density', 0, 1, 0.01], ['crisp', 'Sharp inner hairs', 0, 1, 0.01],
-    ['variation', 'Strand variation', 0, 0.5, 0.01],
-  ],
-  'Edge': [
-    ['edgeDensity', 'Edge density', 0.5, 4, 0.1], ['edgeLength', 'Edge hair length ×', 0, 4, 0.1],
-    ['hairInset', 'Hair inset', 0, 70, 1], ['edgeBand', 'Edge band width', 10, 120, 1],
+    ['edgeLength', 'Edge hair length ×', 0, 4, 0.1], ['innerDensity', 'Inner density', 0, 1, 0.01],
+    ['edgeDensity', 'Edge density', 0.5, 4, 0.1], ['edgeBand', 'Edge band width', 10, 120, 1],
+    ['crisp', 'Sharp inner hairs', 0, 1, 0.01], ['variation', 'Strand variation', 0, 0.5, 0.01],
     ['rim', 'Edge brightness', 0, 0.6, 0.01],
   ],
-  'Shape blur (base)': [
-    ['blur', 'Shape blur', 0, 100, 1], ['edgeInset', 'Shape inset', -30, 50, 1], ['keepShape', 'Most inset', 0, 30, 1],
-  ],
-  'Flow': [
-    ['gravity', 'Gravity', -1, 1, 0.01], ['edgeOut', 'Edge hair points outward', 0, 1.5, 0.01],
-    ['waviness', 'Waviness', 0, 0.5, 0.01], ['petRadius', 'Pet brush size', 20, 160, 1],
-  ],
-  'Color': [
-    ['colorBlur', 'Color blur', 0, 60, 1], ['shading', 'Shading', 0, 1, 0.01], ['__bg', 'Background', 'color'],
-  ],
+  'Shape blur': [['blur', 'Shape blur', 0, 100, 1], ['hairInset', 'Fur outset', 0, 15, 0.5]],
+  'Flow': [['gravity', 'Gravity', -1, 1, 0.01], ['edgeOut', 'Edge hair points outward', 0, 1.5, 0.01], ['waviness', 'Waviness', 0, 0.5, 0.01]],
+  'Color': [['colorBlur', 'Color blur', 0, 60, 1], ['shading', 'Shading', 0, 1, 0.01]],
 };
-const INSTANT = new Set(['blur', 'edgeInset', 'keepShape', 'petRadius']);   // no rebuild needed
-
-/* ---------- build controls ---------- */
+// shown the other way round: Fur outset is how far outside Gav's outline the fur starts (fur.js's hairInset below 0)
+const FLIP = new Set(['hairInset']);
 const inputs = {};
 for (const [name, list] of Object.entries(GROUPS)) {
-  const d = document.createElement('details'); d.open = name === 'Edge' || name === 'Shape blur (base)';
+  const d = document.createElement('details'); d.open = name === 'Fur' || name === 'Shape blur';
   d.innerHTML = `<summary>${name}</summary>`;
   for (const [key, label, min, max, step] of list) {
     const row = document.createElement('div'); row.className = 'ctl';
-    const isColor = min === 'color', isSel = min === 'select';
-    row.innerHTML = isColor ? `<span>${label}</span><input type="color"><b></b>`
-      : isSel ? `<span>${label}</span><select>${max.map(v => `<option>${v}</option>`).join('')}</select><b></b>`
-      : `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}"><b></b>`;
-    const inp = row.querySelector('input,select'), val = row.querySelector('b');
-    inp.oninput = () => {
-      const v = isColor || isSel ? inp.value : +inp.value;
-      if (!isColor) val.textContent = v;
-      if (key === '__bg') { document.documentElement.style.setProperty('--stage', v); return; }
-      queue({ [key]: v });
-    };
-    inputs[key] = { inp, val, isColor: isColor || isSel };
+    row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}"><b></b>`;
+    const inp = row.querySelector('input'), val = row.querySelector('b');
+    inp.oninput = () => { val.textContent = inp.value; queue({ [key]: FLIP.has(key) ? -inp.value : +inp.value }); };
+    inputs[key] = { inp, val };
     d.appendChild(row);
   }
   $('groups').appendChild(d);
 }
-function syncControls(s) {
-  for (const [key, { inp, val, isColor }] of Object.entries(inputs)) {
-    if (key === '__bg') { inp.value = getComputedStyle(document.documentElement).getPropertyValue('--stage').trim(); continue; }
-    inp.value = s[key]; if (!isColor) val.textContent = s[key];
+function syncControls() {
+  const s = { ...DEFAULTS, ...valuesOf(mainPart()) };
+  for (const [key, { inp, val }] of Object.entries(inputs)) { const v = FLIP.has(key) ? Math.max(0, -s[key]) : s[key]; inp.value = v; val.textContent = v; }
+}
+// a value moved: every part of this coat takes it (a moment after the slider stops: each part's fur is made again)
+let pending = {}, timer;
+function queue(patch) {
+  Object.assign(pending, patch); clearTimeout(timer);
+  timer = setTimeout(() => { const p = pending; pending = {}; for (const part of TARGETS[target]) savePart(part + coat, { ...valuesOf(part), ...p }); }, 300);
+}
+
+/* ---------- the cat in the frame ---------- */
+const frame = $('cat');
+let W = null;   // the frame's window, once its cat and fur are up
+const cd = () => W && W.catDebug;
+async function catReady() {
+  for (;;) {
+    try { const w = frame.contentWindow; if (w && w.catDebug && w.catDebug.furMap()) { W = w; return; } } catch (e) {}
+    await new Promise(r => setTimeout(r, 200));
   }
 }
+const POSE_NAMES = { stand: 'As drawn', sit: 'Sit', sitMid: 'Sitting down', lie: 'Lie', lieMid: 'Lying down', stretch: 'Stretch', reach: 'Reach',
+  jumpReady: 'Ready to jump', jumpPush: 'Jump', jumpFly: 'In the air', jumpAbsorb: 'Landing' };
+let pose = 'stand';
+function setPose(name) { pose = name; $('pose').value = name; if (!cd()) return; cd().furEdit = null; cd().pose(name); }
+$('pose').replaceChildren(...Object.entries(POSE_NAMES).map(([k, v]) => new Option(v, k)));
+$('pose').onchange = () => setPose($('pose').value);
 
-/* ---------- fur: medium quality, hair coloured by the SVG; the values kept in settings.json, which the cat reads ---------- */
-const all = await fetch('settings.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
-// a part not tuned yet starts from the head's values in its coat, with fur starting at its own roots
-const valuesOf = p => {
-  const name = p.replace(/(Siamese|Black)$/, ''), c = p.slice(name.length), head = (name === 'innerEars' && all['ears' + c]) || (name === 'fullBody' && all['legs' + c]) || all['head' + c] || all.headSiamese;
-  const { glow, glowSize, ...v } = all[p] || { ...head, points: GAV[name].points };   // (the gradient is kept with them, not fur.js's)
-  return { ...DEFAULTS, quality: 'medium', colorSource: 'svg', ...v, invert: name === 'innerEars', keepShape: typeof v.keepShape === 'number' ? v.keepShape : 6, unit: FUR_UNIT * (GAV[name].scale || 1) };   // (inner ears: the dark ear's hairs lie in over them; keepShape: how far inside Gav's drawing the solid fur may end, Most inset)
-};
-const fur = createFur($('stage'), { ...valuesOf(part), pet: true });
-// the inner ears' gradients as placed now (G), and the drawing as shown
-let G = glowOf(null);
-const inner = () => partName === 'innerEars', shapeNow = () => inner() ? earGlow(shape, G) : shape;
-// every change is saved (into fur/settings.json, through the edit server) and sent to an open cat page, which makes its fur again
-const chan = 'BroadcastChannel' in window ? new BroadcastChannel('gav-fur') : null;
-let saveT = null, savePart = part;
-function save() {
-  clearTimeout(saveT); saveT = null;
-  const { unit, ...v } = fur.get(), settings = { ...v, ...(/^innerEars/.test(savePart) ? G : {}) }, p = savePart;   // (unit: set by the part, not saved)
-  all[p] = settings;
-  fetch('__save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ part: p, settings }) })
-    .then(r => { if (!r.ok) throw r.status; $('shapeErr').textContent = ''; }).catch(() => { $('shapeErr').textContent = 'Not saved'; });
-  chan?.postMessage({ part: p, settings });
-}
-function set(patch) {
-  const r = fur.set(patch);
-  clearTimeout(saveT); savePart = part; saveT = setTimeout(save, 300);
-  return r;
-}
-let pending = {}, timer;
-function queue(patch) {                       // instant for base/brush, debounced rebuild for the rest
-  Object.assign(pending, patch);
-  const instant = Object.keys(pending).every(k => INSTANT.has(k));
-  clearTimeout(timer);
-  const run = () => { set(pending); pending = {}; info(); };
-  if (instant) run(); else timer = setTimeout(run, 140);
-}
-function info() {
-  const s = fur.stats();
-  $('info').textContent = `${s.lines.toLocaleString()} lines · built in ${s.buildMs} ms · petting ${s.fps ? s.fps + ' fps' : '–'}`;
-}
-setInterval(info, 500);
-
-async function applyShape(svg, points) {
-  $('shapeErr').textContent = '';
-  try {
-    if (points) { set({ points }); drawPoints(); }
-    await fur.setShape(svg);
-    if (+$('bend').value) $('bend').oninput();   // (a new drawing starts unbent)
-    info();
-  } catch (e) { $('shapeErr').textContent = e.message; }
-}
-
-/* ---------- part and coat ---------- */
-// Full body fur on: one Full body in the menu instead of Neck, Body + belly and Legs (off: the other way round)
-let fullOn = !!all.options?.fullBody;
-const fillParts = () => $('part').replaceChildren(...Object.entries(PARTS).filter(([k]) => k === 'fullBody' ? fullOn : !(fullOn && SEPARATE.includes(k))).map(([k, v]) => new Option(v, k)));
-fillParts();
 for (const k of Object.keys(COATS)) $('coat').append(new Option(k, k));
-// another part or coat: what is still waiting is saved for this one first, then that one's own values and drawing come in
-async function pick() {
-  clearTimeout(timer); if (Object.keys(pending).length) { set(pending); pending = {}; }
-  if (saveT) save();
-  for (const o of $('coat').options) o.disabled = !GAV[$('part').value][COATS[o.value]];   // (the black cat has no inner ears)
-  if ($('coat').selectedOptions[0].disabled) $('coat').value = 'Siamese';
-  partName = $('part').value; coat = $('coat').value; part = partName + coat; shape = GAV[partName][COATS[coat]];
-  G = glowOf(all[part]); $('glowSize').value = G.glowSize; mapEars();
-  $('glowCtl').hidden = $('glowMode').hidden = !inner();
-  if (mode === 'glow' && !inner()) document.querySelector('[data-mode=pet]').click();
-  await fur.set({ ...valuesOf(part), pet: mode === 'pet' });
-  syncControls(fur.get()); drawPoints();
-  $('bendCtl').hidden = !GAV[partName].spines; $('bend').value = 0;
-  await applyShape(shapeNow());
-}
-$('part').onchange = $('coat').onchange = pick;
+for (const k of Object.keys(TARGETS)) $('target').append(new Option(k, k));
+$('target').onchange = () => { target = $('target').value; syncControls(); };
+$('coat').onchange = () => { coat = $('coat').value; cd()?.setCoat(COATS[coat]); syncControls(); G = glowOf(all['innerEars' + coat]); $('glowSize').value = G.glowSize; };
 $('fullBody').checked = fullOn;
-$('fullBody').onchange = async () => {
-  const was = $('part').value; fullOn = $('fullBody').checked; all.options = { fullBody: fullOn };
+$('fullBody').onchange = () => {
+  fullOn = $('fullBody').checked; all.options = { fullBody: fullOn };
   fetch('__save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ part: 'options', settings: all.options }) })
-    .then(r => { if (!r.ok) throw r.status; }).catch(() => { $('shapeErr').textContent = 'Not saved'; });
-  chan?.postMessage({ part: 'options', settings: all.options });
-  fillParts();
-  $('part').value = SEPARATE.includes(was) || was === 'fullBody' ? (fullOn ? 'fullBody' : 'body') : was;
-  await pick();
-};
-// Bend (only to look, never saved): each spine curls, every joint turning a little more, to see the fur go with it
-$('bend').oninput = () => {
-  const b = +$('bend').value, S = GAV[partName].spines;
-  if (!S || Math.abs(b) < 0.005) { fur.bend(null); return; }
-  fur.bend(S.map(P => { let x = P[0][0], y = P[0][1], a = 0; const out = [[x, y]];
-    for (let i = 1; i < P.length; i++) { const dx = P[i][0] - P[i - 1][0], dy = P[i][1] - P[i - 1][1], c = Math.cos(a += b * 0.5), s = Math.sin(a);
-      x += dx * c - dy * s; y += dx * s + dy * c; out.push([x, y]); }
-    return out; }));
+    .then(r => { if (!r.ok) throw r.status; }).catch(() => { $('saveErr').textContent = 'Not saved'; });
+  chan.postMessage({ part: 'options', settings: all.options });
+  syncControls();
 };
 
-/* ---------- points ---------- */
-let mode = 'pet';
+/* ---------- where things are: the cat's body units ↔ this page (the overlay's pixels) ---------- */
+const wrapRect = () => $('wrap').getBoundingClientRect();
+const fromClient = (M, x, y) => { const q = new DOMPoint(x, y).matrixTransform(M); return [q.x, q.y]; };   // (frame client px → this page, via M = the frame's CTM)
+const toPage = (M, x, y) => { const q = new W.DOMPoint(x, y).matrixTransform(M); return [q.x, q.y]; };   // a point in M's units → the overlay's px (the frame fills the box)
+const toUnits = (M, px, py) => { const q = new W.DOMPoint(px, py).matrixTransform(M.inverse()); return [q.x, q.y]; };
+const mouse = e => { const r = wrapRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
+/* each part's flow points (0–1 of its own fur's stage) on the cat as drawn: a drawing's spot is where its nearest line is now, moved as
+   that line has moved (as drawn they only stand apart: the legs' drawing has them in rows) */
+const segDist = (P, x, y) => { let d = Infinity; for (let i = 0; i + 1 < P.length; i++) { const [a, b] = [P[i], P[i + 1]], dx = b[0] - a[0], dy = b[1] - a[1], t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1))); d = Math.min(d, Math.hypot(x - a[0] - dx * t, y - a[1] - dy * t)); } return d; };
+const nearest = (L, x, y) => { let j = 0, b = Infinity; L.forEach((P, i) => { const d = segDist(P, x, y); if (d < b) { b = d; j = i; } }); return [j, b]; };
+function maps() {
+  const M = cd()?.furMap(); if (!M) return null;
+  const byPart = {};
+  for (const g of M.parts) if (!byPart[g.part]) byPart[g.part] = g;   // (the legs' two groups: one drawing)
+  const out = [];
+  for (const g of Object.values(byPart)) {
+    const { fit } = g, shift = g.rest.map((P, j) => [g.now[j][0][0] - P[0][0], g.now[j][0][1] - P[0][1]]);
+    out.push({ part: g.part, lines: g.now,
+      toBody: (sx, sy) => { const x = (sx * 780 - fit.tx) / fit.s, y = (sy * 780 - fit.ty) / fit.s, [j] = nearest(g.rest, x, y); return [x + shift[j][0], y + shift[j][1]]; },
+      toStage: (bx, by) => { const [j] = nearest(g.now, bx, by), x = bx - shift[j][0], y = by - shift[j][1]; return [(x * fit.s + fit.tx) / 780, (y * fit.s + fit.ty) / 780]; } });
+  }
+  if (M.head) { const { fit, ctm } = M.head;
+    out.push({ part: 'head', head: true,
+      toPagePt: (sx, sy) => toPage(ctm, (sx * 780 - fit.tx) / fit.s, (sy * 780 - fit.ty) / fit.s),
+      toStageFromPage: (px, py) => { const [x, y] = toUnits(ctm, px, py); return [(x * fit.s + fit.tx) / 780, (y * fit.s + fit.ty) / 780]; } }); }
+  return { body: M.body, list: out, inner: M.inner };
+}
+// every point shown: [part, index, x, y (overlay px)]
+function shownPoints(m) {
+  const P = [];
+  for (const it of m.list) {
+    const pts = valuesOf(it.part).points || [];
+    pts.forEach((q, i) => { const [x, y] = it.head ? it.toPagePt(q.x, q.y) : toPage(m.body, ...it.toBody(q.x, q.y)); P.push([it.part, i, x, y]); });
+  }
+  return P;
+}
+// the part a spot of the cat belongs to: the head or an ear if it is on its drawing, else the body's part whose line is nearest
+function partAt(m, px, py) {
+  const doc = frame.contentDocument, on = id => { const el = doc.getElementById(id); if (!el || !el.isPointInFill) return false; const [x, y] = toUnits(el.getScreenCTM(), px, py); return el.isPointInFill(new W.DOMPoint(x, y)); };
+  if (on('skull')) return m.list.find(it => it.head) || null;
+  if (on('earL') || on('earR')) return m.list.find(it => it.part === 'ears') || null;
+  const [bx, by] = toUnits(m.body, px, py); let best = null, bd = Infinity;
+  for (const it of m.list) if (!it.head && it.part !== 'ears' && it.part !== 'innerEars') { const [, d] = nearest(it.lines, bx, by); if (d < bd) { bd = d; best = it; } }
+  return best;
+}
+
+/* ---------- modes: Move (drag a spine's dot, only to look; or a flow point), + Source point, Remove point, Move gradient ---------- */
+let mode = 'move';
 document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
   mode = b.dataset.mode;
+  if (mode !== 'move' && pose !== 'stand') setPose('stand');   // (points and the gradients go on the cat as drawn)
   document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b));
-  set({ pet: mode === 'pet' });
-  $('stage').style.cursor = mode === 'pet' ? 'grab' : 'crosshair';
+  $('overlay').classList.toggle('place', mode !== 'move');
+  $('glowCtl').hidden = mode !== 'glow';
 });
-$('clearPts').onclick = () => { set({ points: [] }); drawPoints(); info(); };
 
-/* the inner ears' gradients: dragged in "Move gradient", the nearer ear's middle goes where the pointer is (0–1 of its box) */
-let ears = null;   // each inner ear: its box (its own units) and its units → stage (0–1)
-function mapEars() {
-  ears = null; $('under').innerHTML = ''; if (!inner()) return;
-  const NS = 'http://www.w3.org/2000/svg', h = document.createElementNS(NS, 'svg');
-  h.setAttribute('style', 'position:absolute;left:-99999px;top:0;visibility:hidden');
-  h.innerHTML = new DOMParser().parseFromString(shape, 'image/svg+xml').documentElement.innerHTML;
-  document.body.appendChild(h);
-  const els = [...h.querySelectorAll('[data-fur-shape]')], root = h.getScreenCTM().inverse();
-  const E = els.map(el => ({ b: el.getBBox(), m: root.multiply(el.getScreenCTM()) }));
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;   // the outline's box, as fur.js fits it into the stage
-  for (const { b, m } of E) for (const [u, v] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
-    const q = new DOMPoint(b.x + u * b.width, b.y + v * b.height).matrixTransform(m);
-    x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }
-  h.remove();
-  const M = fur.get().margin, k = Math.min((780 - 2 * M) / (x1 - x0), (780 - 2 * M) / (y1 - y0)), tx = (780 - (x1 - x0) * k) / 2 - x0 * k, ty = (780 - (y1 - y0) * k) / 2 - y0 * k;
-  ears = E.map(({ b, m }) => ({ b, m: new DOMMatrix([k / 780, 0, 0, k / 780, tx / 780, ty / 780]).multiply(m) }));
-  // behind the fur, the dark ear round each (as Gav has it under them), where the fur fits it
-  const d = new DOMParser().parseFromString(shape, 'image/svg+xml').documentElement;
-  d.querySelectorAll('[data-fur-shape], [data-fur-spine]').forEach(el => el.remove());
-  $('under').innerHTML = `<g transform="matrix(${k / 780} 0 0 ${k / 780} ${tx / 780} ${ty / 780})">${d.innerHTML}</g>`;
+// the inner ears' gradients (G): each one's middle at 0–1 of its ear's box
+let G = glowOf(all['innerEars' + coat]); $('glowSize').value = G.glowSize;
+const saveGlow = () => savePart('innerEars' + coat, { ...valuesOf('innerEars'), ...G });
+let glowT = null; const glowSoon = () => { clearTimeout(glowT); glowT = setTimeout(saveGlow, 150); };
+$('glowSize').oninput = () => { G = { ...G, glowSize: +$('glowSize').value }; glowSoon(); };
+function glowAt(m, px, py, pick) {
+  const E = m.inner.map(e => e && { ...e, mid: toPage(e.ctm, e.b.x + e.b.width / 2, e.b.y + e.b.height / 2) });
+  let i = pick; if (i == null) { let bd = Infinity; E.forEach((e, k) => { if (e) { const d = Math.hypot(e.mid[0] - px, e.mid[1] - py); if (d < bd) { bd = d; i = k; } } }); }
+  if (i == null) return null;
+  const { b, ctm } = E[i], [x, y] = toUnits(ctm, px, py), r = v => +Math.min(1.5, Math.max(-0.5, v)).toFixed(3);
+  G = { ...G, glow: G.glow.map((g, k) => k === i ? { x: r((x - b.x) / b.width), y: r((y - b.y) / b.height) } : g) };
+  glowSoon(); return i;
 }
-const glowAt = i => { const { b, m } = ears[i], q = G.glow[i]; return new DOMPoint(b.x + q.x * b.width, b.y + q.y * b.height).matrixTransform(m); };
-let drag = -1, reshapeT = null;
-function glowMoved() {   // drawn again (a drawing takes a moment: not more often than this) and saved
-  drawPoints();
-  if (!reshapeT) reshapeT = setTimeout(async () => { reshapeT = null; await applyShape(shapeNow()); }, 120);
-  clearTimeout(saveT); savePart = part; saveT = setTimeout(save, 300);
-}
-function glowDrag(e) {
-  const p = fur.toStage(e.clientX, e.clientY);
-  if (drag < 0) { let bd = Infinity; ears.forEach((_, i) => { const q = glowAt(i), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; drag = i; } }); }
-  const { b, m } = ears[drag], q = new DOMPoint(p.x, p.y).matrixTransform(m.inverse()), r = v => +Math.min(1.5, Math.max(-0.5, v)).toFixed(3);
-  G = { ...G, glow: G.glow.map((g, i) => i === drag ? { x: r((q.x - b.x) / b.width), y: r((q.y - b.y) / b.height) } : g) };
-  glowMoved();
-}
-$('stage').addEventListener('pointermove', e => { if (mode === 'glow' && drag >= 0) glowDrag(e); });
-addEventListener('pointerup', () => { drag = -1; });
-$('glowSize').oninput = () => { G = { ...G, glowSize: +$('glowSize').value }; glowMoved(); };
 
-$('stage').addEventListener('pointerdown', e => {
-  if (mode === 'glow') { if (ears) { drag = -1; glowDrag(e); } return; }
-  if (mode === 'pet') return;
-  const p = fur.toStage(e.clientX, e.clientY), pts = fur.get().points;
-  if (mode === 'remove') {
-    let best = -1, bd = 0.05;
-    pts.forEach((q, i) => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } });
-    if (best >= 0) pts.splice(best, 1);
-  } else pts.push({ x: +p.x.toFixed(4), y: +p.y.toFixed(4), type: mode, strength: 1 });
-  set({ points: pts }); drawPoints(); info();
+// dragging: a spine's dot (FUR_EDIT in the cat: shown, never saved), a flow point (saved when let go), an ear's gradient
+let drag = null;
+const LINE = { body: 'body', legs: 'legs', tail: 'tail' };
+function carried(P, H, Hb) {   // P moved as far as the spot of the body nearest its root moved (H before → Hb after); it doesn't turn
+  let best = null;
+  for (let k = 0; k < H.length - 1; k++) {
+    const A = H[k], B = H[k + 1], dx = B[0] - A[0], dy = B[1] - A[1], t = Math.max(0, Math.min(1, ((P[0][0] - A[0]) * dx + (P[0][1] - A[1]) * dy) / (dx * dx + dy * dy || 1)));
+    const d = Math.hypot(P[0][0] - A[0] - dx * t, P[0][1] - A[1] - dy * t); if (!best || d < best.d) best = { k, t, d };
+  }
+  const { k, t } = best, mx = (Hb[k][0] - H[k][0]) * (1 - t) + (Hb[k + 1][0] - H[k + 1][0]) * t, my = (Hb[k][1] - H[k][1]) * (1 - t) + (Hb[k + 1][1] - H[k + 1][1]) * t;
+  return P.map(q => [q[0] + mx, q[1] + my]);
+}
+$('overlay').addEventListener('pointerdown', e => {
+  const m = maps(); if (!m) return;
+  const [px, py] = mouse(e), t = e.target.closest('[data-pt],[data-sp]');
+  e.preventDefault();
+  if (t && t.dataset.sp && mode === 'move') {   // a spine's dot
+    const [line, j, i] = t.dataset.sp.split(',');
+    if (!cd().furEdit) cd().furEdit = JSON.parse(JSON.stringify(cd().furSpines()));
+    drag = { kind: 'spine', line, j: +j, i: +i }; return;
+  }
+  if (t && t.dataset.pt) {   // a flow point
+    const [part, i] = t.dataset.pt.split(','), it = m.list.find(x => x.part === part), pts = JSON.parse(JSON.stringify(valuesOf(part).points || []));
+    if (mode === 'remove') { pts.splice(+i, 1); savePart(part + coat, { ...valuesOf(part), points: pts }); return; }
+    if (mode !== 'glow') { drag = { kind: 'point', it, i: +i, pts, at: [px, py] }; return; }
+  }
+  if (mode === 'source') {
+    const it = partAt(m, px, py); if (!it) return;
+    const [sx, sy] = it.head ? it.toStageFromPage(px, py) : it.toStage(...toUnits(m.body, px, py));
+    const pts = [...(valuesOf(it.part).points || []), { x: +sx.toFixed(4), y: +sy.toFixed(4), type: 'source', strength: 1 }];
+    savePart(it.part + coat, { ...valuesOf(it.part), points: pts });
+  } else if (mode === 'remove') {   // the nearest point within reach
+    let best = null, bd = 24; for (const [part, i, x, y] of shownPoints(m)) { const d = Math.hypot(x - px, y - py); if (d < bd) { bd = d; best = [part, i]; } }
+    if (best) { const pts = [...valuesOf(best[0]).points]; pts.splice(best[1], 1); savePart(best[0] + coat, { ...valuesOf(best[0]), points: pts }); }
+  } else if (mode === 'glow') { const i = glowAt(m, px, py, null); if (i != null) drag = { kind: 'glow', i }; }
 });
-function drawPoints() {
-  const glows = ears ? ears.map((E, i) => { const q = glowAt(i), { b, m } = E, c = G.glow[i];   // each gradient's middle, and its edge
-    return `<g transform="matrix(${[m.a, m.b, m.c, m.d, m.e, m.f].join(' ')})"><ellipse cx="${b.x + c.x * b.width}" cy="${b.y + c.y * b.height}" rx="${G.glowSize * b.width}" ry="${G.glowSize * b.height}" fill="none" stroke="#fff" stroke-opacity="0.6" stroke-width="1" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/></g>` +
-      `<path d="M${q.x - 0.012} ${q.y}h0.024M${q.x} ${q.y - 0.012}v0.024" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`; }).join('') : '';
-  $('overlay').innerHTML = glows + fur.get().points.map(p =>
-    `<circle cx="${p.x}" cy="${p.y}" r="0.018" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>` +
-    (p.type === 'swirl'
-      ? `<path d="M${p.x - 0.01} ${p.y}a0.01 0.01 0 1 1 0.01 0.01" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`
-      : `<circle cx="${p.x}" cy="${p.y}" r="0.005" fill="#fff"/>`)).join('');
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  const m = maps(); if (!m) return;
+  const [px, py] = mouse(e);
+  if (drag.kind === 'spine') {
+    const E = cd().furEdit, q = toUnits(m.body, px, py), L = E[drag.line][drag.j], before = E.body[0].map(p => [...p]);
+    L[drag.i] = [q[0], q[1]];
+    if (drag.line === 'body') { E.legs = E.legs.map(P => carried(P, before, E.body[0])); E.tail = E.tail.map(P => carried(P, before, E.body[0])); }   // (the legs and tail go with the body)
+    cd().furEdit = E;
+  } else if (drag.kind === 'point') drag.at = [px, py];
+  else if (drag.kind === 'glow') glowAt(m, px, py, drag.i);
+});
+addEventListener('pointerup', () => {
+  const d = drag; drag = null; if (!d || d.kind !== 'point') return;
+  const m = maps(); if (!m) return;
+  const it = d.it, [px, py] = d.at, [sx, sy] = it.head ? it.toStageFromPage(px, py) : it.toStage(...toUnits(m.body, px, py));
+  d.pts[d.i] = { ...d.pts[d.i], x: +sx.toFixed(4), y: +sy.toFixed(4) };
+  savePart(it.part + coat, { ...valuesOf(it.part), points: d.pts });
+});
+
+/* ---------- the overlay, drawn every frame from where the cat is ---------- */
+function drawOverlay() {
+  requestAnimationFrame(drawOverlay);
+  const m = W && maps(); if (!m) return;
+  const r = wrapRect(), sp = cd().furSpines(); let h = '';
+  $('overlay').setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
+  if (sp && mode === 'move') for (const line of ['tail', 'legs', 'body']) (sp[line] || []).forEach((P, j) => {   // the spines' dots
+    const Q = P.map(q => toPage(m.body, q[0], q[1]));
+    h += `<polyline points="${Q.map(q => q.join(',')).join(' ')}" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="1.5"/>`;
+    h += Q.map((q, i) => `<circle data-sp="${line},${j},${i}" cx="${q[0]}" cy="${q[1]}" r="6" fill="#c9b9e8" fill-opacity="0.85" stroke="#3d3846" stroke-width="1.5" style="pointer-events:all;cursor:move"/>`).join('');
+  });
+  if (pose === 'stand' && !cd().furEdit) for (const [part, i, x0, y0] of shownPoints(m)) {   // the flow points (as drawn)
+    const [x, y] = drag && drag.kind === 'point' && drag.it.part === part && drag.i === i ? drag.at : [x0, y0];
+    h += `<circle data-pt="${part},${i}" cx="${x}" cy="${y}" r="9" fill="none" stroke="#fff" stroke-width="2" style="pointer-events:all;cursor:${mode === 'remove' ? 'pointer' : 'move'}"/><circle cx="${x}" cy="${y}" r="2.5" fill="#fff"/>`;
+  }
+  if (mode === 'glow') m.inner.forEach((e, i) => { if (!e) return; const g = G.glow[i], [x, y] = toPage(e.ctm, e.b.x + g.x * e.b.width, e.b.y + g.y * e.b.height);   // the gradients' middles
+    h += `<path d="M${x - 8} ${y}h16M${x} ${y - 8}v16" stroke="#fff" stroke-width="2"/>`; });
+  if (h !== drawOverlay.last) { $('overlay').innerHTML = h; drawOverlay.last = h; }
 }
 
-/* ---------- copy & load ---------- */
-$('regen').onclick = () => { set({ seed: fur.get().seed + 1 }); info(); };
-const exportJSON = () => JSON.stringify({ settings: fur.get(), shape: shapeNow() }, null, 1);
+/* ---------- copy & load: this coat's values for every part ---------- */
 $('copy').onclick = async () => {
-  $('json').value = exportJSON();
+  $('json').value = JSON.stringify(Object.fromEntries(PARTS.map(p => [p + coat, valuesOf(p)])), null, 1);
   try { await navigator.clipboard.writeText($('json').value); $('copyMsg').textContent = 'Copied'; }
   catch { $('json').select(); $('copyMsg').textContent = 'Select & copy from the box'; }
 };
-$('load').onclick = async () => {
-  try {
-    const j = JSON.parse($('json').value);
-    if (j.settings) { await set(j.settings); syncControls(fur.get()); drawPoints(); }   // (one shape at a time: a new margin re-fits first)
-    if (j.shape) { shape = j.shape; await applyShape(j.shape); }
-    $('copyMsg').textContent = 'Loaded';
-  } catch (e) { $('copyMsg').textContent = 'Invalid JSON'; }
+$('load').onclick = () => {
+  try { const j = JSON.parse($('json').value); for (const [k, v] of Object.entries(j)) if (/^(head|ears|innerEars|body|legs|fullBody|tail)(Siamese|Black)$/.test(k)) savePart(k, v); syncControls(); $('copyMsg').textContent = 'Loaded'; }
+  catch (e) { $('copyMsg').textContent = 'Invalid JSON'; }
 };
 
 /* ---------- start ---------- */
-syncControls(fur.get());
-$('part').value = partName; $('coat').value = coat; $('bendCtl').hidden = true;
-drawPoints();
-applyShape(shape);
+syncControls();
+$('info').textContent = 'loading…';
+await catReady();
+coat = cd().settings.coat === 'siamese' ? 'Siamese' : 'Black'; $('coat').value = coat; syncControls();
+G = glowOf(all['innerEars' + coat]); $('glowSize').value = G.glowSize;
+setPose('stand');
+$('info').textContent = '';
+drawOverlay();
 </script>
 </body>
 </html>

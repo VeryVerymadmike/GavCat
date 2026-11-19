@@ -34,8 +34,13 @@ function snap(which) {
   }
 
   // one item: Gav's elements as drawn (catBody units), shape: the ones that make the outline, and its spine
-  const item = (els, shape, spine) => {
-    let s = '', outline = ''; const refs = new Set();
+  // goo: the part's shapes melted into one outline the way Gav draws them (his #silhouette's soft merge, at its blur now), so the fur's
+  // outline has his fillets where the shapes meet, not their small corners and bumps
+  let gooUsed = false;
+  // (at least FUR_MELT: with a low Fluidity the drawing keeps small corners and bumps where its shapes meet, which the fur's edge shows)
+  const FUR_MELT = 4.5, gooDef = () => `<filter id="furGoo" x="-0.2" y="-0.2" width="1.4" height="1.4" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="${Math.max(FUR_MELT, +$('gooBlur').getAttribute('stdDeviation') || 0)}"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 26 -12"/></filter>`;
+  const item = (els, shape, spine, goo) => {
+    let s = '', outline = '', melt = ''; const refs = new Set();
     for (const el of els) {
       if (!el || !shown(el)) continue;
       const c = el.cloneNode(true), o = [el, ...el.querySelectorAll('*')], cl = [c, ...c.querySelectorAll('*')];
@@ -43,26 +48,37 @@ function snap(which) {
       if (shape.includes(el)) c.setAttribute('data-fur-shape', '');
       refsOf(c, refs);
       const g = `<g transform="${Mx(toBody(el.parentNode))}">${c.outerHTML}</g>`;
-      s += g; if (shape.includes(el)) outline += g;
+      if (goo && shape.includes(el)) melt += g; else s += g;
+      if (shape.includes(el)) outline += g;
     }
+    if (melt) { s = `<g filter="url(#furGoo)">${melt}</g>` + s; gooUsed = true; }   // (the melted shapes first, the colour-only ones over them)
     return { s, outline, refs, spine: spine.map(q => [f(q[0]), f(q[1])]) };
   };
   const pathPts = el => { const m = toBody(el), n = (el.getAttribute('d') || '').match(/-?[\d.]+/g).map(Number), out = [];
     for (let i = 0; i + 1 < n.length; i += 2) { const q = new DOMPoint(n[i], n[i + 1]).matrixTransform(m); out.push([q.x, q.y]); }
     return out; };
   const fewer = (P, k) => Array.from({ length: k }, (_, i) => P[Math.round(i * (P.length - 1) / (k - 1))]);
-  const leg = k => ({ ...item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], furLegSpine(p, k)), far: k[1] === 'f' });   // (its line starts above the hip / shoulder: see furLegSpine)   // (far: the pair behind the body, its own light)
-  const bodyItem = () => item(['body', 'massRib', 'massPel', 'bellyBlob', 'bellyShade'].map($), ['body', 'massRib', 'massPel', 'bellyBlob'].map($), p.skel.spine);
-  const neckItem = () => item([$('neck')], [$('neck')], (h => [p.neck, neckMid(p, p.neck, h), h])([p.head.x, p.head.y + HEAD_DROP]));
-  const whole = which === 'fullBody';   // neck, body + belly and the four legs where Gav has them, painted in his order: one fur over all of them
-  const L = whole ? [leg('bf'), leg('ff'), bodyItem(), neckItem(), leg('bn'), leg('fn')]
+  // a leg's round top (hip / shoulder circle) fades out toward the body's up, so where it lies over the body it melts into it, no edge
+  const fadeTop = k => { const j = p.skel.joints[LEG_JOINT[k]], r = j[3] || j[2], u = k[0] === 'b' ? p.skel.hipUp : p.skel.up, id = 'furFade-' + k;
+    // a back leg: its fur fades out over its whole hip circle (the body's fur is there), so nothing of the hip shows past the body's
+    // outline; the leg's own fur starts at the circle's edge, on the way to its knee (2)
+    if (k[0] === 'b') return `<defs><radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${f(j[0])}" cy="${f(j[1])}" r="${f(r * 1.1)}"><stop offset="0.7" stop-color="#fff"/><stop offset="1" stop-color="#000"/></radialGradient></defs>` +
+      `<circle data-fur-fade="" cx="${f(j[0])}" cy="${f(j[1])}" r="${f(r * 1.1)}" fill="url(#${id})"/>`;
+    return `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${f(j[0] - u[0] * r * 0.1)}" y1="${f(j[1] - u[1] * r * 0.1)}" x2="${f(j[0] + u[0] * r * 0.9)}" y2="${f(j[1] + u[1] * r * 0.9)}"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient></defs>` +
+      `<rect data-fur-fade="" x="${f(j[0] - 1.6 * r)}" y="${f(j[1] - 1.6 * r)}" width="${f(3.2 * r)}" height="${f(3.2 * r)}" fill="url(#${id})"/>`; };
+  const leg = k => { const it = item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], furLegSpine(p, k)); return { ...it, s: it.s + fadeTop(k), far: k[1] === 'f' }; };   // (its line starts above the hip / shoulder: see furLegSpine)   // (far: the pair behind the body, its own light)
+  const bodyItem = () => item(['neck', 'body', 'massRib', 'massPel', 'bellyBlob', 'bellyShade'].map($), ['neck', 'body', 'massRib', 'massPel', 'bellyBlob'].map($), FUR_SPINES.body(p)[0], true);   // (the neck is part of the body: one spine on to the head)
+  const whole = which === 'fullBody';   // body + belly with its neck: one fur (the legs have their own, the closer ones drawn over it)
+  // full body: the body with its neck (the hub, owning its hip and shoulder circles) and the closer legs, each drawn as its own layer in
+  // Gav's order (fur.js bend z); the farther legs, behind it, are a fur of their own. (No fade on these legs: in one drawing it would take the body's fur too)
+  const legPlain = k => ({ ...item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], furLegSpine(p, k)), far: false });
+  const L = whole ? [{ ...bodyItem(), hub: true, reach: (J => 1.7 * Math.max(J.waistR[3] || J.waistR[2], J.waistL[3] || J.waistL[2], J.shoulderR[2], J.shoulderL[2]))(p.skel.joints) }, legPlain('bn'), legPlain('fn')]
     : which === 'ears' || which === 'innerEars' ? [['earL', 'ptInnerL', 'earSpineL'], ['earR', 'ptInnerR', 'earSpineR']]   // (the two layers: same spines)
       .map(([o, i, sp]) => which === 'ears' ? item([$(o)], [$(o)], fewer(pathPts($(sp)), 6))
         : item([$(o), $(i)], [$(i)], fewer(pathPts($(sp)), 6)))   // (inner ears: the dark ear round each only gives colour, to the hairs that lie in over it)
-    : which === 'neck' ? [neckItem()]
     : which === 'body' ? [bodyItem()]
     : which === 'legs' ? ['bf', 'bn', 'ff', 'fn'].map(leg)
-    : [item([$('tail'), $('ptTailCoat')], [$('tail')], p.tail)];
+    : [item([$('tail'), $('ptTailCoat')], [$('tail')], FUR_SPINES.tail(p)[0])];
   if (L.every(it => !it.outline)) return null;   // (nothing of it in this coat)
   // side by side (legs: two rows, the back pair over the front pair), apart enough that every spot of each lies nearer its own spine than any other (a round shoulder reaches far from its spine)
   const perRow = which === 'legs' ? 2 : L.length, GAP = 42, boxes = L.map(it => { const h = holder(`<g>${it.outline}</g>`), b = h.firstChild.getBBox(); h.remove(); return b; });   // (the outline only: colour bands are bigger, cut to it)
@@ -72,7 +88,7 @@ function snap(which) {
     const dy = whole || y === null ? 0 : y - top; let x = null;
     row.forEach((it, i) => {
       const b = rb[i], dx = whole || x === null ? 0 : x - b.x; x = (x === null ? b.x : x) + b.width + GAP;
-      body += `<g transform="translate(${f(dx)} ${f(dy)})">${it.s}${window.__L ? window.__L.crop(b, it.far) : ''}<polyline data-fur-spine="" fill="none" points="${it.spine.map(q => q[0] + ',' + q[1]).join(' ')}"/></g>`;
+      body += `<g transform="translate(${f(dx)} ${f(dy)})">${it.s}${window.__L ? window.__L.crop(b, it.far) : ''}<polyline data-fur-spine=""${it.hub ? ` data-fur-hub="" data-fur-reach="${f(it.reach)}"` : ''} fill="none" points="${it.spine.map(q => q[0] + ',' + q[1]).join(' ')}"/></g>`;
       spines.push(it.spine.map(q => [f(q[0] + dx), f(q[1] + dy)]));
       it.refs.forEach(k => refs.add(k));
     });
@@ -83,8 +99,8 @@ function snap(which) {
   const add = id => { if (done.has(id) || have.has(id)) return; done.add(id); const e = $(id); if (!e) return; const r = new Set(); refsOf(e, r); r.forEach(add); defs.push(e.outerHTML); };
   refs.forEach(add);
   // fur starts at the root of each: legs, tail, ears at their first point; neck and body from the head's end
-  const from = spines.map((s, i) => which === 'neck' || which === 'body' || (whole && (i === 2 || i === 3)) ? s[s.length - 1] : s[0]);
-  return { svg: `<svg xmlns="${NS}"><defs>${defs.join('')}</defs>${body}</svg>`, spines, from };
+  const from = spines.map((s, i) => which === 'body' || (whole && i === 0) ? s[s.length - 1] : s[0]);
+  return { svg: `<svg xmlns="${NS}"><defs>${defs.join('')}${gooUsed ? gooDef() : ''}</defs>${body}</svg>`, spines, from };
 }
 
 // in the page, standing: one light over Gav's whole outline (body units), so the fur is shaded as one cat, not part by part. His
@@ -106,24 +122,36 @@ async function makeLight() {
   const blur = (a, r) => { const t = new Float32Array(N);
     for (let y = 0; y < H; y++) { let s = 0; for (let x = -r; x < W + r; x++) { if (x + r < W) s += a[y * W + x + r]; if (x - r - 1 >= 0) s -= a[y * W + x - r - 1]; if (x >= 0 && x < W) t[y * W + x] = s / (2 * r + 1); } }
     for (let x = 0; x < W; x++) { let s = 0; for (let y = -r; y < H + r; y++) { if (y + r < H) s += t[(y + r) * W + x]; if (y - r - 1 >= 0) s -= t[(y - r - 1) * W + x]; if (y >= 0 && y < H) a[y * W + x] = s / (2 * r + 1); } } };
-  const lightOf = async ids => {
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const cx = cv.getContext('2d', { willReadFrequently: true });
+  const maskOf = async ids => {   // (1 inside these parts)
     const img = new Image();
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="${NS}" width="${W}" height="${H}" viewBox="${x0} ${y0} ${W} ${H}">` +
       `<style>*{fill:#000!important;fill-opacity:1!important;opacity:1!important;stroke:none!important;filter:none!important}</style>${svgOf(ids)}</svg>`);
     await img.decode();
-    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0);
-    const px = cx.getImageData(0, 0, W, H).data, IN = new Uint8Array(N); for (let i = 0; i < N; i++) IN[i] = px[i * 4 + 3] > 127 ? 1 : 0;
-    // distance in from the outline; outside spots remember the nearest inside one
-    const din = new Float32Array(N), dout = new Float32Array(N), near = new Int32Array(N);
-    for (let i = 0; i < N; i++) { din[i] = IN[i] ? 1e9 : 0; dout[i] = IN[i] ? 0 : 1e9; near[i] = IN[i] ? i : -1; }
-    const F = [[-1, 0, 1], [-1, -1, 1.414], [0, -1, 1], [1, -1, 1.414]];
-    for (const [d, nr] of [[din, null], [dout, near]]) for (const dir of [1, -1]) for (let k = 0; k < N; k++) {
+    cx.clearRect(0, 0, W, H); cx.drawImage(img, 0, 0);
+    const px = cx.getImageData(0, 0, W, H).data, M = new Uint8Array(N); for (let i = 0; i < N; i++) M[i] = px[i * 4 + 3] > 127 ? 1 : 0;
+    return M;
+  };
+  // how far each spot is from the nearest one in M (and which that is)
+  const F = [[-1, 0, 1], [-1, -1, 1.414], [0, -1, 1], [1, -1, 1.414]];
+  const distTo = (M, nr) => { const d = new Float32Array(N); for (let i = 0; i < N; i++) { d[i] = M[i] ? 0 : 1e9; if (nr) nr[i] = M[i] ? i : -1; }
+    for (const dir of [1, -1]) for (let k = 0; k < N; k++) {
       const i = dir > 0 ? k : N - 1 - k, x = i % W, y = i / W | 0;
       for (const [fx, fy, c] of F) { const X = x + fx * dir, Y = y + fy * dir; if (X < 0 || Y < 0 || X >= W || Y >= H) continue; const j = Y * W + X;
         if (d[j] + c < d[i]) { d[i] = d[j] + c; if (nr) nr[i] = nr[j]; } }
     }
+    return d; };
+  // the inside corners where a leg meets the body (armpits, groin) filled in for the light, rounded by CLOSE units: the light is painted
+  // on the standing cat once and goes with the fur, so their shade would show wherever the leg moves away from the body
+  const CLOSE = 20, TORSO = ['body', 'massRib', 'massPel', 'bellyBlob', 'neck'];
+  const lightOf = async (ids, legs) => {
+    const IN = await maskOf(ids), T = await maskOf([...TORSO, ...legs]);
+    const grown = distTo(T).map(v => v <= CLOSE ? 0 : 1), closed = distTo(grown).map(v => v > CLOSE ? 1 : 0);   // (0 = grown, for the distance back in)
+    const SH = IN.map((v, i) => v || closed[i]);   // (the outline the light rounds off from)
+    // distance in from the outline; outside spots remember the nearest inside one
+    const near = new Int32Array(N), din = distTo(SH.map(v => 1 - v)); distTo(IN, near);
     // the puffed-up surface (round over its first R units in), smoothed, and its slope
-    const Z = new Float32Array(N); for (let i = 0; i < N; i++) { const d = IN[i] ? Math.min(din[i] - 0.5, R) : 0; Z[i] = Math.sqrt(Math.max(0, R * R - (R - d) * (R - d))); }
+    const Z = new Float32Array(N); for (let i = 0; i < N; i++) { const d = SH[i] ? Math.min(din[i] - 0.5, R) : 0; Z[i] = Math.sqrt(Math.max(0, R * R - (R - d) * (R - d))); }
     blur(Z, 1); blur(Z, 1);
     const out = cx.createImageData(W, H), shade = new Float32Array(N);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (!IN[i]) continue;
@@ -131,10 +159,10 @@ async function makeLight() {
       const l = Math.hypot(gx, gy, 1), lit = (-gx * LIGHT[0] - gy * LIGHT[1] + LIGHT[2]) / l;
       shade[i] = Math.min(1, Math.max(0, (LIGHT[2] - lit) / 1.1)); }   // (facing you: none, facing up: a little, side on: more, facing down: all)
     for (let i = 0; i < N; i++) { const v = Math.round(255 * shade[near[i] >= 0 ? near[i] : i]); out.data[i * 4] = out.data[i * 4 + 1] = out.data[i * 4 + 2] = v; out.data[i * 4 + 3] = 255; }
-    cx.putImageData(out, 0, 0);
-    return cv;
+    const pic = document.createElement('canvas'); pic.width = W; pic.height = H; pic.getContext('2d').putImageData(out, 0, 0);
+    return pic;
   };
-  const maps = { near: await lightOf([...BODY, ...NEAR]), far: await lightOf([...BODY, ...FAR]) };
+  const maps = { near: await lightOf([...BODY, ...NEAR], NEAR), far: await lightOf([...BODY, ...FAR], FAR) };
   // a piece of it (box in body units, a little round it), as an image in body units
   const crop = (bb, far, m = 12) => {
     const X0 = Math.max(0, Math.floor(bb.x - m - x0)), Y0 = Math.max(0, Math.floor(bb.y - m - y0)), X1 = Math.min(W, Math.ceil(bb.x + bb.width + m - x0)), Y1 = Math.min(H, Math.ceil(bb.y + bb.height + m - y0));
@@ -183,7 +211,7 @@ function stagePoints([svg, pts]) {
   await page.evaluate(makeLight);
   for (const coat of ['siamese', 'black']) {
     await page.evaluate(c => document.querySelector(`input[name=coat][value=${c}]`).click(), coat);
-    for (const [pose, parts] of [['sit', ['head']], ['stand', ['ears', 'innerEars', 'neck', 'body', 'legs', 'fullBody', 'tail']]]) {
+    for (const [pose, parts] of [['sit', ['head']], ['stand', ['ears', 'innerEars', 'body', 'legs', 'fullBody', 'tail']]]) {
       await page.evaluate(n => catDebug.pose(n), pose);
       await page.evaluate(() => __tick(40));
       for (const part of parts) {
@@ -197,6 +225,21 @@ function stagePoints([svg, pts]) {
         if (r.scale) P.scale = r.scale;
         if (r.light) P.light = r.light;
       }
+    }
+  }
+  // Gav's own positions, to try the fur in on the fur page (its Pose menu): each bending part's spines in them, moved as far as its
+  // drawing was laid out from where Gav stands (each spine by its first point)
+  const POSE_LIST = ['sit', 'sitMid', 'lie', 'lieMid', 'stretch', 'reach', 'jumpReady', 'jumpPush', 'jumpFly', 'jumpAbsorb'], POSED = ['body', 'legs', 'fullBody', 'tail'];
+  const spinesNow = async pose => { await page.evaluate(n => catDebug.pose(n), pose); await page.evaluate(() => __tick(30));
+    return page.evaluate(parts => Object.fromEntries(parts.map(k => [k, FUR_SPINES[k](catDebug.shown)])), POSED); };
+  const stand = await spinesNow('stand');
+  for (const pose of POSE_LIST) {
+    const now = await spinesNow(pose);
+    for (const k of POSED) {
+      const P = GAV[k], S = P && P.spines, A = stand[k], B = now[k];
+      if (!S || !A || !B || B.length !== S.length || B.some((L, i) => !L || L.length !== S[i].length || A[i].length !== L.length)) continue;
+      (P.poses = P.poses || {})[pose] = B.map((L, i) => { const dx = S[i][0][0] - A[i][0][0], dy = S[i][0][1] - A[i][0][1];
+        return L.map(q => [+(q[0] + dx).toFixed(2), +(q[1] + dy).toFixed(2)]); });
     }
   }
   await browser.close();

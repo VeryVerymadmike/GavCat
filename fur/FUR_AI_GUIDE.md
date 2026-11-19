@@ -6,22 +6,21 @@ Read this before writing code that uses it. Prefer changing **settings** over ed
 ## Files
 - `fur.js` — ES module, no dependencies, needs **WebGL2** (throws `'fur.js needs WebGL2'` otherwise).
 - `index.html` — my editor: presets, sliders for every setting, point placement, and **Copy settings + shape** (exports JSON).
-- In GavCat (`fur/`), the editor is cut down for Gav:
-  - A Part menu (Head, Ears, Inner ears, Neck, Body + belly, Legs, Tail) and a cat menu (Siamese, Black). Medium quality.
-  - The ears are two layers on the same spines: Ears is the dark ear, Inner ears the pink part drawn on top of it (Siamese only).
-    Inner ears is always `invert: true` (the dark ear's hairs lie in over it; its drawing carries the dark ear as colour). Its colour
-    is a radial gradient per ear (light middle, the ear's dark at the edge): "Move gradient" drags each one's middle, "Gradient size"
-    sets its size. They are kept with its values as `glow` / `glowSize` (`ear-glow.js`), not passed to fur.js.
-  - The Full body fur toggle (`options.fullBody` in `settings.json`) swaps Neck, Body + belly and Legs for one part, Full body (`fullBodySiamese`, `fullBodyBlack`): one fur over all of them, tied to six spines. On Gav those three parts then draw only a thin, unshaded coat under it, so nothing shows through the gaps in its soft base between spines, or where it moves away when a leg folds.
-  - Every change saves to `settings.json`, keyed part + coat (`headSiamese`, `legsBlack` …), through the edit server (`POST /fur/__save`). An open Gav tab gets it live over BroadcastChannel `gav-fur`.
-  - `gav-parts.js` holds Gav's parts, made by `node fur/make-parts.js` from `cat-stretch.html`.
-  - Gav's head is furred by this module (`HEAD_FUR` in `cat-stretch.html`).
+- In GavCat (`fur/`), the editor is Gav himself (since 2026-11-19): the cat page in an iframe (`../?wallpaper&furpage`: the project's cat, zoomed in, never saves), so what it shows is what the cat shows.
+  - One set of sliders: a moved value is saved into every part of the coat (head, ears, body, legs, fullBody, tail; the inner ears keep their own). Coat menu, Full body fur toggle (`options.fullBody`), Pose menu (Gav's poses via `catDebug.pose`).
+  - Move: the body, legs and tail spines show as dots; dragging one only bends the fur to look (`catDebug.furEdit`, never saved; a body dot takes the legs and tail along). Flow points (source only) show on the cat as drawn and can be added, dragged, removed; each lands in the part whose drawing it is on (`catDebug.furMap`). Move gradient places the inner ears' gradients (`glow` / `glowSize` in `innerEarsSiamese`, `ear-glow.js`).
+  - Every change saves to `settings.json`, keyed part + coat, through the edit server (`POST /fur/__save`), and goes to every open cat page over BroadcastChannel `gav-fur`.
+  - `gav-parts.js` holds Gav's parts, made by `node fur/make-parts.js` from `cat-stretch.html` (the edit server runs it after saves).
+  - Each part keeps its own flow points even where it takes another part's values (the legs under Full body fur).
+  - Fur follows Gav's layer controls: legs behind the body, over it, or over the head (a fur layer above the SVG), the tail by its layer.
 - Exported JSON format: `{ "settings": { ... }, "shape": "<svg…> or path d" }`.
 
 ## How it works (so you can reason about it)
 - The shape is fitted into a square **780×780-unit stage** with `margin` units of free space around it for edge hair.
 - A coarse 260×260 grid stores inside/outside, signed distance to the outline, outward normals and colour.
 - **Base layer:** a 2D canvas holding a soft colour fill of the shape. Its edge is blurred by `blur` and shifted by `edgeInset`.
+  - It is painted at 520×520 (twice the 260 grid), its edge from the drawing's own anti-aliased outline, so a low `blur` gives a clean edge, not stair steps (2026-11-19).
+  - Its colour is as bright as the hairs over it are on average (`variation` and `rim` lighten the hairs), so where the hair is thinner (inside, or stretched as a part bends) no darker patch shows. Added 2026-11-19, after a bent body showed its thinner middle as a darker triangle.
 - **Fur layer:** thousands of hairs drawn in WebGL2 from one shared stroke mesh in **one draw call**.
   - Hairs are sparse and soft inside, and dense and long at the edge.
   - Each hair's root fades in, so you never see where it starts.
@@ -63,7 +62,7 @@ fur.spines();                                  // the shape's spines as drawn (i
 | `variation` | 0.14 | Light/dark strand contrast. |
 | `edgeDensity` | 2.2 | Hair density at the edge (× base). |
 | `edgeLength` | 1.8 | Extra hair length at the edge (×). |
-| `hairInset` | 24 | How far inside the outline the edge hairs start. More = more overlap, smaller outer fuzz. |
+| `hairInset` | 24 | How far inside the outline the edge hairs start. More = more overlap, smaller outer fuzz. Below 0, the fur starts that far outside the outline (fatter). Gav's fur page shows it as **Fur outset**, 0 to 15 (= hairInset 0 to −15); at 15 a leg looks about 30% fatter. |
 | `edgeBand` | 45 | Width of the edge zone. |
 | `rim` | 0.22 | Brightening of edge hairs (backlit look). |
 | `blur` | 23 | Base shape edge softness. |
@@ -113,12 +112,17 @@ Example (the editor's "Siamese cat" preset):
 ## Bending parts (spines)
 For a part that bends (a tail, a leg), fur.js can move the fur with it **without rebuilding**:
 - Put one or more spines in the SVG: `<polyline data-fur-spine="" points="x,y x,y …"/>`, the line the part bends along, in the shape's own units. Spines are never drawn. Up to 48 points in all.
-- Each hair, and each point of the soft base, is tied to its nearest spine. A spot where two segments meet (a knee) goes with both, so the fur doesn't tear there.
+- Several parts in one shape (Gav's full body): mark the main part's spine `data-fur-hub=""`. Fur where another part meets it (a leg, the neck) follows both spines, blended, and the soft base between them stretches like skin instead of tearing. Two non-hub parts (two legs) never join. Added 2026-11-19.
+- `data-fur-reach="r"` on a spine (shape units): spots count as that much nearer to it. A body whose spine runs along its back gets its hip and shoulder circles' size as reach, so it owns the whole body and the legs take over only below. Past the spine's ends the reach fades out quickly, so a neck growing from there stays its own.
+- The fur bends along a smooth curve through each spine's points (Catmull-Rom, its end points mirrored), not along straight segments, so a spine bent at its points bends the fur round instead of at corners (2026-11-19).
+- Each hair, and each point of the soft base, goes with up to four spine segments, shared out by how near each is. The shares change smoothly from spot to spot (a segment coming in or going out starts at 0), so neighbouring fur always moves together: no seams at knees, along a bending body, or where a leg meets it. (Until 2026-11-19 a spot followed only its nearest segment and one partner; where the partner switched, the fur split into slits.)
 - Each frame, call `fur.bend(spines, view)`. It only redraws.
   - `spines`: the spines as they are now, one list per `data-fur-spine` line, in the same order and with the same point counts. Each point is `[x, y]` or `[x, y, widthScale]`.
   - `view`: `{ x, y, width, height }`, the rectangle the canvas shows, in the same units. Keep it the canvas's shape. Left out, it is the stage in the shape's own units.
   - `bend(null)`: back to the shape as drawn.
   - `bend(spines, view, floor)`: `floor` is optional, a y in view units. A hair that would go below it is pressed flat along it, spreading sideways. The soft base is cut there. Added 2026-11-18; Gav passes his floor line.
+  - `bend(spines, view, floor, z)`: `z` is optional, one number per spine, higher in front. Where parts cross, each part's fur lies over or under another's as a whole, instead of the hairs mixing. A part drawn over others first lays its solid inside over them (fading out where it joins them). Left out, the hub is at the back and the rest in order. Added 2026-11-19; Gav passes his layer controls (the body at zbelly, each leg at its own).
+  - Where the soft base folds over itself (a tight curl, a leg bent up against the belly), each pixel keeps the more solid of the two (max blending), so the fold shows as a soft crease, not a hard edge. (A depth-test version gave straight hard edges; squeezing the inside of a bend opened a gap instead.)
 - While bent, the soft base is drawn in WebGL (its own 2D canvas is hidden), and petting is off.
 - When several parts share one shape (four legs), lay them out apart: every spot must lie nearer its own spine than any other. Its spine must not run on toward another part either.
 

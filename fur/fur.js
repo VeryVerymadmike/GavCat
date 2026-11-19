@@ -59,7 +59,7 @@ const QUALITY = {
   low:    { cover: 0.5,  hw: 2.0, seg: 2, dpr: 1.5 },
 };
 const BASE_KEYS = new Set(['blur', 'edgeInset', 'keepShape']);
-const COLOR_KEYS = new Set(['unit', 'colorInner', 'colorOuter', 'shading', 'colorSource', 'colorBlur', 'invert']);
+const COLOR_KEYS = new Set(['unit', 'colorInner', 'colorOuter', 'shading', 'colorSource', 'colorBlur', 'invert', 'variation', 'rim', 'crisp', 'hairInset', 'edgeBand']);   // (the last five: the base takes the hairs' average brightness)
 const LIVE_KEYS = new Set(['pet', 'petRadius']);
 
 /* ---------- small helpers ---------- */
@@ -96,43 +96,76 @@ function chamfer(d, near, GN) {                      // 2-pass 8-neighbour dista
 
 /* ---------- shaders ---------- */
 // a spot tied to a spine (segment i, t along it, offsets e along and d across it, all as drawn) on the spine as it is now
-// (u_sp: x, y, width scale, 1 = first point of its spine | 2 = last), in view units: position, and the spine's direction there
+// (u_sp: x, y, width scale, 1 = first point of its spine | 2 = last), in view units: position, and how far the spine's direction
+// there has turned since drawn (cos, sin; u_rs: the spines as drawn, stage units, same flags)
+// Each spot goes with up to four segments (a_s0…a_s3), shared out by a_w: the shares change smoothly everywhere, so the fur
+// never tears where one segment or part hands over to the next
 const SPINE_GLSL = `
-vec2 spTan(int k){ int f = int(u_sp[k].w + 0.5); int a = (f & 1) != 0 ? k : k - 1, b = (f & 2) != 0 ? k : k + 1;
-  return normalize(u_sp[b].xy - u_sp[a].xy); }
-vec3 spineAt(vec4 s){
+// the spine as a smooth curve through its points (Catmull-Rom; at a spine's ends its end point mirrored): point and slope at t of segment i
+void cr(vec2 p0, vec2 p1, vec2 p2, vec2 p3, float t, out vec2 P, out vec2 D, out vec2 A){
+  vec2 a = 2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3, b = -p0 + 3.0 * p1 - 3.0 * p2 + p3, c = p2 - p0;
+  P = 0.5 * (2.0 * p1 + c * t + a * t * t + b * t * t * t); D = 0.5 * (c + 2.0 * a * t + 3.0 * b * t * t); A = a + 3.0 * b * t;
+}
+void crSp(int i, float t, out vec2 P, out vec2 D, out vec2 A){
+  vec2 p1 = u_sp[i].xy, p2 = u_sp[i + 1].xy;
+  vec2 p0 = (int(u_sp[i].w + 0.5) & 1) != 0 ? 2.0 * p1 - p2 : u_sp[max(i - 1, 0)].xy;
+  vec2 p3 = (int(u_sp[i + 1].w + 0.5) & 2) != 0 ? 2.0 * p2 - p1 : u_sp[min(i + 2, ${MAXP - 1})].xy;
+  cr(p0, p1, p2, p3, t, P, D, A);
+}
+void crRs(int i, float t, out vec2 P, out vec2 D, out vec2 A){
+  vec2 p1 = u_rs[i].xy, p2 = u_rs[i + 1].xy;
+  vec2 p0 = (int(u_rs[i].w + 0.5) & 1) != 0 ? 2.0 * p1 - p2 : u_rs[max(i - 1, 0)].xy;
+  vec2 p3 = (int(u_rs[i + 1].w + 0.5) & 2) != 0 ? 2.0 * p2 - p1 : u_rs[min(i + 2, ${MAXP - 1})].xy;
+  cr(p0, p1, p2, p3, t, P, D, A);
+}
+vec4 spineAt(vec4 s){
   int i = int(s.x + 0.5); float t = s.y, tc = clamp(t, 0.0, 1.0);
-  vec2 P = mix(u_sp[i].xy, u_sp[i + 1].xy, t), T = normalize(mix(spTan(i), spTan(i + 1), tc)), N = vec2(-T.y, T.x);
+  vec2 P, D, A, P0, D0, A0; crSp(i, tc, P, D, A); crRs(i, tc, P0, D0, A0);
+  vec2 T = normalize(D), N = vec2(-T.y, T.x), T0 = normalize(D0);
+  P += T * (t - tc) * length(u_sp[i + 1].xy - u_sp[i].xy);   // (past a spine's end: on along its end direction)
   float w = mix(u_sp[i].z, u_sp[i + 1].z, tc);
-  return vec3(P + (T * s.z + N * s.w * w) * u_k, atan(T.y, T.x));
-}`;
-// the soft base when bent: a grid over the stage, each point tied to its spine, painted with the base picture
+  return vec4(P + (T * s.z + N * s.w * w) * u_k, T.x * T0.x + T.y * T0.y, T.y * T0.x - T.x * T0.y);
+}
+void take(vec4 s, float w, inout vec2 r, inout vec2 d){ if (w > 0.0) { vec4 f = spineAt(s); r += w * f.xy; d += w * f.zw; } }`;
+// the soft base when bent: a grid over the stage, each point tied to its spines, painted with the base picture
 const VSB = `#version 300 es
 layout(location=0) in vec2 a_pos;    // grid point (stage units)
-layout(location=1) in vec4 a_sp;
-layout(location=2) in vec4 a_sp2;
-layout(location=3) in float a_w;
-uniform float u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}];
-out vec2 v_uv; out float v_y;
+layout(location=1) in vec4 a_s0;
+layout(location=2) in vec4 a_s1;
+layout(location=3) in vec4 a_s2;
+layout(location=4) in vec4 a_s3;
+layout(location=5) in vec4 a_w;
+uniform float u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}]; uniform int u_layer;
+out vec2 v_uv; out float v_y; out float v_own;
 ${SPINE_GLSL}
+float own(vec4 s, float w){ return w > 0.0 && int(u_rs[int(s.x + 0.5)].z + 0.5) == u_layer ? w : 0.0; }   // (u_rs .z: each point's spine)
 void main(){
-  vec2 q = mix(spineAt(a_sp).xy, spineAt(a_sp2).xy, a_w); v_uv = a_pos / 780.0; v_y = q.y;
+  vec2 q = vec2(0.0), d = vec2(0.0);
+  take(a_s0, a_w.x, q, d); take(a_s1, a_w.y, q, d); take(a_s2, a_w.z, q, d); take(a_s3, a_w.w, q, d);
+  v_uv = a_pos / 780.0; v_y = q.y;
+  v_own = u_layer < 0 ? 1.0 : own(a_s0, a_w.x) + own(a_s1, a_w.y) + own(a_s2, a_w.z) + own(a_s3, a_w.w);   // (one part's layer: how much of it is that part's)
   gl_Position = vec4((q.x - u_view.x) / u_view.z * 2.0 - 1.0, 1.0 - (q.y - u_view.y) / u_view.w * 2.0, 0.0, 1.0);
 }`;
 const FSB = `#version 300 es
 precision highp float;
-in vec2 v_uv; in float v_y; uniform sampler2D u_tex; uniform float u_floor; out vec4 o;
-void main(){ o = texture(u_tex, v_uv) * (1.0 - smoothstep(u_floor - 0.3, u_floor + 0.4, v_y)); }`;   // (nothing of it below the floor)
+in vec2 v_uv; in float v_y; in float v_own; uniform sampler2D u_tex; uniform float u_floor, u_fsoft; uniform highp int u_layer; out vec4 o;
+void main(){ o = texture(u_tex, v_uv) * (1.0 - smoothstep(u_floor - u_fsoft, u_floor, v_y));   // (gone by the floor, fading out above it: the hairs make the edge there)
+  // one part's layer: only where it is that part, fading out where it joins the others, and only its solid inside (its own edge
+  // hairs make its outline over what lies behind it)
+  if (u_layer >= 0) o *= smoothstep(0.5, 0.9, v_own) * smoothstep(0.6, 0.95, o.a);
+  if (o.a < 0.004) discard; }`;
 const VS = `#version 300 es
 layout(location=0) in vec2 a_tv;     // t along line (0 root → 1 tip), side (-1 | 1)
 layout(location=1) in vec4 a_root;   // x, y, angle, length
 layout(location=2) in vec4 a_shape;  // half width, bend, softness, root fade length
 layout(location=3) in vec4 a_col;    // rgb, opacity
 layout(location=4) in float a_off;   // petting offset (radians)
-layout(location=5) in vec4 a_sp;     // on its spine: segment, t along it, offsets along / across it (stage units)
-layout(location=6) in vec4 a_sp2;    // the same on the next nearest segment of that spine
-layout(location=7) in vec3 a_sw;     // share of that one, and the drawn spine's direction at each
-uniform float u_px, u_bent, u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}];
+layout(location=5) in vec4 a_s0;     // on its spines: segment, t along it, offsets along / across it (stage units)…
+layout(location=6) in vec4 a_s1;
+layout(location=7) in vec4 a_s2;
+layout(location=8) in vec4 a_s3;
+layout(location=9) in vec4 a_w;      // …and the share of each
+uniform float u_px, u_bent, u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}];
 out vec4 v_col; out float v_side; out float v_soft;
 ${SPINE_GLSL}
 void main(){
@@ -148,15 +181,28 @@ void main(){
   float minW = 0.5 / (u_px * k);                              // never thinner than 1px: fade instead
   if (w < minW) { a *= w / minW; w = minW; }
   vec2 p = c + vec2(-tg.y, tg.x) * a_tv.y * w, r = a_root.xy;
-  if (u_bent > 0.5) {                                         // bent: root and direction go with the spine
-    vec3 f = spineAt(a_sp), g = spineAt(a_sp2);
-    vec2 d = mix(vec2(cos(f.z - a_sw.y), sin(f.z - a_sw.y)), vec2(cos(g.z - a_sw.z), sin(g.z - a_sw.z)), a_sw.x);
-    r = mix(f.xy, g.xy, a_sw.x); ang += atan(d.y, d.x);
+  if (u_bent > 0.5) {                                         // bent: root and direction go with the spines
+    vec2 d = vec2(0.0); r = vec2(0.0);
+    take(a_s0, a_w.x, r, d); take(a_s1, a_w.y, r, d); take(a_s2, a_w.z, r, d); take(a_s3, a_w.w, r, d);
+    ang += atan(d.y, d.x);
   }
   float cs = cos(ang), sn = sin(ang);
   vec2 q = r + vec2(cs * p.x - sn * p.y, sn * p.x + cs * p.y) * k;
-  if (u_bent > 0.5 && q.y > u_floor) {                       // on the floor: a hair that would go through it is pressed flat along it
-    float e = q.y - max(r.y, u_floor); q = vec2(q.x + (q.x >= r.x ? 1.0 : -1.0) * e * 0.85, u_floor - e * 0.06);
+  if (u_bent > 0.5 && u_floor < 1e8) {
+    // the floor: every hair has its own, a little above the line (by its root, up to a third of its length), so the fur's lower edge is
+    // ragged like fur, not ruled; a hair that would go through it bends aside, more toward its tip, so it curves down to lie along it
+    float h = fract(sin(dot(a_root.xy, vec2(12.9898, 78.233))) * 43758.5453);
+    float fl = max(u_floor - h * 0.35 * len * k, min(r.y, u_floor));
+    vec2 to = vec2(cs * len - sn * 0.5 * bend * len, sn * len + cs * 0.5 * bend * len) * k;   // (its tip, as it would be)
+    float L = length(to), sd = to.x > 1e-4 * L ? 1.0 : to.x < -1e-4 * L ? -1.0 : (h < 0.5 ? -1.0 : 1.0);
+    if (r.y + to.y > fl && L > 1e-5) {
+      float b1 = asin(clamp((fl - r.y) / L, -1.0, 1.0)); b1 = sd > 0.0 ? b1 : 3.14159265 - b1;
+      float th = mod(b1 - atan(to.y, to.x) + 3.14159265, 6.2831853) - 3.14159265;
+      th *= 0.55 + 0.45 * t;
+      vec2 d = q - r; float c2 = cos(th), s2 = sin(th);
+      q = r + vec2(c2 * d.x - s2 * d.y, s2 * d.x + c2 * d.y);
+    }
+    if (q.y > fl) { float e = q.y - fl; q = vec2(q.x + sd * e * 0.85, fl - e * 0.06); }   // (what still reaches it lies flat on it)
   }
   gl_Position = vec4((q.x - u_view.x) / u_view.z * 2.0 - 1.0, 1.0 - (q.y - u_view.y) / u_view.w * 2.0, 0.0, 1.0);
   v_col = vec4(a_col.rgb, a); v_side = a_tv.y; v_soft = soft;
@@ -181,15 +227,20 @@ export function createFur(container, options = {}) {
     Object.assign(c.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', display: 'block' });
     container.appendChild(c); return c; };
   const baseCv = mk(), cv = mk();
-  baseCv.width = baseCv.height = GN;
+  // the soft base is painted at twice the grid's size, its edge from the drawing's own smooth (anti-aliased) outline: from the grid's
+  // inside/outside cells it showed stair steps once Shape blur was low
+  const BN = GN * 2, BS = W / BN;
+  baseCv.width = baseCv.height = BN;
   const gl = cv.getContext('webgl2', { antialias: true, premultipliedAlpha: true, alpha: true });
   if (!gl) throw new Error('fur.js needs WebGL2');
 
   let rand, lastShape = null;
-  let SVG_PX = null, LIGHT_PX = null, IN = null, SDF, NEAR, NX, NY, COL, BASE_RGB, DMAX = 1, CEN = { x: W / 2, y: H / 2 };
+  let COV = null, SDFB = null, SVG_PX = null, LIGHT_PX = null, FADE_PX = null, IN = null, SDF, NEAR, NX, NY, COL, BASE_RGB, DMAX = 1, CEN = { x: W / 2, y: H / 2 };
   // spines: as drawn (shape units, SPINES_SVG) and in stage units (SPINES; SP all their points, FLAG first/last, RT directions);
   // FIT: how the shape sits in the stage (stage = shape × s + t); BENT: the spines as they are now (see bend)
-  let SPINES_SVG = [], SPINES = [], SP = [], SPID = [], FLAG = [], RT = [], FIT = { tx: 0, ty: 0, s: 1 }, BENT = null;
+  let SPINES_SVG = [], SPINES = [], SP = [], SPID = [], FLAG = [], RT = [], HUB = [], REACH = [], FIT = { tx: 0, ty: 0, s: 1 }, BENT = null;
+  const RS = new Float32Array(MAXP * 4);
+  const fadeAt = i => FADE_PX && i >= 0 && FADE_PX[i * 4 + 3] ? FADE_PX[i * 4] / 255 * FADE_PX[i * 4 + 3] / 255 : 0;   // (0 none … 1 gone)
   const gi = (x, y) => { x = x / GS | 0; y = y / GS | 0; return x < 0 || y < 0 || x >= GN || y >= GN ? -1 : y * GN + x; };
   const Q = () => QUALITY[o.quality] || QUALITY.high;
   // sizes (hair length and width, insets, bands, blurs) are in stage units; with unit set they are meant at that fit, so scaled by how this shape is fitted
@@ -216,7 +267,7 @@ export function createFur(container, options = {}) {
     const spines = [...g.querySelectorAll('[data-fur-spine]')].map(el => {
       const m = g.getCTM().inverse().multiply(el.getCTM()), n = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number), pts = [];
       for (let i = 0; i + 1 < n.length; i += 2) { const q = new DOMPoint(n[i], n[i + 1]).matrixTransform(m); pts.push([q.x, q.y]); }
-      return pts;
+      pts.hub = el.hasAttribute('data-fur-hub'); pts.reach = +el.getAttribute('data-fur-reach') || 0; return pts;
     }).filter(p => p.length >= 2);
     for (const r of [g, outline]) r.querySelectorAll('[data-fur-spine]').forEach(el => el.remove());
     // light (data-fur-light: a grey picture of how much each spot is darkened, 0 none … white all, times shading): shades the fur
@@ -228,28 +279,40 @@ export function createFur(container, options = {}) {
       lightSrc = L.innerHTML;
       for (const r of [g, outline]) r.querySelectorAll('[data-fur-light]').forEach(el => el.remove());
     }
+    // fade (data-fur-fade: a grey picture, white where the fur fades out, hairs and base alike): where a part lies over another and should
+    // melt into it with no edge (a leg's round top on the body). Only fade pictures, then left out of the others
+    let fadeSrc = null;
+    if (g.querySelector('[data-fur-fade]')) {
+      const L = g.cloneNode(true);
+      L.querySelectorAll('path,ellipse,circle,rect,polygon,polyline,line,text,use,image').forEach(el => { if (!el.closest('[data-fur-fade]') && !el.closest('defs')) el.remove(); });
+      fadeSrc = L.innerHTML;
+      for (const r of [g, outline]) r.querySelectorAll('[data-fur-fade]').forEach(el => el.remove());
+    }
     const bb = outline.getBBox(), maskSrc = outline.innerHTML, colorSrc = g.innerHTML;
     holder.remove();
     if (!bb.width || !bb.height) throw new Error('The shape is empty');
     const M = o.margin, s = Math.min((W - 2 * M) / bb.width, (H - 2 * M) / bb.height);
     const tx = (W - bb.width * s) / 2 - bb.x * s, ty = (H - bb.height * s) / 2 - bb.y * s;
     if (spines.flat().length > MAXP) throw new Error(`Too many spine points (${MAXP} at most)`);
-    FIT = { tx, ty, s }; SPINES_SVG = spines; SPINES = spines.map(p => p.map(([x, y]) => [tx + x * s, ty + y * s]));
-    const raster = async (inner, force) => {
-      const str = `<svg xmlns="${SVGNS}" width="${GN}" height="${GN}" viewBox="0 0 ${W} ${H}">` +
+    FIT = { tx, ty, s }; SPINES_SVG = spines; SPINES = spines.map(p => p.map(([x, y]) => [tx + x * s, ty + y * s])); HUB = spines.map(p => !!p.hub); REACH = spines.map(p => p.reach * s);
+    const raster = async (inner, force, n = GN) => {
+      const str = `<svg xmlns="${SVGNS}" width="${n}" height="${n}" viewBox="0 0 ${W} ${H}">` +
         (force ? '<style>*{fill:#000!important;fill-opacity:1!important;opacity:1!important}</style>' : '') +
         `<g transform="translate(${tx} ${ty}) scale(${s})">${inner}</g></svg>`;
       const img = new Image();
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(str);
       await img.decode();
-      const c = document.createElement('canvas'); c.width = c.height = GN;
-      const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, GN, GN);
-      return x.getImageData(0, 0, GN, GN).data;
+      const c = document.createElement('canvas'); c.width = c.height = n;
+      const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, n, n);
+      return x.getImageData(0, 0, n, n).data;
     };
+    const hpx = await raster(maskSrc, true, BN); COV = new Uint8Array(BN * BN);   // (the outline, finer and anti-aliased, for the soft base)
+    for (let i = 0; i < BN * BN; i++) COV[i] = hpx[i * 4 + 3];
     const mpx = await raster(maskSrc, true), m = new Uint8Array(NC);
     for (let i = 0; i < NC; i++) m[i] = mpx[i * 4 + 3] > 127 ? 1 : 0;
     SVG_PX = await raster(colorSrc, false);                         // the SVG's own colours
     LIGHT_PX = lightSrc ? await raster(lightSrc, false) : null;     // the light, if given
+    FADE_PX = fadeSrc ? await raster(fadeSrc, false) : null;        // the fade, if given
     return m;
   }
 
@@ -311,10 +374,13 @@ export function createFur(container, options = {}) {
       const t = clamp(1 - d / (DMAX * 0.7), 0, 1), nz = Math.sqrt(1 - t * t);
       const lit = (-0.45 * NX[s] - 0.55 * NY[s]) * t + 0.7 * nz;
       const k = 1 - o.shading * (LIGHT_PX && LIGHT_PX[s * 4 + 3] > 127 ? LIGHT_PX[s * 4] / 255 : clamp(0.75 - lit, 0, 1));   // (a light given: shaded by it)
+      // the base is as bright as the hairs over it are on average (strand variation and the edge's rim lighten them, see makeLines), so
+      // where the hair is thinner (inside, or stretched as a part bends) it doesn't show as a darker patch
+      const e = IN[i] ? edgeOf(SDF[i]) : 1, cr = e + (1 - e) * o.crisp, jm = 1 + o.rim * e + o.variation * 0.35 * (cr * (1 + 0.4 * (1 - e)) + (1 - cr) * 0.6);
       for (let q = 0; q < 3; q++) {
         const a = S4 ? S4[i * 4 + 3] : 0;
         const base = S4 && a > 0.05 ? S4[i * 4 + q] / a : ci[q] + (co[q] - ci[q]) * u;
-        const c = base * k; COL[i * 3 + q] = c; C[i * 4 + q] = c;
+        const c = base * k; COL[i * 3 + q] = c; C[i * 4 + q] = c * jm;
       }
       if (S4o && !IN[i] && S4o[i * 4 + 3] > 0.05) for (let q = 0; q < 3; q++) COL[i * 3 + q] = S4o[i * 4 + q] / S4o[i * 4 + 3] * k;   // (hair only: the base keeps the shape's)
       C[i * 4 + 3] = 1;
@@ -323,15 +389,32 @@ export function createFur(container, options = {}) {
     BASE_RGB = C;
   }
 
+  // the soft base's signed distance to the outline (stage units, + inside), on its finer grid: whole pixels from a distance transform,
+  // and right at the outline from how much of the pixel the drawing covers, so the edge is smooth
+  function prepBaseField() {
+    const n = BN * BN, din = new Float32Array(n), dout = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const a = COV[i] > 127; din[i] = a ? 1e9 : 0; dout[i] = a ? 0 : 1e9; }
+    chamfer(din, null, BN); chamfer(dout, null, BN);
+    SDFB = new Float32Array(n);
+    for (let y = 0; y < BN; y++) for (let x = 0; x < BN; x++) {
+      const i = y * BN + x, a = COV[i] > 127;
+      const edge = (x > 0 && (COV[i - 1] > 127) !== a) || (x < BN - 1 && (COV[i + 1] > 127) !== a) || (y > 0 && (COV[i - BN] > 127) !== a) || (y < BN - 1 && (COV[i + BN] > 127) !== a);
+      SDFB[i] = (edge ? COV[i] / 255 - 0.5 : a ? din[i] - 0.5 : -(dout[i] - 0.5)) * BS;
+    }
+  }
+
   /* --- soft base: alpha = smooth step across the outline --- */
   function paintBase() {
-    const b = baseCv.getContext('2d'), img = b.createImageData(GN, GN);
+    const b = baseCv.getContext('2d'), img = b.createImageData(BN, BN);
     const z = Z(), w = Math.max(o.blur * z, 0.01), k = o.keepShape === true ? 0 : typeof o.keepShape === 'number' ? o.keepShape * z : o.keepShape, lo = typeof k === 'number' ? Math.min((o.edgeInset - o.blur / 2) * z, k - w) : (o.edgeInset - o.blur / 2) * z;   // (keepShape: solid by then at the latest)
-    for (let i = 0; i < NC; i++) {
-      const t = clamp((SDF[i] - lo) / w, 0, 1), al = t * t * (3 - 2 * t);
+    for (let y = 0; y < BN; y++) for (let x = 0; x < BN; x++) {
+      const j = y * BN + x, gx = clamp((x + 0.5) * GN / BN - 0.5, 0, GN - 1), gy = clamp((y + 0.5) * GN / BN - 0.5, 0, GN - 1);
+      const x0 = gx | 0, y0 = gy | 0, x1 = Math.min(x0 + 1, GN - 1), y1 = Math.min(y0 + 1, GN - 1), fx = gx - x0, fy = gy - y0;
+      const t = clamp((SDFB[j] - lo) / w, 0, 1), al = t * t * (3 - 2 * t) * (1 - fadeAt(Math.round(gy) * GN + Math.round(gx)));
       if (al <= 0) continue;
-      img.data[i * 4] = BASE_RGB[i * 4]; img.data[i * 4 + 1] = BASE_RGB[i * 4 + 1]; img.data[i * 4 + 2] = BASE_RGB[i * 4 + 2];
-      img.data[i * 4 + 3] = al * 255;
+      const a = (y0 * GN + x0) * 4, bq = (y0 * GN + x1) * 4, c = (y1 * GN + x0) * 4, d = (y1 * GN + x1) * 4;   // (its colour: the grid's, in between)
+      for (let q = 0; q < 3; q++) img.data[j * 4 + q] = (BASE_RGB[a + q] * (1 - fx) + BASE_RGB[bq + q] * fx) * (1 - fy) + (BASE_RGB[c + q] * (1 - fx) + BASE_RGB[d + q] * fx) * fy;
+      img.data[j * 4 + 3] = al * 255;
     }
     b.putImageData(img, 0, 0);
     sendBase();
@@ -414,31 +497,61 @@ export function createFur(container, options = {}) {
     SPINES.forEach((p, n) => p.forEach((q, i) => { SP.push(q); SPID.push(n); FLAG.push((i === 0 ? 1 : 0) | (i === p.length - 1 ? 2 : 0)); }));
     RT = SP.map((q, k) => { const a = FLAG[k] & 1 ? k : k - 1, b = FLAG[k] & 2 ? k : k + 1, dx = SP[b][0] - SP[a][0], dy = SP[b][1] - SP[a][1], l = Math.hypot(dx, dy) || 1;
       return [dx / l, dy / l]; });
+    RS.fill(0); SP.forEach((q, k) => RS.set([q[0], q[1], SPID[k], FLAG[k]], k * 4));   // (the spines as drawn, and which spine each point is on, for the shaders)
   }
   // a spot in the frame of segment k at t: [segment (index of its first point in SP), t (past 0 / 1 beyond a spine's ends), offset along, offset across, direction]
+  // The frame runs along the smooth curve through the spine's points (as the shaders: Catmull-Rom, a spine's end point mirrored), so a
+  // spine bent at its points bends the fur round, not at corners. As drawn, any t gives the spot back exactly, whatever the curve
+  function crAt(k, t) {
+    const p1 = SP[k], p2 = SP[k + 1], p0 = FLAG[k] & 1 ? [2 * p1[0] - p2[0], 2 * p1[1] - p2[1]] : SP[k - 1], p3 = FLAG[k + 1] & 2 ? [2 * p2[0] - p1[0], 2 * p2[1] - p1[1]] : SP[k + 2];
+    const P = [0, 0], D = [0, 0];
+    for (let q = 0; q < 2; q++) { const a = 2 * p0[q] - 5 * p1[q] + 4 * p2[q] - p3[q], b = -p0[q] + 3 * p1[q] - 3 * p2[q] + p3[q], c = p2[q] - p0[q];
+      P[q] = 0.5 * (2 * p1[q] + c * t + a * t * t + b * t * t * t); D[q] = 0.5 * (c + 2 * a * t + 3 * b * t * t); }
+    return [P, D];
+  }
   function segSpot(k, t, x, y) {
-    const tc = clamp(t, 0, 1), tx = RT[k][0] + (RT[k + 1][0] - RT[k][0]) * tc, ty = RT[k][1] + (RT[k + 1][1] - RT[k][1]) * tc, l = Math.hypot(tx, ty) || 1;
-    const T = [tx / l, ty / l], rx = x - (SP[k][0] + (SP[k + 1][0] - SP[k][0]) * t), ry = y - (SP[k][1] + (SP[k + 1][1] - SP[k][1]) * t);
+    const tc = clamp(t, 0, 1), [P, D] = crAt(k, tc), l = Math.hypot(D[0], D[1]) || 1, T = [D[0] / l, D[1] / l];
+    const ext = (t - tc) * Math.hypot(SP[k + 1][0] - SP[k][0], SP[k + 1][1] - SP[k][1]);   // (past a spine's end: on along its end direction)
+    const rx = x - P[0] - T[0] * ext, ry = y - P[1] - T[1] * ext;
     return [k, t, rx * T[0] + ry * T[1], ry * T[0] - rx * T[1], Math.atan2(T[1], T[0])];
   }
-  // the nearest segment, and the nearest other one of the same spine: a spot near both (a knee) goes with both, more of the
-  // nearer, so the fur never tears where one bone hands over to the next. → [first spot (4), second spot (4), share of the second, their directions]
-  const BLEND = 24;
+  // the segments a spot goes with, and how much of each: up to SPK of them, every share changing smoothly from spot to spot,
+  // so neighbouring fur always moves together and never tears (a knee goes with both its bones; where a leg or the neck meets
+  // the hub, both spines). → SPK spots (segment, t, along, across), then their shares
+  //  · within a spine: each segment by how much farther it is than the spine's nearest (none past BLEND)
+  //  · between spines: the hub and a part blend across BLEND_HUB; two parts that are not the hub (two legs) only across BLEND,
+  //    which happens only in the empty space between them
+  //  · the shares are cut to the SPK biggest by taking off the next one's, so a segment coming in or going out starts at 0
+  const BLEND = 24, BLEND_HUB = 30, SPK = 4, SPF = SPK * 5;   // (stage units; across a hub join: shape units, as the part is drawn (60 stage units without unit))
+  const fall = u => u <= 0 ? 1 : u >= 1 ? 0 : 1 - u * u * (3 - 2 * u);   // 1 → 0, smoothly
   function spineAt(x, y) {
-    const near = [];
+    const near = [], ds = SPINES.map(() => Infinity);
     for (let j = 0; j < SP.length - 1; j++) {
       if (FLAG[j] & 2) continue;                                  // (last point of a spine: no segment starts here)
       const A = SP[j], B = SP[j + 1], dx = B[0] - A[0], dy = B[1] - A[1], u = ((x - A[0]) * dx + (y - A[1]) * dy) / (dx * dx + dy * dy || 1e-9);
       // past a spine's end a spot goes on along its last direction (uc), but how near it is counts from the end itself,
       // so the line running on never takes spots from another part lying further along it
       const uc = clamp(u, FLAG[j] & 1 ? -Infinity : 0, FLAG[j + 1] & 2 ? Infinity : 1), ud = clamp(u, 0, 1);
-      near.push([j, uc, Math.hypot(x - A[0] - dx * ud, y - A[1] - dy * ud)]);
+      // (a spine with a reach (data-fur-reach, shape units) is that much nearer, so a body's line along its back owns all of the body;
+      // past the spine's ends the reach fades within 0.1 of itself, so what grows on from there (a neck) stays its own)
+      const R = REACH[SPID[j]] || 0, over = R ? Math.max(FLAG[j] & 1 ? -u : 0, FLAG[j + 1] & 2 ? u - 1 : 0, 0) * Math.sqrt(dx * dx + dy * dy) : 0;
+      const d = Math.hypot(x - A[0] - dx * ud, y - A[1] - dy * ud) - R * clamp(1 - over / (0.1 * R || 1), 0, 1);
+      near.push([j, uc, d, 0]); if (d < ds[SPID[j]]) ds[SPID[j]] = d;
     }
-    let a = near[0]; for (const s of near) if (s[2] < a[2]) a = s;
-    // (only the segment before or after it on its spine: one sharing a joint with it)
-    let b = a; for (const s of near) if (Math.abs(s[0] - a[0]) === 1 && SPID[s[0]] === SPID[a[0]] && (b === a || s[2] < b[2])) b = s;
-    const w = b === a ? 0 : 0.5 * clamp(1 - (b[2] - a[2]) / BLEND, 0, 1), A = segSpot(a[0], a[1], x, y), B = segSpot(b[0], b[1], x, y);
-    return [A[0], A[1], A[2], A[3], B[0], B[1], B[2], B[3], w, A[4], B[4]];
+    let dh = Infinity, dn = Infinity; ds.forEach((d, s) => { if (HUB[s]) dh = Math.min(dh, d); else dn = Math.min(dn, d); });
+    const hubW = o.unit > 0 ? BLEND_HUB * FIT.s : 60, d0 = Math.min(dh, dn);
+    const om = ds.map((d, s) => HUB[s] ? fall((d - d0) / hubW) : fall((d - dh) / hubW) * fall((d - dn) / BLEND)), sum = ds.map(() => 0);
+    let all = 0; om.forEach(w => all += w);
+    for (const n of near) { const s = SPID[n[0]]; n[3] = om[s] > 0 ? fall((n[2] - ds[s]) / BLEND) : 0; sum[s] += n[3]; }
+    const top = near.filter(n => n[3] > 0).map(n => (n[3] *= om[SPID[n[0]]] / sum[SPID[n[0]]] / all, n)).sort((a, b) => b[3] - a[3]);
+    const cut = top.length > SPK ? top[SPK][3] : 0, out = new Array(SPF).fill(0);
+    let tot = 0; for (let k = 0; k < SPK && k < top.length; k++) tot += top[k][3] - cut;
+    for (let k = 0; k < SPK && k < top.length; k++) {
+      const n = top[k], S = segSpot(n[0], n[1], x, y);
+      out[k * 4] = S[0]; out[k * 4 + 1] = S[1]; out[k * 4 + 2] = S[2]; out[k * 4 + 3] = S[3];
+      out[SPK * 4 + k] = tot > 1e-9 ? (n[3] - cut) / tot : k === 0 ? 1 : 0;
+    }
+    return out;
   }
 
   /* --- lines --- */
@@ -482,7 +595,8 @@ export function createFur(container, options = {}) {
           const c1 = mi >= 0 && (ex ? !IN[mi] && SVG_PX[mi * 4 + 3] > 127 : IN[mi]) ? [COL[mi * 3], COL[mi * 3 + 1], COL[mi * 3 + 2]] : c0;
           const soft = rand() < edge + (1 - edge) * o.crisp ? 0 : 0.85;
           const j = (1 + o.rim * edge + o.variation * P.jit * (soft ? 0.6 : 1 + 0.4 * (1 - edge)) * (1.3 * rand() - 0.3)) / 255;
-          list.push({ x, y, a, len, op: P.op[0] + P.op[1] * rand(), hw: (0.75 + 0.35 * rand()) * q.hw * (rim ? 0.75 : 1),
+          const fd = fadeAt(i); if (fd > 0.98) continue;
+          list.push({ x, y, a, len, op: (P.op[0] + P.op[1] * rand()) * (1 - fd), hw: (0.75 + 0.35 * rand()) * q.hw * (rim ? 0.75 : 1),
             bend: angDiff(flow(x + Math.cos(a) * len, y + Math.sin(a) * len, ex), a) + (rand() - 0.5) * (rim ? 0.7 : 0.15),
             soft, fade: 0.3 + 0.45 * edge, c: [0, 1, 2].map(n => clamp((c0[n] + c1[n]) / 2 * j, 0, 1)), z: ex ? 1e4 + d : SDF[i] });   // (inverted edge hairs on top)
         }
@@ -500,11 +614,11 @@ export function createFur(container, options = {}) {
     gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; };
   const prog = link(VS, FS), progB = link(VSB, FSB);
   const U = (p, ...n) => Object.fromEntries(n.map(k => [k, gl.getUniformLocation(p, 'u_' + k)]));
-  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'floor'), uB = U(progB, 'k', 'view', 'sp', 'tex', 'floor');
-  // the bent base: grid (x, y, then its two spine spots and the second's share: 11 floats a point), and the base picture as a texture
+  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'rs', 'floor'), uB = U(progB, 'k', 'view', 'sp', 'rs', 'tex', 'floor', 'fsoft', 'layer');
+  // the bent base: grid (x, y, then its spine spots and their shares: 2 + SPF floats a point), and the base picture as a texture
   const vaoB = gl.createVertexArray(), gridBuf = gl.createBuffer(), idxBuf = gl.createBuffer(), tex = gl.createTexture(); let nIdx = 0;
   gl.bindVertexArray(vaoB); gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf);
-  [[0, 2, 0], [1, 4, 8], [2, 4, 24], [3, 1, 40]].forEach(([l, n, ofs]) => { gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, n, gl.FLOAT, false, 44, ofs); });
+  [[0, 2, 0], [1, 4, 8], [2, 4, 24], [3, 4, 40], [4, 4, 56], [5, 4, 72]].forEach(([l, n, ofs]) => { gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, n, gl.FLOAT, false, (2 + SPF) * 4, ofs); });
   gl.bindTexture(gl.TEXTURE_2D, tex);
   for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
   const vaoH = gl.createVertexArray();
@@ -520,20 +634,32 @@ export function createFur(container, options = {}) {
   });
   const offBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, offBuf);
   gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(4, 1);
-  const spBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, spBuf);   // each hair's spine spots (11 floats, see spineAt)
-  [[5, 4, 0], [6, 4, 16], [7, 3, 32]].forEach(([l, n, ofs]) => { gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, n, gl.FLOAT, false, 44, ofs); gl.vertexAttribDivisor(l, 1); });
+  const spBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, spBuf);   // each hair's spine spots and shares (SPF floats, see spineAt)
+  [5, 6, 7, 8, 9].forEach(l => { gl.enableVertexAttribArray(l); gl.vertexAttribDivisor(l, 1); });
+  // the hairs from the s-th on (WebGL2 has no first instance: the per-hair attributes start there instead)
+  function hairsFrom(s) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, statBuf); [[1, 0], [2, 16], [3, 32]].forEach(([l, ofs]) => gl.vertexAttribPointer(l, 4, gl.FLOAT, false, 48, s * 48 + ofs));
+    gl.bindBuffer(gl.ARRAY_BUFFER, offBuf); gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 0, s * 4);
+    gl.bindBuffer(gl.ARRAY_BUFFER, spBuf); [5, 6, 7, 8, 9].forEach((l, k) => gl.vertexAttribPointer(l, 4, gl.FLOAT, false, SPF * 4, s * SPF * 4 + k * 16));
+  }
+  hairsFrom(0);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   // the base's grid for the shape's spines (built with the shape), and its picture (sent again each time it is painted)
   function prepGrid() {
     if (!SP.length) { nIdx = 0; return; }
-    const G = 64, v = new Float32Array((G + 1) ** 2 * 11), seg = new Int32Array((G + 1) ** 2), idx = new Uint16Array(G * G * 6);
+    const G = 64, F = 2 + SPF, v = new Float32Array((G + 1) ** 2 * F), part = new Int32Array((G + 1) ** 2), idx = new Uint16Array(G * G * 6);
     for (let y = 0; y <= G; y++) for (let x = 0; x <= G; x++) {
       const px = x / G * W, py = y / G * H, s = spineAt(px, py), i = y * (G + 1) + x;
-      v.set([px, py, ...s.slice(0, 9)], i * 11); seg[i] = s[0];
+      v[i * F] = px; v[i * F + 1] = py; v.set(s, i * F + 2);
+      // the part it goes with when the hub has none of it (-1: the hub holds some, so it stays with the rest), -2 if two parts
+      // (only in the empty space between two legs)
+      let m = -1, hub = false; for (let k = 0; k < SPK; k++) { const sp = SPID[s[k * 4]]; if (s[SPK * 4 + k] > 0) if (HUB[sp]) hub = true; else m = m === -1 || m === sp ? sp : -2; }
+      part[i] = hub ? -1 : m;
     }
-    // a triangle whose corners go with segments that share no joint (two parts, or across the inside of a Z-shaped leg) would
-    // stretch over the gap between them as they bend: left out (only empty space between parts lies there)
-    const fits = (...t) => { const s = t.map(i => seg[i]); return Math.max(...s) - Math.min(...s) <= 1 && s.every(k => SPID[k] === SPID[s[0]]); };
+    // a triangle between two parts that are not the hub (two legs) would stretch over the gap between them as they move apart:
+    // left out (only empty space lies there). Everything else is whole: the fur's shares change smoothly, so the base only stretches
+    const ok = (a, b) => part[a] === -1 || part[b] === -1 || part[a] === part[b];
+    const fits = (a, b, c) => part[a] !== -2 && part[b] !== -2 && part[c] !== -2 && ok(a, b) && ok(b, c) && ok(a, c);
     let n = 0;
     for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
       const a = y * (G + 1) + x, c = a + G + 1;
@@ -553,12 +679,21 @@ export function createFur(container, options = {}) {
     if (BENT) draw();
   }
 
-  let N = 0, X, Y, A, OFF, TGT, ACT, active = [], cells, buildMs = 0, fps = 0;
+  let N = 0, X, Y, A, OFF, TGT, ACT, active = [], cells, buildMs = 0, fps = 0, PARTS = [];   // (PARTS: each spine's hairs, [first, count])
   const CELL = 64, GWc = Math.ceil(W / CELL);
   function build() {
     if (!IN) return;
     const t0 = performance.now(), lines = makeLines();
-    N = lines.length;
+    // each hair's spine spots, and the part it belongs to (the spine holding most of it). The hairs are kept together by part (in
+    // their order within it: edge first, inner on top), so a part's fur can lie over or under another's as a whole (see bend's z)
+    if (SP.length) {
+      for (const l of lines) { l.sp = spineAt(l.x, l.y); const own = SPINES.map(() => 0);
+        for (let k = 0; k < SPK; k++) own[SPID[l.sp[k * 4]]] += l.sp[SPK * 4 + k];
+        l.part = own.indexOf(Math.max(...own)); }
+      lines.sort((a, b) => a.part - b.part);
+    }
+    N = lines.length; PARTS = SPINES.map(() => [0, 0]);
+    lines.forEach((l, i) => { const P = PARTS[l.part || 0]; if (P && !P[1]++) P[0] = i; });
     const stat = new Float32Array(N * 12);
     X = new Float32Array(N); Y = new Float32Array(N); A = new Float32Array(N);
     OFF = new Float32Array(N); TGT = new Float32Array(N); ACT = new Uint8Array(N); active = [];
@@ -570,8 +705,8 @@ export function createFur(container, options = {}) {
     });
     gl.bindBuffer(gl.ARRAY_BUFFER, statBuf); gl.bufferData(gl.ARRAY_BUFFER, stat, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, offBuf); gl.bufferData(gl.ARRAY_BUFFER, OFF, gl.DYNAMIC_DRAW);
-    const spd = new Float32Array(N * 11);
-    if (SP.length) lines.forEach((s, i) => spd.set(spineAt(s.x, s.y), i * 11));
+    const spd = new Float32Array(N * SPF);
+    if (SP.length) lines.forEach((s, i) => spd.set(s.sp, i * SPF));
     gl.bindBuffer(gl.ARRAY_BUFFER, spBuf); gl.bufferData(gl.ARRAY_BUFFER, spd, gl.STATIC_DRAW);
     buildMs = Math.round(performance.now() - t0);
     draw();
@@ -580,17 +715,32 @@ export function createFur(container, options = {}) {
     gl.viewport(0, 0, cv.width, cv.height);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     const view = BENT ? BENT.view : [0, 0, W, H], k = 1 / FIT.s;
-    if (BENT && nIdx) {                                          // bent: the soft base is drawn here (its own canvas is hidden)
+    // bent: the soft base is drawn here (its own canvas is hidden), all of it first; then each part's hairs, back to front by z,
+    // each part after the first laying its own soft base over the fur behind it first (only where it is that part)
+    const base = layer => {
+      if (!BENT || !nIdx) return;
       gl.useProgram(progB); gl.bindVertexArray(vaoB);
-      gl.uniform1f(uB.k, k); gl.uniform1f(uB.floor, BENT.floor); gl.uniform4fv(uB.view, view); gl.uniform4fv(uB.sp, BENT.sp); gl.uniform1i(uB.tex, 0);
+      gl.uniform1f(uB.k, k); gl.uniform1f(uB.floor, BENT.floor); gl.uniform1f(uB.fsoft, 0.5 * o.hairMax * Z() * k);   // (the soft base fades out over half a long hair above the floor) gl.uniform4fv(uB.view, view); gl.uniform4fv(uB.sp, BENT.sp); gl.uniform4fv(uB.rs, RS); gl.uniform1i(uB.tex, 0); gl.uniform1i(uB.layer, layer);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+      // (all of it: where it lies over itself (a tight curl, a leg folded up to the belly) each pixel keeps the more solid of the two,
+      // so no edge of it shows inside; a part's layer over the fur behind it: laid over it)
+      if (layer < 0) gl.blendEquation(gl.MAX);
       gl.drawElements(gl.TRIANGLES, nIdx, gl.UNSIGNED_SHORT, 0);
-    }
+      gl.blendEquation(gl.FUNC_ADD);
+    };
+    base(-1);
+    if (!N) { gl.bindVertexArray(vaoH); return; }
     gl.useProgram(prog); gl.bindVertexArray(vaoH);
-    if (!N) return;
     gl.uniform1f(uH.px, cv.width / view[2]); gl.uniform4fv(uH.view, view); gl.uniform1f(uH.bent, BENT ? 1 : 0); gl.uniform1f(uH.k, k); gl.uniform1f(uH.floor, BENT ? BENT.floor : 1e9);
-    if (BENT) gl.uniform4fv(uH.sp, BENT.sp);
-    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, VERTS, N);
+    if (BENT) { gl.uniform4fv(uH.sp, BENT.sp); gl.uniform4fv(uH.rs, RS); }
+    if (!BENT || PARTS.length < 2) { hairsFrom(0); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, VERTS, N); return; }
+    const z = PARTS.map((P, j) => BENT.z && typeof BENT.z[j] === 'number' ? BENT.z[j] : HUB[j] ? -1 : j);   // (no z given: the hub at the back, the rest in order)
+    const order = PARTS.map((P, j) => j).filter(j => PARTS[j][1]).sort((a, b) => z[a] - z[b] || a - b);
+    order.forEach((j, n) => {
+      if (n) { base(j); gl.useProgram(prog); gl.bindVertexArray(vaoH); }
+      hairsFrom(PARTS[j][0]); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, VERTS, PARTS[j][1]);
+    });
+    hairsFrom(0);
   }
   function resize() {
     const r = container.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, Q().dpr);
@@ -647,19 +797,21 @@ export function createFur(container, options = {}) {
       lastShape = svg;
       IN = await rasterize(svg);
       BENT = null; baseCv.style.visibility = '';
-      prepSpines(); prepGrid(); prepField(); prepColors(); paintBase(); build();
+      prepSpines(); prepGrid(); prepField(); prepBaseField(); prepColors(); paintBase(); build();
     },
     // the shape's spines as they are now: one list of points per data-fur-spine line (same order and counts), each point
     // [x, y] or [x, y, width scale], in the units of view {x, y, width, height} (the rectangle the canvas shows; keep it the
     // canvas's shape). view left out: the stage in the shape's own units. null: back to the shape as drawn. Only redraws.
-    // floor (optional, a y in view units): nothing goes below it; hairs that would are pressed flat along it, the soft base is cut there
-    bend(spines, view, floor) {
+    // floor (optional, a y in view units): nothing goes below it; hairs that would bend aside to lie along it, each hair's floor a little
+    // above the line so the edge there is ragged like fur; the soft base fades out just above it
+    // z (optional, a number per spine): which part's fur lies over which where they cross, higher in front (left out: the hub at the back)
+    bend(spines, view, floor, z) {
       if (!spines || !SPINES.length) { BENT = null; baseCv.style.visibility = ''; draw(); return; }
       if (spines.length !== SPINES.length || spines.some((p, j) => p.length !== SPINES[j].length)) throw new Error('bend needs the shape\'s spines, point for point');
       const sp = BENT?.sp || new Float32Array(MAXP * 4); let n = 0;
       spines.forEach(p => p.forEach((q, i) => sp.set([q[0], q[1], q[2] ?? 1, (i === 0 ? 1 : 0) | (i === p.length - 1 ? 2 : 0)], 4 * n++)));
       const v = view || { x: -FIT.tx / FIT.s, y: -FIT.ty / FIT.s, width: W / FIT.s, height: H / FIT.s };
-      BENT = { sp, view: [v.x, v.y, v.width, v.height], floor: typeof floor === 'number' ? floor : 1e9 };
+      BENT = { sp, view: [v.x, v.y, v.width, v.height], floor: typeof floor === 'number' ? floor : 1e9, z: Array.isArray(z) ? [...z] : null };
       baseCv.style.visibility = 'hidden'; draw();
     },
     spines: () => JSON.parse(JSON.stringify(SPINES_SVG)),   // the shape's spines as drawn (its own units)
