@@ -150,16 +150,18 @@ float creaseOf(vec4 s, inout float shade, float w){
   if (w <= 0.0) return 1.0;
   int J = t >= 0.999 && e > 0.0 ? i + 1 : t <= 0.001 && e < 0.0 ? i : -1;   // (past its end, or before its start)
   if (J >= 0) { float f = foldAt(J, sg); keep = 1.0 - f * smoothstep(-2.0, 2.0, s.w * sg); }
-  float f0 = foldAt(i, sg);   // (its bone starts at a fold: the shadow on its inner side, fading along the bone)
-  if (f0 > 0.0) { float L = length(u_rs[i + 1].xy - u_rs[i].xy), at = t * L + e; shade += w * f0 * smoothstep(-0.25 * L, 0.25 * L, s.w * sg) * (1.0 - smoothstep(0.0, 0.45 * L, at)); }   // (soft: fading across the bone and along it from the crease)
+  // the fold's shadow, soft, on the inner side and fading across the bone: on the bone below from the crease down (its bone starts at a
+  // fold), and a narrower one on the bone above up to it (its bone ends at a fold), so the crease reads as the one tucked under the other
+  float L = length(u_rs[i + 1].xy - u_rs[i].xy), f0 = foldAt(i, sg);
+  if (f0 > 0.0) shade += w * f0 * smoothstep(-0.25 * L, 0.25 * L, s.w * sg) * (1.0 - smoothstep(0.0, 0.45 * L, t * L + e));
+  float f1 = foldAt(i + 1, sg);
+  if (f1 > 0.0) shade += 0.6 * w * f1 * smoothstep(-0.25 * L, 0.25 * L, s.w * sg) * (1.0 - smoothstep(0.0, 0.2 * L, (1.0 - t) * L - e));
   return keep;
 }
-// the four ties' shares after the creases (and the shadow there; g_cut: how much of it a crease took away from a bone, for the base)
-float g_cut = 0.0;
+// the four ties' shares after the creases (and the shadow there)
 vec4 crease(vec4 s0, vec4 s1, vec4 s2, vec4 s3, vec4 w, out float shade){
   shade = 0.0;
   vec4 k = vec4(creaseOf(s0, shade, w.x), creaseOf(s1, shade, w.y), creaseOf(s2, shade, w.z), creaseOf(s3, shade, w.w)), v = w * k;
-  g_cut = max(max(w.x > 0.0 ? 1.0 - k.x : 0.0, w.y > 0.0 ? 1.0 - k.y : 0.0), max(w.z > 0.0 ? 1.0 - k.z : 0.0, w.w > 0.0 ? 1.0 - k.w : 0.0));
   float n = v.x + v.y + v.z + v.w;
   return n > 1e-4 ? v / n : w;
 }`;
@@ -172,12 +174,12 @@ layout(location=3) in vec4 a_s2;
 layout(location=4) in vec4 a_s3;
 layout(location=5) in vec4 a_w;
 uniform float u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}]; uniform int u_layer;
-out vec2 v_uv; out float v_y; out float v_own; out float v_shade; out float v_cut;
+out vec2 v_uv; out float v_y; out float v_own; out float v_shade;
 ${SPINE_GLSL}
 float own(vec4 s, float w){ return w > 0.0 && int(u_rs[int(s.x + 0.5)].z + 0.5) == u_layer ? w : 0.0; }   // (u_rs .z: each point's spine)
 void main(){
   vec2 q = vec2(0.0), d = vec2(0.0);
-  float sh; vec4 cw = crease(a_s0, a_s1, a_s2, a_s3, a_w, sh); v_shade = sh; v_cut = g_cut;
+  float sh; vec4 cw = crease(a_s0, a_s1, a_s2, a_s3, a_w, sh); v_shade = sh;
   take(a_s0, cw.x, q, d); take(a_s1, cw.y, q, d); take(a_s2, cw.z, q, d); take(a_s3, cw.w, q, d);
   v_uv = a_pos / 780.0; v_y = q.y;
   v_own = u_layer < 0 ? 1.0 : own(a_s0, a_w.x) + own(a_s1, a_w.y) + own(a_s2, a_w.z) + own(a_s3, a_w.w);   // (one part's layer: how much of it is that part's)
@@ -185,16 +187,12 @@ void main(){
 }`;
 const FSB = `#version 300 es
 precision highp float;
-in vec2 v_uv; in float v_y; in float v_own; in float v_shade; in float v_cut; uniform float u_uvpx; uniform sampler2D u_tex; uniform float u_floor, u_fsoft; uniform highp int u_layer; out vec4 o;
+in vec2 v_uv; in float v_y; in float v_own; in float v_shade; uniform sampler2D u_tex; uniform float u_floor, u_fsoft; uniform highp int u_layer; out vec4 o;
 void main(){ o = texture(u_tex, v_uv) * (1.0 - smoothstep(u_floor - u_fsoft, u_floor, v_y));   // (gone by the floor, fading out above it: the hairs make the edge there)
   // one part's layer: only where it is that part, fading out where it joins the others, and only its solid inside (its own edge
   // hairs make its outline over what lies behind it)
   if (u_layer >= 0) o *= smoothstep(${LEG_LAYER * 0.6}, ${Math.min(1, LEG_LAYER * 2)}, v_own) * smoothstep(0.6, 0.95, o.a);   // (from where the hairs are this part's: LEG_LAYER)
   o.rgb *= 1.0 - ${FOLD[2]} * v_shade;   // (the fold's shadow)
-  // across a crease: the base's triangles reaching from one bone to the other are pulled far bigger than they are, and smear; there
-  // they fade out (st: how many times its size a bit of the base is drawn, from how much of the picture one pixel spans)
-  if (v_cut > 0.02) { float det = abs(dFdx(v_uv).x * dFdy(v_uv).y - dFdx(v_uv).y * dFdy(v_uv).x), st = u_uvpx / sqrt(max(det, 1e-14));
-    o *= 1.0 - smoothstep(1.6, 2.6, st) * clamp(v_cut * 3.0, 0.0, 1.0); }
   if (o.a < 0.004) discard; }`;
 const VS = `#version 300 es
 layout(location=0) in vec2 a_tv;     // t along line (0 root → 1 tip), side (-1 | 1)
@@ -657,7 +655,7 @@ export function createFur(container, options = {}) {
     gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; };
   const prog = link(VS, FS), progB = link(VSB, FSB);
   const U = (p, ...n) => Object.fromEntries(n.map(k => [k, gl.getUniformLocation(p, 'u_' + k)]));
-  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'rs', 'floor'), uB = U(progB, 'k', 'view', 'sp', 'rs', 'tex', 'floor', 'fsoft', 'layer', 'uvpx');
+  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'rs', 'floor'), uB = U(progB, 'k', 'view', 'sp', 'rs', 'tex', 'floor', 'fsoft', 'layer');
   // the bent base: grid (x, y, then its spine spots and their shares: 2 + SPF floats a point), and the base picture as a texture
   const vaoB = gl.createVertexArray(), gridBuf = gl.createBuffer(), idxBuf = gl.createBuffer(), tex = gl.createTexture(); let nIdx = 0;
   gl.bindVertexArray(vaoB); gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf);
@@ -769,7 +767,6 @@ export function createFur(container, options = {}) {
       gl.useProgram(progB); gl.bindVertexArray(vaoB);
       gl.uniform1f(uB.k, k); gl.uniform1f(uB.floor, BENT.floor); gl.uniform1f(uB.fsoft, 0.5 * o.hairMax * Z() * k);   // (fsoft: the soft base fades out over half a long hair above the floor)
       gl.uniform4fv(uB.view, view); gl.uniform4fv(uB.sp, BENT.sp); gl.uniform4fv(uB.rs, RS); gl.uniform1i(uB.tex, 0); gl.uniform1i(uB.layer, layer);
-      gl.uniform1f(uB.uvpx, view[2] / (780 * cv.width * k));   // (how much of the base's picture one pixel spans, drawn at its own size)
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
       // (all of it: where it lies over itself (a tight curl, a leg folded up to the belly) each pixel keeps the more solid of the two,
       // so no edge of it shows inside; a part's layer over the fur behind it: laid over it)
