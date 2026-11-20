@@ -46,7 +46,7 @@
     <button data-mode="move" class="on">Move</button>
     <button data-mode="source">+ Source point</button>
     <button data-mode="remove">Remove point</button>
-    <button data-mode="glow" id="glowMode">Move gradient</button>
+    <button data-mode="glow" id="glowMode" hidden>Move gradient</button>
   </div>
   <div id="info">loading…</div>
  </div>
@@ -189,7 +189,10 @@ $('pose').onchange = () => setPose($('pose').value);
 
 for (const k of Object.keys(COATS)) $('coat').append(new Option(k, k));
 for (const k of Object.keys(TARGETS)) $('target').append(new Option(k, k));
-$('target').onchange = () => { target = $('target').value; syncControls(); };
+// (the inner ears' gradients only with the ears)
+const earTarget = () => target !== 'Cat';
+$('target').onchange = () => { target = $('target').value; syncControls();
+  $('glowMode').hidden = !earTarget(); if (mode === 'glow' && !earTarget()) document.querySelector('[data-mode=move]').click(); };
 $('coat').onchange = () => { coat = $('coat').value; cd()?.setCoat(COATS[coat]); syncControls(); G = glowOf(all['innerEars' + coat]); $('glowSize').value = G.glowSize; };
 $('fullBody').checked = fullOn;
 $('fullBody').onchange = () => {
