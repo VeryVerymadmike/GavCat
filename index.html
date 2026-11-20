@@ -5249,6 +5249,7 @@ function coatColors(){
   $('ptTailPale').setAttribute('stroke', pale);
   for (const k in toeEls) toeEls[k].setAttribute('stroke', k[0] === 'f' ? mixHex(point, pale, TOES.on) : mixHex(pale, point, TOES.on));   // (the front paws are dark, the back ones pale)
   for (const e of ['L', 'R']){ const st = $('earGlow' + e).children; [S.coatEarBottom, S.coatEarTop, point].forEach((c, i) => st[i].setAttribute('stop-color', c)); $('ptInner' + e).setAttribute('fill', `url(#earGlow${e})`); }
+  try { if (BODY_FUR.ready) earGlowShow(); } catch (e) {}   // (the fur page's inner ear colours over the coat's; at the start the fur isn't there yet)
   setStainBlur(); stainPaint();
   if (!coatBuilt){ setStainMap(); buildCoat(); coatBuilt = true; }   // the markings are made once for each set of colours
 }
@@ -5531,15 +5532,20 @@ const furCoat = () => S.coat === 'siamese' ? 'Siamese' : 'Black';
 const furFull = () => !!(BODY_FUR.cfg.options && BODY_FUR.cfg.options.fullBody);
 const FUR_UNDER = new Set(['body', 'legs']), furUsed = g => furFull() ? g.part !== 'body' : g.part !== 'fullBody';   // (full body: the closer legs are in it; the legs' groups still draw one of them where it goes over the head)
 const bodyFurValues = (part, coat) => { const C = BODY_FUR.cfg, from = furFull() && FUR_UNDER.has(part) ? 'fullBody' : part;
-  const { glow, glowSize, ...v } = C[from + coat] || { ...((from === 'innerEars' && C['ears' + coat]) || (from === 'fullBody' && C['legs' + coat]) || C['head' + coat] || C.headSiamese), points: BODY_FUR.gav[from].points };
+  const { glow, glowSize, glowMid, glowOval, glowTurn, glowColors, ...v } = C[from + coat] || { ...((from === 'innerEars' && C['ears' + coat]) || (from === 'fullBody' && C['legs' + coat]) || C['head' + coat] || C.headSiamese), points: BODY_FUR.gav[from].points };
   v.points = (C[part + coat] || {}).points || BODY_FUR.gav[part].points;   // (the flow points are each drawing's own: placed on it)
   return { ...v, pet:false, invert: part === 'innerEars', keepShape:fur_keep(v), edgeInset:0, unit:FUR_UNIT }; };   // (keepShape: how far inside the drawn part it may end, see fur_keep)
 // a part's drawing in a coat (none: the part isn't in that coat, as the black cat's inner ears), the inner ears' gradients placed
 const furDrawing = (part, coat) => { const d = BODY_FUR.gav[part][coat.toLowerCase()]; return d && part === 'innerEars' ? BODY_FUR.earGlow(d, BODY_FUR.cfg[part + coat]) : d; };
 // the inner ears' gradients in the SVG too (what the panel's previews show), as the fur page placed them
 function earGlowShow(){
-  const { glow, glowSize } = BODY_FUR.glowOf(BODY_FUR.cfg['innerEars' + BODY_FUR.coat]);
-  ['L', 'R'].forEach((e, i) => { const g = $('earGlow' + e); g.setAttribute('cx', glow[i].x); g.setAttribute('cy', glow[i].y); g.setAttribute('r', glowSize); });
+  const F = BODY_FUR; if (!F.glowAttrs) return;
+  const s = F.cfg['innerEars' + F.coat], G = F.glowOf(s);
+  ['L', 'R'].forEach((e, i) => { const g = $('earGlow' + e), a = F.glowAttrs(s, i);
+    for (const k of ['cx', 'cy', 'r']) g.setAttribute(k, a[k]);
+    a.gradientTransform ? g.setAttribute('gradientTransform', a.gradientTransform) : g.removeAttribute('gradientTransform');
+    const st = g.children; st[1].setAttribute('offset', G.glowMid);
+    if (G.glowColors) G.glowColors.forEach((c, k) => st[k] && st[k].setAttribute('stop-color', c)); });
 }
 const spineLen = P => P.reduce((t, q, i) => i ? t + Math.hypot(q[0] - P[i - 1][0], q[1] - P[i - 1][1]) : 0, 0);
 // what fur.js takes over: the parts' paint, the old fur round them and the Siamese bands (each put back in the panel's previews by furUnhide)
@@ -5551,7 +5557,7 @@ async function bodyFurStart(){
   if (!location.protocol.startsWith('http')) return;
   try {
     const [mod, parts, cfg, glow] = await Promise.all([import('./fur/fur.js'), import('./fur/gav-parts.js'), fetch('fur/settings.json', { cache:'no-store' }).then(r => r.json()), import('./fur/ear-glow.js')]);
-    const F = BODY_FUR; F.gav = parts.GAV; F.cfg = cfg; F.coat = furCoat(); F.earGlow = glow.earGlow; F.glowOf = glow.glowOf;
+    const F = BODY_FUR; F.gav = parts.GAV; F.cfg = cfg; F.coat = furCoat(); F.earGlow = glow.earGlow; F.glowOf = glow.glowOf; F.glowAttrs = glow.glowAttrs;
     earGlowShow();
     // the fur layer (behind the SVG: #stage stacks it under), first the floor shadow, then a box per group, back to front
     const layer = F.layer = document.createElement('div');

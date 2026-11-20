@@ -32,6 +32,7 @@
   textarea{width:100%;box-sizing:border-box;min-height:70px;background:#2f2b36;color:var(--text);border:1px solid var(--line);border-radius:8px;font:12px ui-monospace,monospace;padding:6px}
   .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0}
   .err{color:#ffb3b3;font-size:12px}
+  .sw{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--dim)} .sw input{width:54px;height:30px;border:0;padding:0;background:none}
   .bend{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--dim)} .bend input{width:120px} .bend[hidden]{display:none}
 </style>
 </head>
@@ -56,8 +57,15 @@
     <div class="row"><select id="target"></select><select id="coat"></select>
       <label class="bend"><input type="checkbox" id="fullBody" style="width:auto">Full body fur</label>
       <label class="bend">Pose <select id="pose"></select></label>
-      <label id="glowCtl" class="bend" hidden>Gradient size <input type="range" id="glowSize" min="0.2" max="1.5" step="0.01" value="0.6"></label><span id="saveErr" class="err"></span></div>
+      <span id="saveErr" class="err"></span></div>
     <div id="groups"></div>
+    <div id="inner" hidden>
+      <details open><summary>Colour</summary>
+        <div class="row"><label class="sw"><input type="color" id="gc0">Middle</label><label class="sw"><input type="color" id="gc1">Outer</label><label class="sw"><input type="color" id="gc2">Edge</label></div>
+      </details>
+      <details open id="innerShape"><summary>Gradient</summary></details>
+      <details open id="innerEdge"><summary>Edge with the ear</summary></details>
+    </div>
     <details>
       <summary>Copy &amp; load</summary>
       <div class="row"><button id="copy">Copy settings</button><button id="load">Load from box</button><span id="copyMsg" class="err" style="color:var(--dim)"></span></div>
@@ -85,7 +93,7 @@
 <script type="module">
 import { DEFAULTS } from './fur.js';
 import { GAV } from './gav-parts.js';
-import { glowOf } from './ear-glow.js';   // the inner ears' gradients
+import { glowOf, GLOW } from './ear-glow.js';   // the inner ears' gradients
 const $ = id => document.getElementById(id), NS = 'http://www.w3.org/2000/svg';
 
 /* ---------- the whole cat: Gav in the frame is what the cat page shows (the same page, drawing, values and fur.js), held in a pose.
@@ -159,9 +167,30 @@ for (const [name, list] of Object.entries(GROUPS)) {
   $('groups').appendChild(det);
 }
 $('groups').insertAdjacentHTML('beforeend', '<datalist id="mid"><option value="0"></option></datalist>');   // (the middle's mark)
+// the inner ears: their colour (a gradient each, its middle dragged on the ear with Move gradient) and how their edge melts into the ear
+const INNER = {
+  innerShape: [['glowSize', 'Size', 0.2, 1.5, 'smaller', 'bigger', 2, true], ['glowMid', 'Middle colour reaches', 0.05, 0.95, 'less', 'further', 2, true],
+    ['glowOval', 'Shape', 1, 3, 'round', 'long', 2, false], ['glowTurn', 'Turn', -90, 90, 'to the left', 'to the right', 0, false]],
+  innerEdge: [['blur', 'Edge melt', 0, 30, 'sharp', 'soft', 0, true], ['edgeLength', 'Ear hairs over it', 0, 3, 'shorter', 'longer', 1, true]],
+};
+Object.assign(MID['Inner ears'], { glowSize: 0.61, glowMid: 0.5 });
+for (const [box, list] of Object.entries(INNER)) for (const d of list) {
+  const [key, label, , , left, right] = d, row = document.createElement('div'); row.className = 'ctl';
+  row.innerHTML = `<span>${label}</span><div><input type="range" min="-1" max="1" step="0.01" list="mid"><div class="ends"><i>${left}</i><i>${right}</i></div></div>`;
+  const inp = row.querySelector('input');
+  inp.oninput = () => queue({ [key]: toValue(d, +inp.value) });
+  inp.ondblclick = () => { inp.value = 0; inp.oninput(); };
+  inputs['inner.' + key] = { inp, d, key };
+  $(box).appendChild(row);
+}
+// the colours: the inner ears' own, else what the cat shows now (its Inner ear middle / outer and the points' dark)
+const innerColors = () => valuesOf('innerEars').glowColors || (() => { try { return [...frame.contentDocument.getElementById('earGlowL').children].map(e => e.getAttribute('stop-color')); } catch (e) { return ['#bf776c', '#a9756d', '#312526']; } })();
+[0, 1, 2].forEach(k => $('gc' + k).oninput = () => { const c = innerColors().slice(); c[k] = $('gc' + k).value; queue({ glowColors: c }); });
 function syncControls() {
-  const s = { ...DEFAULTS, ...valuesOf(mainPart()) };
-  for (const [key, { inp, d }] of Object.entries(inputs)) inp.value = toScale(d, FLIP.has(key) ? Math.max(0, -s[key]) : s[key]);
+  const inner = target === 'Inner ears', s = { ...DEFAULTS, ...GLOW, ...valuesOf(mainPart()) };
+  $('groups').hidden = inner; $('inner').hidden = !inner;
+  for (const [key, { inp, d }] of Object.entries(inputs)) { const k = d[0]; inp.value = toScale(d, FLIP.has(k) ? Math.max(0, -s[k]) : s[k]); }
+  if (inner) innerColors().forEach((c, k) => { if (c) $('gc' + k).value = c; });
 }
 // a value moved: every part of this coat takes it (a moment after the slider stops: each part's fur is made again)
 let pending = {}, timer;
@@ -190,10 +219,10 @@ $('pose').onchange = () => setPose($('pose').value);
 for (const k of Object.keys(COATS)) $('coat').append(new Option(k, k));
 for (const k of Object.keys(TARGETS)) $('target').append(new Option(k, k));
 // (the inner ears' gradients only with the ears)
-const earTarget = () => target !== 'Cat';
+const earTarget = () => target === 'Inner ears';
 $('target').onchange = () => { target = $('target').value; syncControls();
   $('glowMode').hidden = !earTarget(); if (mode === 'glow' && !earTarget()) document.querySelector('[data-mode=move]').click(); };
-$('coat').onchange = () => { coat = $('coat').value; cd()?.setCoat(COATS[coat]); syncControls(); G = glowOf(all['innerEars' + coat]); $('glowSize').value = G.glowSize; };
+$('coat').onchange = () => { coat = $('coat').value; cd()?.setCoat(COATS[coat]); syncControls(); };
 $('fullBody').checked = fullOn;
 $('fullBody').onchange = () => {
   fullOn = $('fullBody').checked; all.options = { fullBody: fullOn };
@@ -257,15 +286,14 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
   if (mode !== 'move' && pose !== 'stand') setPose('stand');   // (points and the gradients go on the cat as drawn)
   document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b));
   $('overlay').classList.toggle('place', mode !== 'move');
-  $('glowCtl').hidden = mode !== 'glow';
 });
 
 // the inner ears' gradients (G): each one's middle at 0–1 of its ear's box
-let G = glowOf(all['innerEars' + coat]); $('glowSize').value = G.glowSize;
-const saveGlow = () => savePart('innerEars' + coat, { ...valuesOf('innerEars'), ...G });
+let G = glowOf(all['innerEars' + coat]);   // (the middles as they are dragged; the rest is saved through the sliders)
+const saveGlow = () => savePart('innerEars' + coat, { ...valuesOf('innerEars'), glow: G.glow });
 let glowT = null; const glowSoon = () => { clearTimeout(glowT); glowT = setTimeout(saveGlow, 150); };
-$('glowSize').oninput = () => { G = { ...G, glowSize: +$('glowSize').value }; glowSoon(); };
 function glowAt(m, px, py, pick) {
+  if (pick == null) G = glowOf(valuesOf('innerEars'));
   const E = m.inner.map(e => e && { ...e, mid: toPage(e.ctm, e.b.x + e.b.width / 2, e.b.y + e.b.height / 2) });
   // (a click picks the inner ear it is on or near, within half the ear's size round it; anywhere else it does nothing)
   let i = pick; if (i == null) { let bd = Infinity; E.forEach((e, k) => { if (!e) return; const [x, y] = toUnits(e.ctm, px, py), u = (x - e.b.x) / e.b.width, v = (y - e.b.y) / e.b.height;
@@ -368,7 +396,7 @@ syncControls();
 $('info').textContent = 'loading…';
 await catReady();
 coat = cd().settings.coat === 'siamese' ? 'Siamese' : 'Black'; $('coat').value = coat; syncControls();
-G = glowOf(all['innerEars' + coat]); $('glowSize').value = G.glowSize;
+G = glowOf(all['innerEars' + coat]);
 setPose('stand');
 $('info').textContent = '';
 drawOverlay();
