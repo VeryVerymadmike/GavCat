@@ -101,7 +101,7 @@ function chamfer(d, near, GN) {                      // 2-pass 8-neighbour dista
 // Each spot goes with up to four segments (a_s0…a_s3), shared out by a_w: the shares change smoothly everywhere, so the fur
 // never tears where one segment or part hands over to the next
 // a joint's crease: folded from FOLD[0]° (nothing yet) to FOLD[1]° (cut all the way), and how dark its shadow is at most
-const FOLD = [75, 130, 0.25];
+const FOLD = [158, 175, 0.25];   // (from 158°: only a joint folded nearly flat creases; Sit's knee (about 150°) blends as before)
 // how much of a bit of fur a leg (any part not the hub) must hold for it to be in that leg's layer (see build, bend's z)
 const LEG_LAYER = 0.3;
 const SPINE_GLSL = `
