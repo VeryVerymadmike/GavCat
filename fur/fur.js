@@ -102,6 +102,8 @@ function chamfer(d, near, GN) {                      // 2-pass 8-neighbour dista
 // never tears where one segment or part hands over to the next
 // a joint's crease: folded from FOLD[0]° (nothing yet) to FOLD[1]° (cut all the way), and how dark its shadow is at most
 const FOLD = [75, 130, 0.25];
+// how much of a bit of fur a leg (any part not the hub) must hold for it to be in that leg's layer (see build, bend's z)
+const LEG_LAYER = 0.3;
 const SPINE_GLSL = `
 // the spine as a smooth curve through its points (Catmull-Rom; at a spine's ends its end point mirrored): point and slope at t of segment i
 void cr(vec2 p0, vec2 p1, vec2 p2, vec2 p3, float t, out vec2 P, out vec2 D, out vec2 A){
@@ -187,7 +189,7 @@ in vec2 v_uv; in float v_y; in float v_own; in float v_shade; in float v_cut; un
 void main(){ o = texture(u_tex, v_uv) * (1.0 - smoothstep(u_floor - u_fsoft, u_floor, v_y));   // (gone by the floor, fading out above it: the hairs make the edge there)
   // one part's layer: only where it is that part, fading out where it joins the others, and only its solid inside (its own edge
   // hairs make its outline over what lies behind it)
-  if (u_layer >= 0) o *= smoothstep(0.5, 0.9, v_own) * smoothstep(0.6, 0.95, o.a);
+  if (u_layer >= 0) o *= smoothstep(${LEG_LAYER * 0.6}, ${Math.min(1, LEG_LAYER * 2)}, v_own) * smoothstep(0.6, 0.95, o.a);   // (from where the hairs are this part's: LEG_LAYER)
   o.rgb *= 1.0 - ${FOLD[2]} * v_shade;   // (the fold's shadow)
   // across a crease: the base's triangles reaching from one bone to the other are pulled far bigger than they are, and smear; there
   // they fade out (st: how many times its size a bit of the base is drawn, from how much of the picture one pixel spans)
@@ -730,7 +732,10 @@ export function createFur(container, options = {}) {
     if (SP.length) {
       for (const l of lines) { l.sp = spineAt(l.x, l.y); const own = SPINES.map(() => 0);
         for (let k = 0; k < SPK; k++) own[SPID[l.sp[k * 4]]] += l.sp[SPK * 4 + k];
-        l.part = own.indexOf(Math.max(...own));
+        // (its layer: a part's that holds LEG_LAYER of it or more, else the one holding most; the hub (the body) moves the fur round a
+        // hip or shoulder, but that fur is the leg's in the layers, so the top of a leg lies over or under another leg as the leg does)
+        let lp = -1; own.forEach((v, j) => { if (!HUB[j] && v >= LEG_LAYER && (lp < 0 || v > own[lp])) lp = j; });
+        l.part = lp >= 0 ? lp : own.indexOf(Math.max(...own));
         let m = 0; for (let k = 1; k < SPK; k++) if (l.sp[SPK * 4 + k] > l.sp[SPK * 4 + m]) m = k; l.seg = l.sp[m * 4]; }
       lines.sort((a, b) => a.part - b.part || b.seg - a.seg);   // (within a part, its bones from the far end in: the one above lies over the one below where a joint folds)
     }
