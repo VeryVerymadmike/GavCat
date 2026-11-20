@@ -100,6 +100,8 @@ function chamfer(d, near, GN) {                      // 2-pass 8-neighbour dista
 // there has turned since drawn (cos, sin; u_rs: the spines as drawn, stage units, same flags)
 // Each spot goes with up to four segments (a_s0…a_s3), shared out by a_w: the shares change smoothly everywhere, so the fur
 // never tears where one segment or part hands over to the next
+// a joint's crease: folded from FOLD[0]° (nothing yet) to FOLD[1]° (cut all the way), and how dark its shadow is at most
+const FOLD = [75, 130, 0.25];
 const SPINE_GLSL = `
 // the spine as a smooth curve through its points (Catmull-Rom; at a spine's ends its end point mirrored): point and slope at t of segment i
 void cr(vec2 p0, vec2 p1, vec2 p2, vec2 p3, float t, out vec2 P, out vec2 D, out vec2 A){
@@ -126,7 +128,39 @@ vec4 spineAt(vec4 s){
   float w = mix(u_sp[i].z, u_sp[i + 1].z, tc);
   return vec4(P + (T * s.z + N * s.w * w) * u_k, T.x * T0.x + T.y * T0.y, T.y * T0.x - T.x * T0.y);
 }
-void take(vec4 s, float w, inout vec2 r, inout vec2 d){ if (w > 0.0) { vec4 f = spineAt(s); r += w * f.xy; d += w * f.zw; } }`;
+void take(vec4 s, float w, inout vec2 r, inout vec2 d){ if (w > 0.0) { vec4 f = spineAt(s); r += w * f.xy; d += w * f.zw; } }
+// A joint folded tight (a knee, a hock, an elbow): its two bones overlap on the fold's inner side, and there the fur is cut along the
+// crease: fur lying past one bone's end goes with the next bone only (no blend of the two, which smeared them into one), the bone
+// above lies over the one below (the hairs' order), and the one below is in the fold's shadow near the crease. On the outer side
+// and at gentle bends the fur still blends across the joint, so it stretches round the knee and never tears. (The hub, a body's
+// line, never creases.) foldAt: how folded the spine is at point J now (0 up to ${FOLD[0]}°, 1 from ${FOLD[1]}°), sg which way
+float foldAt(int J, out float sg){
+  sg = 1.0;
+  if ((int(u_sp[J].w + 0.5) & 3) != 0 || (int(u_rs[J].w + 0.5) & 4) != 0) return 0.0;
+  vec2 a = u_sp[J].xy - u_sp[J - 1].xy, b = u_sp[J + 1].xy - u_sp[J].xy; float la = length(a), lb = length(b);
+  if (la < 1e-5 || lb < 1e-5) return 0.0;
+  a /= la; b /= lb; sg = a.x * b.y - a.y * b.x >= 0.0 ? 1.0 : -1.0;
+  return smoothstep(${(FOLD[0] * Math.PI / 180).toFixed(4)}, ${(FOLD[1] * Math.PI / 180).toFixed(4)}, acos(clamp(dot(a, b), -1.0, 1.0)));
+}
+// one tie's share kept (1, or less where it lies past its bone across a crease), and the fold's shadow on it (its bone below a crease)
+float creaseOf(vec4 s, inout float shade, float w){
+  int i = int(s.x + 0.5); float t = s.y, e = s.z, sg, keep = 1.0;
+  if (w <= 0.0) return 1.0;
+  int J = t >= 0.999 && e > 0.0 ? i + 1 : t <= 0.001 && e < 0.0 ? i : -1;   // (past its end, or before its start)
+  if (J >= 0) { float f = foldAt(J, sg); keep = 1.0 - f * smoothstep(-2.0, 2.0, s.w * sg); }
+  float f0 = foldAt(i, sg);   // (its bone starts at a fold: the shadow on its inner side, fading along the bone)
+  if (f0 > 0.0) { float L = length(u_rs[i + 1].xy - u_rs[i].xy), at = t * L + e; shade += w * f0 * smoothstep(-0.25 * L, 0.25 * L, s.w * sg) * (1.0 - smoothstep(0.0, 0.45 * L, at)); }   // (soft: fading across the bone and along it from the crease)
+  return keep;
+}
+// the four ties' shares after the creases (and the shadow there; g_cut: how much of it a crease took away from a bone, for the base)
+float g_cut = 0.0;
+vec4 crease(vec4 s0, vec4 s1, vec4 s2, vec4 s3, vec4 w, out float shade){
+  shade = 0.0;
+  vec4 k = vec4(creaseOf(s0, shade, w.x), creaseOf(s1, shade, w.y), creaseOf(s2, shade, w.z), creaseOf(s3, shade, w.w)), v = w * k;
+  g_cut = max(max(w.x > 0.0 ? 1.0 - k.x : 0.0, w.y > 0.0 ? 1.0 - k.y : 0.0), max(w.z > 0.0 ? 1.0 - k.z : 0.0, w.w > 0.0 ? 1.0 - k.w : 0.0));
+  float n = v.x + v.y + v.z + v.w;
+  return n > 1e-4 ? v / n : w;
+}`;
 // the soft base when bent: a grid over the stage, each point tied to its spines, painted with the base picture
 const VSB = `#version 300 es
 layout(location=0) in vec2 a_pos;    // grid point (stage units)
@@ -136,23 +170,29 @@ layout(location=3) in vec4 a_s2;
 layout(location=4) in vec4 a_s3;
 layout(location=5) in vec4 a_w;
 uniform float u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}]; uniform int u_layer;
-out vec2 v_uv; out float v_y; out float v_own;
+out vec2 v_uv; out float v_y; out float v_own; out float v_shade; out float v_cut;
 ${SPINE_GLSL}
 float own(vec4 s, float w){ return w > 0.0 && int(u_rs[int(s.x + 0.5)].z + 0.5) == u_layer ? w : 0.0; }   // (u_rs .z: each point's spine)
 void main(){
   vec2 q = vec2(0.0), d = vec2(0.0);
-  take(a_s0, a_w.x, q, d); take(a_s1, a_w.y, q, d); take(a_s2, a_w.z, q, d); take(a_s3, a_w.w, q, d);
+  float sh; vec4 cw = crease(a_s0, a_s1, a_s2, a_s3, a_w, sh); v_shade = sh; v_cut = g_cut;
+  take(a_s0, cw.x, q, d); take(a_s1, cw.y, q, d); take(a_s2, cw.z, q, d); take(a_s3, cw.w, q, d);
   v_uv = a_pos / 780.0; v_y = q.y;
   v_own = u_layer < 0 ? 1.0 : own(a_s0, a_w.x) + own(a_s1, a_w.y) + own(a_s2, a_w.z) + own(a_s3, a_w.w);   // (one part's layer: how much of it is that part's)
   gl_Position = vec4((q.x - u_view.x) / u_view.z * 2.0 - 1.0, 1.0 - (q.y - u_view.y) / u_view.w * 2.0, 0.0, 1.0);
 }`;
 const FSB = `#version 300 es
 precision highp float;
-in vec2 v_uv; in float v_y; in float v_own; uniform sampler2D u_tex; uniform float u_floor, u_fsoft; uniform highp int u_layer; out vec4 o;
+in vec2 v_uv; in float v_y; in float v_own; in float v_shade; in float v_cut; uniform float u_uvpx; uniform sampler2D u_tex; uniform float u_floor, u_fsoft; uniform highp int u_layer; out vec4 o;
 void main(){ o = texture(u_tex, v_uv) * (1.0 - smoothstep(u_floor - u_fsoft, u_floor, v_y));   // (gone by the floor, fading out above it: the hairs make the edge there)
   // one part's layer: only where it is that part, fading out where it joins the others, and only its solid inside (its own edge
   // hairs make its outline over what lies behind it)
   if (u_layer >= 0) o *= smoothstep(0.5, 0.9, v_own) * smoothstep(0.6, 0.95, o.a);
+  o.rgb *= 1.0 - ${FOLD[2]} * v_shade;   // (the fold's shadow)
+  // across a crease: the base's triangles reaching from one bone to the other are pulled far bigger than they are, and smear; there
+  // they fade out (st: how many times its size a bit of the base is drawn, from how much of the picture one pixel spans)
+  if (v_cut > 0.02) { float det = abs(dFdx(v_uv).x * dFdy(v_uv).y - dFdx(v_uv).y * dFdy(v_uv).x), st = u_uvpx / sqrt(max(det, 1e-14));
+    o *= 1.0 - smoothstep(1.6, 2.6, st) * clamp(v_cut * 3.0, 0.0, 1.0); }
   if (o.a < 0.004) discard; }`;
 const VS = `#version 300 es
 layout(location=0) in vec2 a_tv;     // t along line (0 root → 1 tip), side (-1 | 1)
@@ -169,7 +209,7 @@ uniform float u_px, u_bent, u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_
 out vec4 v_col; out float v_side; out float v_soft;
 ${SPINE_GLSL}
 void main(){
-  float t = a_tv.x, off = a_off, soft = a_shape.z;
+  float t = a_tv.x, off = a_off, soft = a_shape.z, fold = 0.0;
   float ang  = a_root.z + off * 0.7;                          // root turns a little…
   float bend = a_shape.y + off * 0.8;                         // …tip bends more
   float len  = a_root.w * (1.0 - 0.25 * min(1.0, abs(off)));  // ruffled hair stands up → shorter
@@ -183,7 +223,8 @@ void main(){
   vec2 p = c + vec2(-tg.y, tg.x) * a_tv.y * w, r = a_root.xy;
   if (u_bent > 0.5) {                                         // bent: root and direction go with the spines
     vec2 d = vec2(0.0); r = vec2(0.0);
-    take(a_s0, a_w.x, r, d); take(a_s1, a_w.y, r, d); take(a_s2, a_w.z, r, d); take(a_s3, a_w.w, r, d);
+    vec4 cw = crease(a_s0, a_s1, a_s2, a_s3, a_w, fold);
+    take(a_s0, cw.x, r, d); take(a_s1, cw.y, r, d); take(a_s2, cw.z, r, d); take(a_s3, cw.w, r, d);
     ang += atan(d.y, d.x);
   }
   float cs = cos(ang), sn = sin(ang);
@@ -205,7 +246,7 @@ void main(){
     if (q.y > fl) { float e = q.y - fl; q = vec2(q.x + sd * e * 0.85, fl - e * 0.06); }   // (what still reaches it lies flat on it)
   }
   gl_Position = vec4((q.x - u_view.x) / u_view.z * 2.0 - 1.0, 1.0 - (q.y - u_view.y) / u_view.w * 2.0, 0.0, 1.0);
-  v_col = vec4(a_col.rgb, a); v_side = a_tv.y; v_soft = soft;
+  v_col = vec4(a_col.rgb * (1.0 - ${FOLD[2]} * fold), a); v_side = a_tv.y; v_soft = soft;   // (in a fold's shadow: darker)
 }`;
 const FS = `#version 300 es
 precision highp float;
@@ -497,7 +538,7 @@ export function createFur(container, options = {}) {
     SPINES.forEach((p, n) => p.forEach((q, i) => { SP.push(q); SPID.push(n); FLAG.push((i === 0 ? 1 : 0) | (i === p.length - 1 ? 2 : 0)); }));
     RT = SP.map((q, k) => { const a = FLAG[k] & 1 ? k : k - 1, b = FLAG[k] & 2 ? k : k + 1, dx = SP[b][0] - SP[a][0], dy = SP[b][1] - SP[a][1], l = Math.hypot(dx, dy) || 1;
       return [dx / l, dy / l]; });
-    RS.fill(0); SP.forEach((q, k) => RS.set([q[0], q[1], SPID[k], FLAG[k]], k * 4));   // (the spines as drawn, and which spine each point is on, for the shaders)
+    RS.fill(0); SP.forEach((q, k) => RS.set([q[0], q[1], SPID[k], FLAG[k] | (HUB[SPID[k]] ? 4 : 0)], k * 4));   // (the spines as drawn, which spine each point is on, its ends (1, 2) and the hub's (4), for the shaders)
   }
   // a spot in the frame of segment k at t: [segment (index of its first point in SP), t (past 0 / 1 beyond a spine's ends), offset along, offset across, direction]
   // The frame runs along the smooth curve through the spine's points (as the shaders: Catmull-Rom, a spine's end point mirrored), so a
@@ -614,7 +655,7 @@ export function createFur(container, options = {}) {
     gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; };
   const prog = link(VS, FS), progB = link(VSB, FSB);
   const U = (p, ...n) => Object.fromEntries(n.map(k => [k, gl.getUniformLocation(p, 'u_' + k)]));
-  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'rs', 'floor'), uB = U(progB, 'k', 'view', 'sp', 'rs', 'tex', 'floor', 'fsoft', 'layer');
+  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'rs', 'floor'), uB = U(progB, 'k', 'view', 'sp', 'rs', 'tex', 'floor', 'fsoft', 'layer', 'uvpx');
   // the bent base: grid (x, y, then its spine spots and their shares: 2 + SPF floats a point), and the base picture as a texture
   const vaoB = gl.createVertexArray(), gridBuf = gl.createBuffer(), idxBuf = gl.createBuffer(), tex = gl.createTexture(); let nIdx = 0;
   gl.bindVertexArray(vaoB); gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf);
@@ -689,8 +730,9 @@ export function createFur(container, options = {}) {
     if (SP.length) {
       for (const l of lines) { l.sp = spineAt(l.x, l.y); const own = SPINES.map(() => 0);
         for (let k = 0; k < SPK; k++) own[SPID[l.sp[k * 4]]] += l.sp[SPK * 4 + k];
-        l.part = own.indexOf(Math.max(...own)); }
-      lines.sort((a, b) => a.part - b.part);
+        l.part = own.indexOf(Math.max(...own));
+        let m = 0; for (let k = 1; k < SPK; k++) if (l.sp[SPK * 4 + k] > l.sp[SPK * 4 + m]) m = k; l.seg = l.sp[m * 4]; }
+      lines.sort((a, b) => a.part - b.part || b.seg - a.seg);   // (within a part, its bones from the far end in: the one above lies over the one below where a joint folds)
     }
     N = lines.length; PARTS = SPINES.map(() => [0, 0]);
     lines.forEach((l, i) => { const P = PARTS[l.part || 0]; if (P && !P[1]++) P[0] = i; });
@@ -722,6 +764,7 @@ export function createFur(container, options = {}) {
       gl.useProgram(progB); gl.bindVertexArray(vaoB);
       gl.uniform1f(uB.k, k); gl.uniform1f(uB.floor, BENT.floor); gl.uniform1f(uB.fsoft, 0.5 * o.hairMax * Z() * k);   // (fsoft: the soft base fades out over half a long hair above the floor)
       gl.uniform4fv(uB.view, view); gl.uniform4fv(uB.sp, BENT.sp); gl.uniform4fv(uB.rs, RS); gl.uniform1i(uB.tex, 0); gl.uniform1i(uB.layer, layer);
+      gl.uniform1f(uB.uvpx, view[2] / (780 * cv.width * k));   // (how much of the base's picture one pixel spans, drawn at its own size)
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
       // (all of it: where it lies over itself (a tight curl, a leg folded up to the belly) each pixel keeps the more solid of the two,
       // so no edge of it shows inside; a part's layer over the fur behind it: laid over it)
