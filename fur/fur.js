@@ -720,7 +720,8 @@ export function createFur(container, options = {}) {
     const base = layer => {
       if (!BENT || !nIdx) return;
       gl.useProgram(progB); gl.bindVertexArray(vaoB);
-      gl.uniform1f(uB.k, k); gl.uniform1f(uB.floor, BENT.floor); gl.uniform1f(uB.fsoft, 0.5 * o.hairMax * Z() * k);   // (the soft base fades out over half a long hair above the floor) gl.uniform4fv(uB.view, view); gl.uniform4fv(uB.sp, BENT.sp); gl.uniform4fv(uB.rs, RS); gl.uniform1i(uB.tex, 0); gl.uniform1i(uB.layer, layer);
+      gl.uniform1f(uB.k, k); gl.uniform1f(uB.floor, BENT.floor); gl.uniform1f(uB.fsoft, 0.5 * o.hairMax * Z() * k);   // (fsoft: the soft base fades out over half a long hair above the floor)
+      gl.uniform4fv(uB.view, view); gl.uniform4fv(uB.sp, BENT.sp); gl.uniform4fv(uB.rs, RS); gl.uniform1i(uB.tex, 0); gl.uniform1i(uB.layer, layer);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
       // (all of it: where it lies over itself (a tight curl, a leg folded up to the belly) each pixel keeps the more solid of the two,
       // so no edge of it shows inside; a part's layer over the fur behind it: laid over it)
