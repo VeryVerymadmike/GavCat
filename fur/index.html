@@ -93,7 +93,7 @@
 <script type="module">
 import { DEFAULTS } from './fur.js';
 import { GAV } from './gav-parts.js';
-import { glowOf, GLOW } from './ear-glow.js';   // the inner ears' gradients
+import { glowOf, glowEdge, GLOW } from './ear-glow.js';   // the inner ears' gradients
 const $ = id => document.getElementById(id), NS = 'http://www.w3.org/2000/svg';
 
 /* ---------- the whole cat: Gav in the frame is what the cat page shows (the same page, drawing, values and fur.js), held in a pose.
@@ -169,11 +169,10 @@ for (const [name, list] of Object.entries(GROUPS)) {
 $('groups').insertAdjacentHTML('beforeend', '<datalist id="mid"><option value="0"></option></datalist>');   // (the middle's mark)
 // the inner ears: their colour (a gradient each, its middle dragged on the ear with Move gradient) and how their edge melts into the ear
 const INNER = {
-  innerShape: [['glowSize', 'Size', 0.2, 1.5, 'smaller', 'bigger', 2, true], ['glowMid', 'Middle colour reaches', 0.05, 0.95, 'less', 'further', 2, true],
-    ['glowOval', 'Shape', 1, 3, 'round', 'long', 2, false], ['glowTurn', 'Turn', -90, 90, 'to the left', 'to the right', 0, false]],
+  innerShape: [['glowMid', 'Middle colour reaches', 0.05, 0.95, 'less', 'further', 2, true]],   // (where, how big, how long and which way: on the ear itself, Move gradient)
   innerEdge: [['blur', 'Edge melt', 0, 30, 'sharp', 'soft', 0, true], ['edgeLength', 'Ear hairs over it', 0, 3, 'shorter', 'longer', 1, true]],
 };
-Object.assign(MID['Inner ears'], { glowSize: 0.61, glowMid: 0.5 });
+Object.assign(MID['Inner ears'], { glowMid: 0.5 });
 for (const [box, list] of Object.entries(INNER)) for (const d of list) {
   const [key, label, , , left, right] = d, row = document.createElement('div'); row.className = 'ctl';
   row.innerHTML = `<span>${label}</span><div><input type="range" min="-1" max="1" step="0.01" list="mid"><div class="ends"><i>${left}</i><i>${right}</i></div></div>`;
@@ -300,7 +299,7 @@ function glowAt(m, px, py, pick) {
     if (u < -0.5 || u > 1.5 || v < -0.5 || v > 1.5) return; const d = Math.hypot(e.mid[0] - px, e.mid[1] - py); if (d < bd) { bd = d; i = k; } }); }
   if (i == null) return null;
   const { b, ctm } = E[i], [x, y] = toUnits(ctm, px, py), r = v => +Math.min(1.5, Math.max(-0.5, v)).toFixed(3);
-  G = { ...G, glow: G.glow.map((g, k) => k === i ? { x: r((x - b.x) / b.width), y: r((y - b.y) / b.height) } : g) };
+  G = { ...G, glow: G.glow.map((g, k) => k === i ? { ...g, x: r((x - b.x) / b.width), y: r((y - b.y) / b.height) } : g) };
   glowSoon(); return i;
 }
 
@@ -318,8 +317,9 @@ function carried(P, H, Hb) {   // P moved as far as the spot of the body nearest
 }
 $('overlay').addEventListener('pointerdown', e => {
   const m = maps(); if (!m) return;
-  const [px, py] = mouse(e), t = e.target.closest('[data-pt],[data-sp]');
+  const [px, py] = mouse(e), t = e.target.closest('[data-pt],[data-sp],[data-gh]');
   e.preventDefault();
+  if (t && t.dataset.gh) { const [i, h] = t.dataset.gh.split(','); G = glowOf(valuesOf('innerEars')); drag = { kind: 'gh', i: +i, h }; return; }   // a gradient's handle
   if (t && t.dataset.sp && mode === 'move') {   // a spine's dot
     const [line, j, i] = t.dataset.sp.split(',');
     if (!cd().furEdit) cd().furEdit = JSON.parse(JSON.stringify(cd().furSpines()));
@@ -351,6 +351,14 @@ addEventListener('pointermove', e => {
     cd().furEdit = E;
   } else if (drag.kind === 'point') drag.at = [px, py];
   else if (drag.kind === 'glow') glowAt(m, px, py, drag.i);
+  else if (drag.kind === 'gh') {   // its middle moved, its length turned round it or its width: as in a drawing program
+    const e2 = m.inner[drag.i]; if (!e2) return;
+    const { b, ctm } = e2, [x, y] = toUnits(ctm, px, py), u = (x - b.x) / b.width, v = (y - b.y) / b.height, q = { ...G.glow[drag.i] }, cl = (v, a, z) => +Math.min(z, Math.max(a, v)).toFixed(3);
+    if (drag.h === 'c') { q.x = cl(u, -0.5, 1.5); q.y = cl(v, -0.5, 1.5); }
+    else if (drag.h === 'len') { const dx = u - q.x, dy = v - q.y; q.turn = +(Math.atan2(-dx, dy) * 180 / Math.PI).toFixed(1); q.oval = cl(Math.hypot(dx, dy) / q.r, 0.2, 5); }
+    else { const L = q.r * q.oval, a = q.turn * Math.PI / 180, w = Math.abs((u - q.x) * Math.cos(a) + (v - q.y) * Math.sin(a)); q.r = cl(w, 0.03, 1.5); q.oval = cl(L / q.r, 0.2, 5); }
+    G = { ...G, glow: G.glow.map((g, k) => k === drag.i ? q : g) }; glowSoon();
+  }
 });
 addEventListener('pointerup', () => {
   const d = drag; drag = null; if (!d || d.kind !== 'point') return;
@@ -375,8 +383,16 @@ function drawOverlay() {
     const [x, y] = drag && drag.kind === 'point' && drag.it.part === part && drag.i === i ? drag.at : [x0, y0];
     h += `<circle data-pt="${part},${i}" cx="${x}" cy="${y}" r="9" fill="none" stroke="#fff" stroke-width="2" style="pointer-events:all;cursor:${mode === 'remove' ? 'pointer' : 'move'}"/><circle cx="${x}" cy="${y}" r="2.5" fill="#fff"/>`;
   }
-  if (mode === 'glow') m.inner.forEach((e, i) => { if (!e) return; const g = G.glow[i], [x, y] = toPage(e.ctm, e.b.x + g.x * e.b.width, e.b.y + g.y * e.b.height);   // the gradients' middles
-    h += `<path d="M${x - 8} ${y}h16M${x} ${y - 8}v16" stroke="#fff" stroke-width="2"/>`; });
+  if (mode === 'glow') m.inner.forEach((e, i) => {   // each ear's gradient: its edge, where the middle colour reaches, its middle and its two handles
+    if (!e) return; const q = G.glow[i], at = (a, k) => { const [u, v] = glowEdge(q, a, k); return toPage(e.ctm, e.b.x + u * e.b.width, e.b.y + v * e.b.height); };
+    const ring = k => 'M' + Array.from({ length: 49 }, (_, n) => at(n / 48 * 2 * Math.PI, k).map(v => v.toFixed(1)).join(' ')).join('L');
+    const [cx, cy] = toPage(e.ctm, e.b.x + q.x * e.b.width, e.b.y + q.y * e.b.height), [lx, ly] = at(Math.PI / 2, 1), [wx, wy] = at(0, 1);
+    h += `<path d="${ring(1)}" fill="none" stroke="#fff" stroke-width="1.5"/><path d="${ring(glowOf(valuesOf('innerEars')).glowMid)}" fill="none" stroke="#fff" stroke-opacity="0.6" stroke-dasharray="3 3"/>` +
+      `<line x1="${cx}" y1="${cy}" x2="${lx}" y2="${ly}" stroke="#fff" stroke-width="1.5"/>` +
+      `<circle data-gh="${i},c" cx="${cx}" cy="${cy}" r="6" fill="#fff" stroke="#3d3846" stroke-width="1.5" style="pointer-events:all;cursor:move"/>` +
+      `<rect data-gh="${i},len" x="${lx - 5}" y="${ly - 5}" width="10" height="10" fill="#c9b9e8" stroke="#3d3846" stroke-width="1.5" style="pointer-events:all;cursor:grab"/>` +
+      `<rect data-gh="${i},wid" x="${wx - 5}" y="${wy - 5}" width="10" height="10" fill="#fff" stroke="#3d3846" stroke-width="1.5" style="pointer-events:all;cursor:ew-resize"/>`;
+  });
   if (h !== drawOverlay.last) { $('overlay').innerHTML = h; drawOverlay.last = h; }
 }
 
