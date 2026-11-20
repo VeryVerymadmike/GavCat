@@ -60,10 +60,8 @@ function snap(which) {
   const fewer = (P, k) => Array.from({ length: k }, (_, i) => P[Math.round(i * (P.length - 1) / (k - 1))]);
   // a leg's round top (hip / shoulder circle) fades out toward the body's up, so where it lies over the body it melts into it, no edge
   const fadeTop = k => { const j = p.skel.joints[LEG_JOINT[k]], r = j[3] || j[2], u = k[0] === 'b' ? p.skel.hipUp : p.skel.up, id = 'furFade-' + k;
-    // a back leg: its fur fades out over its whole hip circle (the body's fur is there), so nothing of the hip shows past the body's
-    // outline; the leg's own fur starts at the circle's edge, on the way to its knee (2)
-    if (k[0] === 'b') return `<defs><radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${f(j[0])}" cy="${f(j[1])}" r="${f(r * 1.1)}"><stop offset="0.7" stop-color="#fff"/><stop offset="1" stop-color="#000"/></radialGradient></defs>` +
-      `<circle data-fur-fade="" cx="${f(j[0])}" cy="${f(j[1])}" r="${f(r * 1.1)}" fill="url(#${id})"/>`;
+    // (a back leg's once faded out over its whole hip circle (radial): its edge hairs still drew the circle round the hip, a round patch on
+    // the body. Now as a front leg's: a straight fade upward from the joint, so the hip melts into the body's fur with no edge)
     return `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${f(j[0] - u[0] * r * 0.1)}" y1="${f(j[1] - u[1] * r * 0.1)}" x2="${f(j[0] + u[0] * r * 0.9)}" y2="${f(j[1] + u[1] * r * 0.9)}"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient></defs>` +
       `<rect data-fur-fade="" x="${f(j[0] - 1.6 * r)}" y="${f(j[1] - 1.6 * r)}" width="${f(3.2 * r)}" height="${f(3.2 * r)}" fill="url(#${id})"/>`; };
   const leg = k => { const it = item([$('leg-' + k), $('low-' + k), $('ptLow-' + k)?.parentNode], [$('leg-' + k), $('low-' + k)], furLegSpine(p, k)); return { ...it, s: it.s + fadeTop(k), far: k[1] === 'f' }; };   // (its line starts above the hip / shoulder: see furLegSpine)   // (far: the pair behind the body, its own light)
