@@ -267,7 +267,9 @@ let glowT = null; const glowSoon = () => { clearTimeout(glowT); glowT = setTimeo
 $('glowSize').oninput = () => { G = { ...G, glowSize: +$('glowSize').value }; glowSoon(); };
 function glowAt(m, px, py, pick) {
   const E = m.inner.map(e => e && { ...e, mid: toPage(e.ctm, e.b.x + e.b.width / 2, e.b.y + e.b.height / 2) });
-  let i = pick; if (i == null) { let bd = Infinity; E.forEach((e, k) => { if (e) { const d = Math.hypot(e.mid[0] - px, e.mid[1] - py); if (d < bd) { bd = d; i = k; } } }); }
+  // (a click picks the inner ear it is on or near, within half the ear's size round it; anywhere else it does nothing)
+  let i = pick; if (i == null) { let bd = Infinity; E.forEach((e, k) => { if (!e) return; const [x, y] = toUnits(e.ctm, px, py), u = (x - e.b.x) / e.b.width, v = (y - e.b.y) / e.b.height;
+    if (u < -0.5 || u > 1.5 || v < -0.5 || v > 1.5) return; const d = Math.hypot(e.mid[0] - px, e.mid[1] - py); if (d < bd) { bd = d; i = k; } }); }
   if (i == null) return null;
   const { b, ctm } = E[i], [x, y] = toUnits(ctm, px, py), r = v => +Math.min(1.5, Math.max(-0.5, v)).toFixed(3);
   G = { ...G, glow: G.glow.map((g, k) => k === i ? { x: r((x - b.x) / b.width), y: r((y - b.y) / b.height) } : g) };
