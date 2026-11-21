@@ -131,6 +131,8 @@ vec4 spineAt(vec4 s){
   return vec4(P + (T * s.z + N * s.w * w) * u_k, T.x * T0.x + T.y * T0.y, T.y * T0.x - T.x * T0.y);
 }
 void take(vec4 s, float w, inout vec2 r, inout vec2 d){ if (w > 0.0) { vec4 f = spineAt(s); r += w * f.xy; d += w * f.zw; } }
+// the bone a spot goes with, at its height (its spine's point now, without its offsets): where "inward" is for the floor
+void boneAt(vec4 s, float w, inout vec2 c){ if (w > 0.0) c += w * spineAt(vec4(s.xy, 0.0, 0.0)).xy; }
 // A joint folded tight (a knee, a hock, an elbow): its two bones overlap on the fold's inner side, and there the fur is cut along the
 // crease: fur lying past one bone's end goes with the next bone only (no blend of the two, which smeared them into one), the bone
 // above lies over the one below (the hairs' order), and the one below is in the fold's shadow near the crease. On the outer side
@@ -211,7 +213,7 @@ uniform float u_px, u_bent, u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_
 out vec4 v_col; out float v_side; out float v_soft;
 ${SPINE_GLSL}
 void main(){
-  float t = a_tv.x, off = a_off, soft = a_shape.z, fold = 0.0;
+  float t = a_tv.x, off = a_off, soft = a_shape.z, fold = 0.0; vec2 bone = vec2(0.0);
   float ang  = a_root.z + off * 0.7;                          // root turns a little…
   float bend = a_shape.y + off * 0.8;                         // …tip bends more
   float len  = a_root.w * (1.0 - 0.25 * min(1.0, abs(off)));  // ruffled hair stands up → shorter
@@ -227,6 +229,7 @@ void main(){
     vec2 d = vec2(0.0); r = vec2(0.0);
     vec4 cw = crease(a_s0, a_s1, a_s2, a_s3, a_w, fold);
     take(a_s0, cw.x, r, d); take(a_s1, cw.y, r, d); take(a_s2, cw.z, r, d); take(a_s3, cw.w, r, d);
+    boneAt(a_s0, cw.x, bone); boneAt(a_s1, cw.y, bone); boneAt(a_s2, cw.z, bone); boneAt(a_s3, cw.w, bone);
     ang += atan(d.y, d.x);
   }
   float cs = cos(ang), sn = sin(ang);
@@ -237,7 +240,8 @@ void main(){
     float h = fract(sin(dot(a_root.xy, vec2(12.9898, 78.233))) * 43758.5453);
     float fl = max(u_floor - h * 0.35 * len * k, min(r.y, u_floor));
     vec2 to = vec2(cs * len - sn * 0.5 * bend * len, sn * len + cs * 0.5 * bend * len) * k;   // (its tip, as it would be)
-    float L = length(to), sd = to.x > 1e-4 * L ? 1.0 : to.x < -1e-4 * L ? -1.0 : (h < 0.5 ? -1.0 : 1.0);
+    // (it bends inward, toward its bone, so the fur gathers under the paw instead of splaying out past it; right over the bone: the way it leans)
+    float L = length(to), ib = bone.x - r.x, sd = abs(ib) > 0.5 * k ? sign(ib) : to.x > 1e-4 * L ? 1.0 : to.x < -1e-4 * L ? -1.0 : (h < 0.5 ? -1.0 : 1.0);
     if (r.y + to.y > fl && L > 1e-5) {
       float b1 = asin(clamp((fl - r.y) / L, -1.0, 1.0)); b1 = sd > 0.0 ? b1 : 3.14159265 - b1;
       float th = mod(b1 - atan(to.y, to.x) + 3.14159265, 6.2831853) - 3.14159265;
