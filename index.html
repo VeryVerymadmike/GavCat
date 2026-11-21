@@ -4246,20 +4246,21 @@ const BLINK = { gap:[3, 5], one:0.16, twice:0.5 };   // seconds between blinks (
 let blinkAt = 2 + Math.random()*2, blinkT = -1, blinkN = 1, swayPhase = 0, wagPhase = 0;
 let sleepK = 0, breathPhase = 0;   // how asleep it is (0 … 1, eased; see sleepSpell), and where it is in a breath
 const TAIL_WEIGHT = [0, 0.35, 0.8, 1, 1, 1];
-function addLife(src, life, dt){
+// still: the pose without breathing and the tail's sway (what the skeleton's handles are drawn on: they never move with a breath)
+function addLife(src, life, dt, still = false){
   const pose = structuredClone(src);
   const tailFloor = FLOOR_Y - LIMB.tail[0] * pose.shape.tailThick;   // a tail rests on the floor, never sinks into it
   pose.tail = tailPoints(pose.tail, pose.shape.tailLen).map(([x, y]) => [x, Math.min(y, tailFloor)]);
   // asleep: breathes slower and deeper, the tail lies still, the ears flick less often
   if (dt > 0){ sleepK = clamp(sleepK + (curStep && curStep.sleep ? 1 : -1) * dt / 3, 0, 1); breathPhase += dt * 2*Math.PI / (3.6 + 1.6 * sleepK); }
-  if (!QUIET){
+  if (!QUIET && !still){
     const b = (life ? Math.sin(breathPhase) : 0) * 1.6 * (1 + 0.3 * sleepK);
     pose.breath = b;            // the ribcage expands (see shapeMasses)
     pose.head.y -= b * 0.8;
   }
   const sw = clamp(pose.fx.swish, 0, 1), fr = clamp(pose.fx.front, 0, 1);
   swayPhase += dt * 1.35; wagPhase += dt * 3.2;
-  const swayAmp = !QUIET ? 2.6 * (1 - sw) * (1 - 0.7*fr) * (1 - 0.85 * sleepK) : 0, wagAmp = 13 * sw;
+  const swayAmp = !QUIET && !still ? 2.6 * (1 - sw) * (1 - 0.7*fr) * (1 - 0.85 * sleepK) : 0, wagAmp = 13 * sw;
   if (swayAmp + wagAmp > 0.01){
     const P = pose.tail, out = [P[0]]; let ang = 0;
     for (let i = 1; i < P.length; i++){
@@ -6039,7 +6040,7 @@ function draw(p, ht, dt){
   drawEdgeFur(p);
   headFur(p);
   if (dt !== undefined) bodyFur(p);   // (only the live cat: previews of other moments draw with two arguments)
-  if (skelShown) drawSkel(p);
+  if (skelShown) drawSkel(dt !== undefined && skelPose ? skelPose : p);
   // the soft merge only draws inside its filter region: round the editing grid (states and ghosts are drawn there) and,
   // fitted every frame, wherever the parts reach beyond it (a jump, a stretch, the tail), with room for the blur
   if (lastFluid >= 0.3){
@@ -6059,6 +6060,7 @@ function fitFilter(f, b, m){
    numbered with its layer. Joints are dots. */
 const SK = { pink:'#d0679a', front:'#7d63c4', hind:'#d08a3c', head:'#5aa0bf' };
 const LEG_COL = { fn:'#7d63c4', ff:'#1f9e89', bn:'#d97a1e', bf:'#2f62d9' };   // front near purple, front far teal, hind near orange, hind far blue
+let skelPose = null;   // this frame's pose held still, for the skeleton (see the frame loop)
 let skelBelly = null, skelBellyH = null, skelShown = false, shapeOpen = false, skelEls = null, skelPts = {}, skelHead = null, skelTail = [], skelMove = null;
 // the grid leg points snap to: 400 × 400 drawing units around the cat, its bottom on the floor line
 const GRID = { x:0, y:CAT_BOX.floor - 400, size:400, step:10, snap:5 };
@@ -6910,6 +6912,9 @@ function frame(now){
   const G = curStep && curStep.gait ? curStep : null, gt = G ? clamp(planT - G.start, 0, G.dur) : 0;
   let shown = solveLegs(shapeStep(leanUp(addLife(livePose, life, playing ? dt : 0)), curStep, planT));
   if (curStep && curStep.ground) shown = groundPose(shown);
+  // the skeleton's handles: on the same moment held still, so they don't breathe or sway with the cat
+  skelPose = null;
+  if (skelShown){ skelPose = solveLegs(shapeStep(leanUp(addLife(livePose, life, 0, true)), curStep, planT)); if (curStep && curStep.ground) skelPose = groundPose(skelPose); }
   bellyPlay(shown, playing ? dt : 0, now);
   testPaw(shown, playing ? dt : 0, now);
   shown.tail = followTail(shown.tail, playing ? dt : 0, tailHold());
