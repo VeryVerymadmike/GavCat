@@ -104,6 +104,8 @@ function chamfer(d, near, GN) {                      // 2-pass 8-neighbour dista
 const FOLD = [158, 175, 0.25];   // (from 158°: only a joint folded nearly flat creases; Sit's knee (about 150°) blends as before)
 // how much of a bit of fur a leg (any part not the hub) must hold for it to be in that leg's layer (see build, bend's z)
 const LEG_LAYER = 0.3;
+// how far a hair reaching the floor turns: 1 just far enough to stop at it, more curls it in under the paw
+const FLOOR_TUCK = 1.4;
 const SPINE_GLSL = `
 // the spine as a smooth curve through its points (Catmull-Rom; at a spine's ends its end point mirrored): point and slope at t of segment i
 void cr(vec2 p0, vec2 p1, vec2 p2, vec2 p3, float t, out vec2 P, out vec2 D, out vec2 A){
@@ -245,11 +247,11 @@ void main(){
     if (r.y + to.y > fl && L > 1e-5) {
       float b1 = asin(clamp((fl - r.y) / L, -1.0, 1.0)); b1 = sd > 0.0 ? b1 : 3.14159265 - b1;
       float th = mod(b1 - atan(to.y, to.x) + 3.14159265, 6.2831853) - 3.14159265;
-      th *= 0.55 + 0.45 * t;
+      th *= (0.55 + 0.45 * t) * ${FLOOR_TUCK};   // (past just touching the floor: it curls in under the paw)
       vec2 d = q - r; float c2 = cos(th), s2 = sin(th);
       q = r + vec2(c2 * d.x - s2 * d.y, s2 * d.x + c2 * d.y);
     }
-    if (q.y > fl) { float e = q.y - fl; q = vec2(q.x + sd * e * 0.85, fl - e * 0.06); }   // (what still reaches it lies flat on it)
+    if (q.y > fl) { float e = q.y - fl; q = vec2(q.x + sd * e * 1.1, fl - e * 0.06); }   // (what still reaches it lies flat on it)
   }
   gl_Position = vec4((q.x - u_view.x) / u_view.z * 2.0 - 1.0, 1.0 - (q.y - u_view.y) / u_view.w * 2.0, 0.0, 1.0);
   v_col = vec4(a_col.rgb * (1.0 - ${FOLD[2]} * fold), a); v_side = a_tv.y; v_soft = soft;   // (in a fold's shadow: darker)

@@ -1,4 +1,4 @@
-// made by make-parts.js from cat-stretch.html (2026-11-20): Gav's parts in both coats
+// made by make-parts.js from cat-stretch.html (2026-11-21): Gav's parts in both coats
 export const GAV = {
  "head": {
   "siamese": "<svg xmlns=\"http://www.w3.org/2000/svg\"><defs><filter id=\"stainMap\" filterUnits=\"userSpaceOnUse\" x=\"-96.8\" y=\"-96.8\" width=\"193.6\" height=\"215.6\" color-interpolation-filters=\"sRGB\">\n        <feGaussianBlur id=\"stainMapBlur\" in=\"SourceAlpha\" stdDeviation=\"0.6\" result=\"b\"></feGaussianBlur>\n        <feColorMatrix in=\"b\" type=\"matrix\" values=\"0 0 0 1 0  0 0 0 1 0  0 0 0 1 0  0 0 0 0 1\" result=\"t\"></feColorMatrix>\n        <feComponentTransfer in=\"t\" result=\"c\"><feFuncR id=\"stainMapR\" type=\"table\" tableValues=\"0.7020 0.7020 0.7020 0.7020 0.7020 0.7020 0.7020 0.7020 0.6980 0.6902 0.6824 0.6706 0.6627 0.6549 0.6471 0.6353 0.6275 0.6196 0.6078 0.6000 0.5922 0.5843 0.5725 0.5647 0.5569 0.5451 0.5373 0.5294 0.5176 0.5098 0.5020 0.4902 0.4824 0.4745 0.4627 0.4549 0.4471 0.4353 0.4275 0.4196 0.4078 0.4000 0.3922 0.3804 0.3725 0.3647 0.3529 0.3451 0.3412 0.3333 0.3255 0.3176 0.3098 0.3059 0.2980 0.2902 0.2824 0.2745 0.2706 0.2627 0.2549 0.2471 0.2392 0.2314 0.2275 0.2196 0.2118 0.2039 0.1961 0.1922 0.1843 0.1765 0.1686 0.1608 0.1569 0.1490 0.1412 0.1333 0.1255 0.1216 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176 0.1176\"></feFuncR><feFuncG id=\"stainMapG\" type=\"table\" tableValues=\"0.6118 0.6118 0.6118 0.6118 0.6118 0.6118 0.6118 0.6118 0.6078 0.5961 0.5804 0.5686 0.5569 0.5451 0.5333 0.5176 0.5059 0.4941 0.4824 0.4667 0.4549 0.4431 0.4314 0.4157 0.4039 0.3922 0.3804 0.3725 0.3647 0.3569 0.3451 0.3373 0.3294 0.3216 0.3137 0.3020 0.2941 0.2863 0.2784 0.2706 0.2588 0.2510 0.2431 0.2353 0.2275 0.2157 0.2078 0.2039 0.2000 0.1961 0.1922 0.1882 0.1843 0.1804 0.1765 0.1725 0.1686 0.1647 0.1608 0.1569 0.1529 0.1490 0.1451 0.1412 0.1373 0.1333 0.1294 0.1255 0.1216 0.1176 0.1137 0.1098 0.1059 0.0980 0.0941 0.0902 0.0863 0.0824 0.0784 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745 0.0745\"></feFuncG><feFuncB id=\"stainMapB\" type=\"table\" tableValues=\"0.5333 0.5333 0.5333 0.5333 0.5333 0.5333 0.5333 0.5333 0.5294 0.5137 0.5020 0.4863 0.4706 0.4588 0.4431 0.4275 0.4157 0.4000 0.3882 0.3725 0.3569 0.3451 0.3294 0.3137 0.3020 0.2863 0.2745 0.2667 0.2627 0.2549 0.2471 0.2392 0.2314 0.2275 0.2196 0.2118 0.2039 0.1961 0.1922 0.1843 0.1765 0.1686 0.1608 0.1569 0.1490 0.1412 0.1333 0.1294 0.1294 0.1255 0.1255 0.1216 0.1216 0.1176 0.1137 0.1137 0.1098 0.1098 0.1059 0.1059 0.1020 0.0980 0.0980 0.0941 0.0941 0.0902 0.0902 0.0863 0.0824 0.0824 0.0784 0.0784 0.0745 0.0745 0.0706 0.0667 0.0667 0.0627 0.0627 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588 0.0588\"></feFuncB></feComponentTransfer>\n        <feComponentTransfer in=\"b\" result=\"a\"><feFuncA id=\"stainMapA\" type=\"table\" tableValues=\"0.0000 0.0469 0.0938 0.1406 0.1875 0.2344 0.2813 0.3301 0.3804 0.4306 0.4808 0.5310 0.5813 0.6315 0.6817 0.7319 0.7569 0.7678 0.7786 0.7895 0.8003 0.8112 0.8220 0.8329 0.8438 0.8546 0.8655 0.8763 0.8872 0.8980 0.9089 0.9197 0.9306 0.9414 0.9523 0.9631 0.9740 0.9848 0.9957 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000 1.0000\"></feFuncA></feComponentTransfer>\n        <feComposite in=\"c\" in2=\"a\" operator=\"in\"></feComposite>\n      </filter></defs><path data-fur-shape=\"\" fill=\"rgb(245, 229, 217)\" d=\"M3.50 -39.98C23.00 -39.48 24.44 -34.54 28.74 -31.11C33.04 -27.68 48.39 -11.43 49.36 -0.86C50.33 9.71 46.71 19.12 37.88 28.90C29.05 38.68 20.13 42.52 3.81 43.91C-12.50 45.29 -23.69 38.94 -32.38 29.40C-41.07 19.86 -45.87 9.06 -44.36 -1.36C-42.85 -11.78 -27.70 -28.88 -24.24 -31.11C-20.78 -33.34 -16.00 -40.48 3.50 -39.98ZM-4.68 8.55C-2.07 3.19 8.07 3.19 10.68 8.55C10.68 8.55 35.72 23.53 35.72 23.53C31.37 26.72 27.12 35.28 16.32 42.96C5.52 50.64 -4.02 49.64 -10.32 42.46C-16.62 35.28 -22.37 25.72 -26.72 22.53C-26.72 22.53 -4.68 8.55 -4.68 8.55Z\"/><g transform=\"matrix(1 0 0 1 4.3 0)\"><path filter=\"url(#stainMap)\" d=\"M18.43 1.12L10.57 7.67L21.36 19.61L-1.15 35.09L-24.21 18.06L-11.37 8.35L-21.58 2.15L-0.20 -7.13Z\"/></g><g data-fur-light=\"\" transform=\"matrix(0.9328 0 0 0.9328 -275.1866 -78.5448)\"><image data-fur-light=\"\" preserveAspectRatio=\"none\" x=\"230.5\" y=\"24.4\" width=\"134\" height=\"128\" href=\"data:image/png;base64,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\"/></g></svg>",
@@ -205,64 +205,64 @@ export const GAV = {
    "sit": [
     [
      [
-      47.25,
-      204.9
+      49.75,
+      194.9
      ],
      [
-      59.04,
-      173.69
+      53.15,
+      166.19
      ],
      [
-      77.61,
-      146.24
+      60.94,
+      139.9
      ],
      [
-      102.96,
-      122.55
+      73.1,
+      116.03
      ],
      [
-      135.09,
-      102.61
+      89.63,
+      94.59
      ],
      [
-      165.77,
-      87.27
+      118.4,
+      71.14
      ],
      [
-      195,
-      69.3
+      155,
+      65
      ]
     ]
    ],
    "sitMid": [
     [
      [
-      100.37,
-      124.05
+      101.62,
+      119.05
      ],
      [
-      135.28,
-      113.86
+      131.85,
+      109.17
      ],
      [
-      170.12,
-      103.48
+      161.52,
+      97.81
      ],
      [
-      204.87,
-      92.9
+      190.62,
+      84.96
      ],
      [
-      239.55,
-      82.11
+      219.16,
+      70.63
      ],
      [
-      269.22,
-      71.7
+      247.74,
+      59.54
      ],
      [
-      298.35,
-      59.88
+      278.35,
+      57.73
      ]
     ]
    ],
@@ -301,32 +301,32 @@ export const GAV = {
    "lieMid": [
     [
      [
-      107.3,
-      179.96
+      108.55,
+      174.96
      ],
      [
-      136.1,
-      164.53
+      133.06,
+      159.33
      ],
      [
-      165.53,
-      151.9
+      157.9,
+      145.16
      ],
      [
-      195.59,
-      142.08
+      183.06,
+      132.46
      ],
      [
-      226.27,
-      135.07
+      208.55,
+      121.22
      ],
      [
-      247.76,
-      142.03
+      231.52,
+      129.21
      ],
      [
-      269.66,
-      147.54
+      249.66,
+      145.39
      ]
     ]
    ],
@@ -656,96 +656,96 @@ export const GAV = {
     [
      [
       47.25,
-      207.4
+      192.4
      ],
      [
       70,
-      220
+      205
      ],
      [
-      133.3,
-      181.24
+      122.9,
+      174.94
      ],
      [
-      115.05,
-      236.07
+      90,
+      235
      ],
      [
-      145,
+      120,
       240.52
      ],
      [
-      159.3,
+      134.3,
       240.52
      ]
     ],
     [
      [
-      191.64,
-      202.39
+      196.64,
+      197.39
      ],
      [
-      214.4,
-      214.99
+      219.4,
+      209.99
      ],
      [
-      274.41,
-      185
+      264.41,
+      175
      ],
      [
-      254.4,
+      234.4,
       236.56
      ],
      [
-      289.41,
+      264.41,
       240.52
      ],
      [
-      303.71,
+      278.71,
       240.52
      ]
     ],
     [
      [
-      140.6,
-      312.58
+      117.19,
+      303.74
      ],
      [
-      160,
-      316
+      130,
+      306
+     ],
+     [
+      145,
+      366
      ],
      [
       175,
-      366
-     ],
-     [
-      200,
       421.99
      ],
      [
-      214.3,
+      189.3,
       421.99
      ]
     ],
     [
      [
-      294.9,
-      312.58
+      281.49,
+      303.74
      ],
      [
-      314.3,
-      316
+      294.3,
+      306
      ],
      [
-      329.3,
-      366
+      304.3,
+      371
      ],
      [
-      349.3,
+      319.3,
       421.99
      ],
      [
-      363.6,
+      333.6,
       421.99
      ]
     ]
@@ -754,96 +754,96 @@ export const GAV = {
     [
      [
       98.53,
-      123.75
+      116.25
      ],
      [
       109.95,
-      153.88
+      146.38
      ],
      [
-      173.7,
-      188.83
+      160.18,
+      185.85
      ],
      [
-      140.55,
-      206.27
+      128.1,
+      201.1
      ],
      [
-      185.18,
+      172.68,
       212.09
      ],
      [
-      197.64,
-      212.09
-     ]
-    ],
-    [
-     [
-      246.61,
-      124.35
-     ],
-     [
-      258.03,
-      154.48
-     ],
-     [
-      299.52,
-      185.93
-     ],
-     [
-      243.35,
-      238.55
-     ],
-     [
-      287.5,
-      212.09
-     ],
-     [
-      299.96,
+      185.14,
       212.09
      ]
     ],
     [
      [
-      238.95,
-      273.86
+      249.11,
+      121.85
      ],
      [
-      258.86,
-      302.29
+      260.53,
+      151.98
      ],
      [
-      269.15,
+      288.48,
+      189.89
+     ],
+     [
+      236.47,
+      235.47
+     ],
+     [
+      275,
+      212.09
+     ],
+     [
+      287.46,
+      212.09
+     ]
+    ],
+    [
+     [
+      225.91,
+      271.65
+     ],
+     [
+      243.86,
+      297.29
+     ],
+     [
+      254.15,
       358.74
      ],
      [
-      294.41,
+      281.91,
       393.53
      ],
      [
-      296.2,
-      381.2
+      288.63,
+      383.03
      ]
     ],
     [
      [
-      381.1,
-      274.98
+      373.06,
+      272.77
      ],
      [
-      401,
-      303.41
+      391,
+      298.41
      ],
      [
-      402.94,
-      354.41
+      390.44,
+      356.91
      ],
      [
-      426.45,
+      411.45,
       393.53
      ],
      [
-      438.91,
+      423.91,
       393.53
      ]
     ]
@@ -950,96 +950,96 @@ export const GAV = {
     [
      [
       106.19,
-      179.28
+      171.78
      ],
      [
       113.1,
-      210.19
+      202.69
      ],
      [
-      184.52,
-      216.2
+      180.73,
+      216.94
      ],
      [
-      145.7,
-      226.44
+      133.18,
+      225.91
      ],
      [
-      175.35,
+      162.85,
       240.02
      ],
      [
-      189.13,
+      176.63,
       240.02
      ]
     ],
     [
      [
-      252.8,
-      180.64
+      255.3,
+      178.14
      ],
      [
-      259.71,
-      211.55
+      262.21,
+      209.05
      ],
      [
-      260.34,
-      188.7
+      261.94,
+      191.78
      ],
      [
-      267.68,
+      257.68,
       235.46
      ],
      [
-      304.02,
+      291.52,
       240.02
      ],
      [
-      292.17,
+      279.67,
       232.97
      ]
     ],
     [
      [
-      208.2,
-      326.65
+      194.07,
+      324.88
      ],
      [
-      214.32,
-      349.48
+      199.32,
+      344.48
      ],
      [
-      256.59,
+      241.59,
       400.91
      ],
      [
-      289.8,
+      277.3,
       421.57
      ],
      [
-      303.58,
+      291.08,
       421.57
      ]
     ],
     [
      [
-      378.65,
-      320.47
+      369.52,
+      318.7
      ],
      [
-      384.77,
-      343.3
+      374.77,
+      338.3
      ],
      [
-      406.61,
-      394.55
+      394.11,
+      397.05
      ],
      [
-      418.49,
+      403.49,
       421.57
      ],
      [
-      432.27,
+      417.27,
       421.57
      ]
     ]
@@ -1741,79 +1741,79 @@ export const GAV = {
    "sit": [
     [
      [
-      47.25,
-      204.9
+      49.75,
+      194.9
      ],
      [
-      59.04,
-      173.69
+      53.15,
+      166.19
      ],
      [
-      77.61,
-      146.24
+      60.94,
+      139.9
      ],
      [
-      102.96,
-      122.55
+      73.1,
+      116.03
      ],
      [
-      135.09,
-      102.61
+      89.63,
+      94.59
      ],
      [
-      165.77,
-      87.27
-     ],
-     [
-      195,
-      69.3
-     ]
-    ],
-    [
-     [
-      47.24,
-      202.39
-     ],
-     [
-      70,
-      214.99
-     ],
-     [
-      130.01,
-      185
-     ],
-     [
-      110,
-      236.56
-     ],
-     [
-      145.01,
-      240.52
-     ],
-     [
-      159.31,
-      240.52
-     ]
-    ],
-    [
-     [
-      135.6,
-      131.58
+      118.4,
+      71.14
      ],
      [
       155,
-      135
+      65
+     ]
+    ],
+    [
+     [
+      52.24,
+      197.39
      ],
      [
-      170,
-      185
+      75,
+      209.99
      ],
      [
-      190,
+      120.01,
+      175
+     ],
+     [
+      90,
+      236.56
+     ],
+     [
+      120.01,
+      240.52
+     ],
+     [
+      134.31,
+      240.52
+     ]
+    ],
+    [
+     [
+      122.19,
+      122.74
+     ],
+     [
+      135,
+      125
+     ],
+     [
+      145,
+      190
+     ],
+     [
+      160,
       240.99
      ],
      [
-      204.3,
+      174.3,
       240.99
      ]
     ]
@@ -1821,79 +1821,79 @@ export const GAV = {
    "sitMid": [
     [
      [
-      100.37,
-      124.05
+      101.62,
+      119.05
      ],
      [
-      135.28,
-      113.86
+      131.85,
+      109.17
      ],
      [
-      170.12,
-      103.48
+      161.52,
+      97.81
      ],
      [
-      204.87,
-      92.9
+      190.62,
+      84.96
      ],
      [
-      239.55,
-      82.11
+      219.16,
+      70.63
      ],
      [
-      269.22,
-      71.7
+      247.74,
+      59.54
      ],
      [
-      298.35,
-      59.88
+      278.35,
+      57.73
      ]
     ],
     [
      [
-      102.21,
-      124.35
+      104.71,
+      121.85
      ],
      [
-      113.63,
-      154.48
+      116.13,
+      151.98
      ],
      [
-      155.12,
-      185.93
+      144.08,
+      189.89
      ],
      [
-      98.95,
-      238.55
+      92.07,
+      235.47
      ],
      [
-      143.1,
+      130.6,
       212.09
      ],
      [
-      155.56,
+      143.06,
       212.09
      ]
     ],
     [
      [
-      221.8,
-      93.98
+      213.76,
+      91.77
      ],
      [
-      241.7,
-      122.41
+      231.7,
+      117.41
      ],
      [
-      243.64,
-      173.41
+      231.14,
+      175.91
      ],
      [
-      267.15,
+      252.15,
       212.53
      ],
      [
-      279.61,
+      264.61,
       212.53
      ]
     ]
@@ -1981,79 +1981,79 @@ export const GAV = {
    "lieMid": [
     [
      [
-      107.3,
-      179.96
+      108.55,
+      174.96
      ],
      [
-      136.1,
-      164.53
+      133.06,
+      159.33
      ],
      [
-      165.53,
-      151.9
+      157.9,
+      145.16
      ],
      [
-      195.59,
-      142.08
+      183.06,
+      132.46
      ],
      [
-      226.27,
-      135.07
+      208.55,
+      121.22
      ],
      [
-      247.76,
-      142.03
+      231.52,
+      129.21
      ],
      [
-      269.66,
-      147.54
+      249.66,
+      145.39
      ]
     ],
     [
      [
-      108.4,
-      180.64
+      110.9,
+      178.14
      ],
      [
-      115.31,
-      211.55
+      117.81,
+      209.05
      ],
      [
-      115.94,
-      188.7
+      117.54,
+      191.78
      ],
      [
-      123.28,
+      113.28,
       235.46
      ],
      [
-      159.62,
+      147.12,
       240.02
      ],
      [
-      147.77,
+      135.27,
       232.97
      ]
     ],
     [
      [
-      219.35,
-      139.47
+      210.22,
+      137.7
      ],
      [
-      225.47,
-      162.3
+      215.47,
+      157.3
      ],
      [
-      247.31,
-      213.55
+      234.81,
+      216.05
      ],
      [
-      259.19,
+      244.19,
       240.57
      ],
      [
-      272.97,
+      257.97,
       240.57
      ]
     ]
@@ -2587,28 +2587,28 @@ export const GAV = {
    "sit": [
     [
      [
-      71.67,
-      180.69
+      65.79,
+      173.19
      ],
      [
-      48.47,
-      220.76
+      50.97,
+      210.76
      ],
      [
-      34.51,
-      220.48
+      36.76,
+      214.04
      ],
      [
-      20.18,
-      216.05
+      21.16,
+      213.39
      ],
      [
       9.16,
       205.96
      ],
      [
-      2.56,
-      176.26
+      2.4,
+      176.88
      ],
      [
       -0.32,
@@ -2619,28 +2619,28 @@ export const GAV = {
    "sitMid": [
     [
      [
-      140.4,
-      127.38
+      136.97,
+      122.68
      ],
      [
-      93.37,
-      145.43
+      94.62,
+      140.43
      ],
      [
-      82.94,
-      100.33
+      84.05,
+      97.13
      ],
      [
-      86.36,
-      48.3
+      86.85,
+      46.97
      ],
      [
       91.97,
       2.26
      ],
      [
-      99.86,
-      -45.71
+      99.78,
+      -45.4
      ],
      [
       110.21,
@@ -2683,28 +2683,28 @@ export const GAV = {
    "lieMid": [
     [
      [
-      139.25,
-      178.63
+      136.21,
+      173.43
      ],
      [
-      99.03,
-      202.92
+      100.28,
+      197.92
      ],
      [
-      105.48,
-      218.03
+      106.15,
+      214.62
      ],
      [
-      116.87,
-      231.73
+      117.14,
+      230.3
      ],
      [
       131.05,
       238.48
      ],
      [
-      158,
-      228.95
+      157.92,
+      229.26
      ],
      [
       188.08,
