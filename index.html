@@ -152,6 +152,9 @@ input[type=range]:disabled{opacity:.4}
 #mkShow{margin-bottom:8px}
 .gradScale{margin-top:8px}
 .gradScale>span{font-size:12px;color:var(--soft)}
+.gsGroup{margin-top:8px}   /* the stains' colours, together: folded on their own, apart from the other face controls */
+.gsGroup:not([open])>summary::after{content:"+"}
+.gsGroup[open]>summary::after{content:"–"}
 .gsBar{height:12px;border-radius:6px;border:1px solid var(--line);margin:4px 14px 0}
 .gsPicks{position:relative;height:30px;margin:0 14px}
 .gsPicks input{position:absolute;top:3px;width:28px;height:24px;transform:translateX(-50%);padding:0;border:0;background:none;cursor:pointer}
@@ -471,7 +474,6 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
   </div>
   <p class="sub">Eye looks</p>
   <div class="moves looks" id="lookBtns" role="group" aria-label="Show an eye look now"></div>
-  <div class="row"><label for="mouthOpen">Open mouth</label><input type="range" id="mouthOpen" min="0" max="1" step="0.01"><output for="mouthOpen"></output></div>
 
   <details id="d-auto" open>
     <summary>Auto</summary>
@@ -553,19 +555,7 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
     </div>
   </details>
 
-  <details id="d-fur">
-    <summary>Fur</summary>
-    <div class="group">
-      <div class="row"><label for="furDens">Fur density</label><input type="range" id="furDens" min="0" max="2.5" step="0.05"><output for="furDens"></output></div>
-      <div class="row"><label for="furLen">Hair length</label><input type="range" id="furLen" min="0.3" max="2.5" step="0.05"><output for="furLen"></output></div>
-      <div class="row"><label for="furW">Hair thickness</label><input type="range" id="furW" min="0.3" max="3" step="0.05"><output for="furW"></output></div>
-      <div class="row"><label for="furSoft">Softness</label><input type="range" id="furSoft" min="0" max="4" step="0.1"><output for="furSoft"></output></div>
-      <div class="row"><label for="furReach">Fur spread</label><input type="range" id="furReach" min="0.2" max="2.5" step="0.05"><output for="furReach"></output></div>
-      <div class="row"><label for="furShade">Shading strokes</label><input type="range" id="furShade" min="0" max="3" step="0.05"><output for="furShade"></output></div>
-      <div class="row"><label for="furShine">Highlight strokes</label><input type="range" id="furShine" min="0" max="3" step="0.05"><output for="furShine"></output></div>
-    </div>
-  </details>
-
+  <!-- (the fur is set on the fur page; the old painted fur's Fur sliders went from here 2026-11-22, their saved values still used) -->
   <details id="d-place">
     <summary>Placement</summary>
     <div class="group">
@@ -689,10 +679,15 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
           <label class="chip"><input type="checkbox" data-show="nose">Nose</label>
           <label class="chip"><input type="checkbox" data-show="all">Whole face</label>
         </div>
+        <div class="row"><label for="mouthOpen">Open mouth</label><input type="range" id="mouthOpen" min="0" max="1" step="0.01" list="mouthStops"><output for="mouthOpen"></output></div>
+        <datalist id="mouthStops"><option value="0"></option><option value="0.5"></option><option value="1"></option></datalist>
+        <div class="actions" id="mouthStates"><button class="btn" type="button" data-o="0">Closed</button><button class="btn" type="button" data-o="0.5">Half open</button><button class="btn" type="button" data-o="1">Open</button></div>
         <div class="edBox" id="maskBox"></div>
+        <details class="gsGroup" id="d-gs"><summary>Stain colours</summary>
         <div class="gradScale" data-g="main"><span>Main stain</span><div class="gsBar"></div><div class="gsPicks"><input type="color" id="mainFrom" aria-label="Main stain dark colour"><input type="color" id="mainMid" aria-label="Main stain middle colour"><input type="color" id="mainTo" aria-label="Main stain light colour"></div></div>
         <div class="gradScale" data-g="third"><span>Third stain</span><div class="gsBar"></div><div class="gsPicks"><input type="color" id="thirdFrom" aria-label="Third stain middle colour (dark)"><input type="color" id="thirdMid" aria-label="Third stain between colour"><input type="color" id="thirdTo" aria-label="Third stain outer colour"></div></div>
         <div class="gradScale" data-g="cheek"><span>Cheek stains</span><div class="gsBar"></div><div class="gsPicks"><input type="color" id="cheekFrom" aria-label="Cheek stain dark colour"><input type="color" id="cheekMid" aria-label="Cheek stain middle colour"><input type="color" id="cheekTo" aria-label="Cheek stain light colour"></div></div>
+        </details>
       </div>
       <div class="actions"><button class="btn" id="copyFace" type="button">Copy head &amp; face to all</button></div>
       <div class="row"><label for="stainBlur">Stain blur</label><input type="range" id="stainBlur" min="0" max="20" step="0.1"><output for="stainBlur"></output></div>
@@ -724,7 +719,7 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
     <div class="group">
       <div class="row"><label for="legThick">Leg thickness</label><input type="range" id="legThick" min="0.6" max="2.8" step="0.01"><output for="legThick"></output></div>
       <div class="row"><label for="pawW">Paw width</label><input type="range" id="pawW" min="0.6" max="1.8" step="0.01"><output for="pawW"></output></div>
-      <div class="row"><label for="pawH">Paw height</label><input type="range" id="pawH" min="0.6" max="1.6" step="0.01"><output for="pawH"></output></div>
+      <div class="row"><label for="pawH">Paw height</label><input type="range" id="pawH" min="0" max="1.6" step="0.01"><output for="pawH"></output></div>
       <div class="row"><label for="toeR">Toe roundness</label><input type="range" id="toeR" min="0.15" max="0.8" step="0.01"><output for="toeR"></output></div>
     </div>
     <p class="sub">Tail</p>
@@ -1495,8 +1490,7 @@ function refreshShapes(){
 // and the withers, turned and scaled to fit them (bladeShape). Its back edge stays on the spine's line (x at most 1): the spine is the back.
 // Shoulder blade size (bladeSize, dragged on its edge) grows both round their top at the withers, so they stay on the spine and reach
 // further down, shoulder 1 (and its leg) going with them: side on they are the chest's front (the shoulder circles only count as the cat turns to face you)
-const BLADE = [[1, -0.2], [0.91, -0.26], [0.71, -0.34], [0.5, -0.34], [0.3, -0.29], [0.13, -0.22], [-0.02, -0.15], [-0.1, -0.07], [-0.12, 0],
-  [-0.09, 0.065], [-0.01, 0.09], [0.3, 0.13], [0.645, 0.19], [0.96, 0.225], [1, 0.2], [1, 0.1], [1, 0], [1, -0.12]];
+const BLADE = [[0.753, -0.655], [0.572, -0.602], [0.385, -0.504], [0.205, -0.384], [0.064, -0.274], [-0.038, -0.172], [-0.1, -0.078], [-0.11, 0.007], [-0.071, 0.088], [0.029, 0.14], [0.188, 0.15], [0.391, 0.167], [0.637, 0.197], [0.852, 0.222], [1, 0.249], [1, 0.145], [0.989, 0.029], [0.997, -0.117], [1, -0.265], [1, -0.425], [0.99, -0.558], [0.905, -0.65]];   // (traced from the user's green shape over the cat skeleton, 2026-11-22: high and wide toward the neck, round round shoulder 1)
 function bladeShape(S, W, H, k = 1, g = 1){
   const dx = W[0] - S[0], dy = W[1] - S[1]; let v = [-dy, dx]; if (v[0] * (H[0] - S[0]) + v[1] * (H[1] - S[1]) > 0) v = [dy, -dx];   // (away from the head)
   return BLADE.map(([x, y]) => { x = 1 + (x - 1) * g; y *= g; return [S[0] + (dx * x + v[0] * y) * k, S[1] + (dy * x + v[1] * y) * k]; });
@@ -1692,7 +1686,27 @@ function applyShape(p){
     J[j] = [J[j][0] + d[0], J[j][1] + d[1], ...J[j].slice(2)];
     if (p.legs[l]) p.legs[l][0] = [p.legs[l][0][0] + d[0], p.legs[l][0][1] + d[1]];
   }
-  const blades = kS > 0.02 ? ['shoulderR', 'shoulderL'].map(j => bladeShape([J[j][0], J[j][1]], spW, H, kS)) : null;
+  // the blades stay under the spine (the user, 2026-11-22): a point of one out past the back or the neck (the spine's curves either side of
+  // the withers; out = toward the back, away from the belly) is moved in across the blade, toward its line from shoulder 1 to the withers,
+  // just as far as the spine. (Put on the nearest spot of the spine instead, a sitting cat's blade ran on up the neck to the chin)
+  const spLine = [...Array.from({ length: 17 }, (_, i) => bez3(spM, C.hMw, C.hWb, spW, i / 16)), ...Array.from({ length: 16 }, (_, i) => bez3(spW, C.hWn, C.hHn, H, (i + 1) / 16))];
+  const outSpine = q => {   // how far q is out past the spine (− under it)
+    let best = null;
+    for (let i = 0; i + 1 < spLine.length; i++){
+      const a = spLine[i], b = spLine[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1, t = clamp(((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l2, 0, 1);
+      const c = [a[0] + dx * t, a[1] + dy * t], d = Math.hypot(q[0] - c[0], q[1] - c[1]); if (!best || d < best.d) best = { c, d, dx, dy, l: Math.sqrt(l2) };
+    }
+    let n = [-best.dy / best.l, best.dx / best.l]; if (n[0] * -su[0] + n[1] * -su[1] < 0) n = [-n[0], -n[1]];
+    return (q[0] - best.c[0]) * n[0] + (q[1] - best.c[1]) * n[1];
+  };
+  const underSpine = (B, S0) => B.map(q => {
+    if (outSpine(q) <= 0) return q;
+    const u = [spW[0] - S0[0], spW[1] - S0[1]], t = ((q[0] - S0[0]) * u[0] + (q[1] - S0[1]) * u[1]) / (u[0] * u[0] + u[1] * u[1] || 1), f = [S0[0] + u[0] * t, S0[1] + u[1] * t];
+    if (outSpine(f) > 0) return f;
+    let lo = 0, hi = 1; for (let k = 0; k < 14; k++){ const m = (lo + hi) / 2; if (outSpine(lerp2(q, f, m)) > 0) lo = m; else hi = m; }
+    return lerp2(q, f, hi);
+  });
+  const blades = kS > 0.02 ? ['shoulderR', 'shoulderL'].map(j => underSpine(bladeShape([J[j][0], J[j][1]], spW, H, kS), J[j])) : null;
   // no chest: the outline runs round the shoulder circles in front and the hip circles behind (their size is the
   // body's depth there), and the back and belly lines go straight from one to the other; Spine curve bends them
   if (nc > 0){
@@ -1729,6 +1743,13 @@ function applyShape(p){
     const bot = tangent(hb, sb, -1), bentMid = (a, c) => { const m = mix(a, c, 0.5), k = bendAt(m); return [m[0] + bv[0] * k, m[1] + bv[1] * k]; };
     B[0] = spT; B[1] = spM; B[2] = spW;
     if (bot) [B[6], B[5], B[4]] = bow(hb, sb, bot, -1); else B[5] = bentMid(B[4], B[6]);
+    // side on, the behind is the haunches' (see HAUNCH: drawn with the back legs and the hips' mass), so the body itself goes no further
+    // back than the tail point: its back points (7, and 6 where the belly starts) stop at the line through T across the body; the hip
+    // circles, which reach out past the haunches, no longer push it out below T (the user, 2026-11-22)
+    if (kS > 0.02){
+      const f0 = [mS[0] - mH[0], mS[1] - mH[1]], fl = Math.hypot(f0[0], f0[1]) || 1, f = [f0[0] / fl, f0[1] / fl];
+      for (const i of [6, 7]) if (B[i]){ const sb2 = (B[i][0] - spT[0]) * f[0] + (B[i][1] - spT[1]) * f[1]; if (sb2 < 0) B[i] = [B[i][0] - f[0] * sb2 * kS, B[i][1] - f[1] * sb2 * kS]; }
+    }
     // facing you: the outline tucks inside the shoulder and hip circles, which are joined round (see draw)
     const C4 = [...S2, ...H2].map(c => [c[0], c[1], c[2] * 0.4]), m4 = mid2([mS, mH]);
     const Bf = face ? p.body.map(q => hullSupport(C4, m4, q)) : B, Bm = face ? B.map((q, i) => mix(q, Bf[i], face)) : B;
@@ -2137,14 +2158,14 @@ Object.assign(DEFAULTS, {
   hopTop:0.47, hopReach:3.5, eyeAuto:true, routine:true, auto:true, useStretch:true, useWatch:true,
   useGroom:true, useNap:true, useJump:true, useWalk:true, useRun:true, useFace:true, useSpine:true,
   walkSpeed:1.25, runSpeed:2.5, runStride:0.54, furDens:1.7, furLen:0.3, furW:0.8, furSoft:1.6, furReach:0.6,
-  furShade:0, furShine:1.3, mouthOpen:0, coatWhite:"#f5e5d9", coatDark:"#1e130f", coatBrown:"#5a3522",
+  furShade:0, furShine:1.3, mouthOpen:0.5, coatWhite:"#f5e5d9", coatDark:"#1e130f", coatBrown:"#5a3522",
   coatBrownLight:"#8a6247", coatFaint:"#b39c88", coatEarTop:"#a9756d", coatEarBottom:"#bf776c", coat:"siamese",
   catColor:"#191a19", eyeColor:"#2eafff", tongueColor:"#f92f24", bgColor:"#8f938b", shadowColor:"#6f6a4b",
-  size:20, posX:5, ground:8, flip:false, showSkel:true, fluid:1, glint:null, glintFade:135,
+  size:20, posX:5, ground:8, flip:false, showSkel:true, fluid:0, glint:null, glintFade:135,
   glintDot:[20, 4.5, 2.9], stainBlur:0.6, mainFull:1, gradStops3:1, mainFrom:"#070403", mainMid:"#5f331d",
   mainTo:"#ffe0cc", mainMix:0.65, cheekFrom:"#271e1c", cheekMid:"#9b6846", cheekTo:"#c4b6ad", cheekBlur:3.1,
   thirdFrom:"#020805", thirdMid:"#6f4a3f", thirdTo:"#dbc2b3", thirdBlur:0,
-  gradThird:[0.497, 0.243, 0.485, 0.819, 0.525], pupil:"slit", eyeWhite:"#f4f1ea", irisSize:1.05,
+  gradThird:[0.489, -0.126, 0.485, 0.819, 0.525], pupil:"slit", eyeWhite:"#f4f1ea", irisSize:1.05,
   eyeTop:"#0a1440", eyeGlow:"#6fd3ff", slitW:0.78, slitH:0.76, slitRound:0.65, eyebrowAngle:-64, eyebrowOn:true,
   eyebrowW:2.55, eyebrowH:3.35, eyebrowBlur:0.9, eyebrowOp:1, noseRef:2, noseTop:1, noseTopColor:"#776955",
   noseLine:1, noseLineBlur:0.34, lidShadow:0.38, lidShadowSize:0.36, lidShadowBlur:0.85,
@@ -2157,7 +2178,9 @@ Object.assign(DEFAULTS, {
   lineColor:{"round": [["#f0dfdb", "#291f1f", "#312021", "#dbbdad"], ["#141010", "#141010", "#141010", "#141010"]]},
   haloColor:{"round": [["#f4e0d2", "#f9f0e7", "#ccb6a4", "#d2b7ad"], ["#f6dcb6", "#f6dcb6", "#f6dcb6", "#f6dcb6"]]},
   gradMain:[0.413, 0.745, 0.471, 0.188, 0.653], gradCheekL:[1.031, 0.527, 0.05, 0.108, 0.759],
-  gradCheekR:[-0.012, 0.567, 0.972, 0, 0.699]
+  gradCheekR:[-0.012, 0.567, 0.972, 0, 0.699],
+  openFace:{"hs1p4y": -0.922, "hs1p3x": -0.157, "hs1p3y": -1.902, "hs1p3oy": 8.5, "hs1p3iy": -8.5, "hs1p3ox": 9, "hs1p3ix": -9, "hs1p4iy": 8.5, "hs1p4oy": -8.5, "hs0p5x": 6.5, "hs0p5y": 5.5, "hs0p3x": -7.5, "hs0p3y": 6.5, "hs0p3ix": -1.52, "hs0p3ox": 1.52, "hs0p4y": 8.078, "hs0p4oy": -1.461, "hs0p4iy": 1.461, "hs0p4ox": 11.284, "hs0p4ix": -11.284, "hs0p4x": -1, "hs0p5oy": -3.637, "hs0p5iy": 3.637, "hs0p3iy": -0.157, "hs0p3oy": 0.157, "hs1p4x": 0.098, "hs1p4ix": -4.5, "hs1p4ox": 4.5, "stp2p4x": 4.5, "stp2p4y": 5.5, "stp2p3y": 5.5, "stp2p3x": -2.5, "hs0p5ox": -1, "hs0p5ix": 1, "stp2p0y": -6.5, "stp2p0x": 3.5, "stp2p1x": -7, "stp2p1y": -5.5},
+  openFaceHalf:{"hs0p5ix": 6.5, "hs0p5iy": -0.682, "hs0p5ox": -6.5, "hs0p5oy": 0.682, "hs0p3oy": 1.079, "hs0p3iy": -1.079, "hs0p3ox": -5.74, "hs0p3ix": 5.74, "stp2p3x": -4, "stp2p3y": 4, "stp2p4x": 4.5, "stp2p4y": 4.5}
 });
 const SHAPE_GROUPS = ['stand', 'sit', 'lie', 'stretch', 'jump', 'front', 'spine'];
 const GROUP_LABEL = { stand:'Stand', sit:'Sit', lie:'Lie', stretch:'Stretch', jump:'Jump', front:'Front', spine:'On spine' };
@@ -2184,13 +2207,13 @@ function migrateShape(g){
 }
 // tuned shape for each position (built in; "Reset this position" goes back to it)
 const SHAPE_PRESET = {
-  stand: { headSize:1.34, headWidth:1, headX:-21.84, headY:-3, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.76, toeR:0.8, legThick:2.12, legLength:1.1, tailThick:1.74, tailLen:0.88, pawW:0.6, pawH:0.6, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.82, hipX:6, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:5.5, fMidY:-9.5, bMidX:0, bMidY:0, spineCurve:-3, withers:3, withersX:1, neckCurve:0, thighW:1.04, bladeSize:1.86, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.58, rf3:0.52, rf4:0.5, rb2:0.54, rb3:0.64, rb4:0.44, rb5:0.42, bellyX:-6.18, bellyY:2.74, bellyShade:51.5, bellyTilt:-1, bellyHf:1.56, bellyHr:1.02, spMx:3.51, spMy:-1.5, spTx:-0.27, spTy:-14.01, spEx:0, spEy:0, spWnx:-5.67, spWny:-2.75, spWbx:-1.35, spWby:-6.25, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:-4.44, spTby:-7.3, spTtx:-24.75, spTty:9.89, spEtx:0, spEty:0, spHnx:-2.83, spHny:-3.48, fn1x:-62.85, fn1y:3.61, fn2x:-25.05, fn2y:-8.13, fn3x:-56.88, fn3y:19.76, ff1x:-38.93, ff1y:3.98, ff2x:1.38, ff2y:1.99, ff3x:-19.66, ff3y:14.65, ff4x:-4.73, ff4y:1.18, bn1x:-33.04, bn1y:31.25, bn2x:-21.54, bn2y:-2.94, bn3x:10.86, bn3y:-16.06, bn4x:-16.02, bn4y:4.96, bf1x:-24.95, bf1y:23.58, bf2x:-19.84, bf2y:3.51, bf3x:11.07, bf3y:-17.42, bf4x:-9.54, bf4y:12.4, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:-18.7, tail0y:-6.17, tail1x:-6.5, tail1y:7.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  sit: { headSize:1.34, headWidth:1, headX:-96.82, headY:12.5, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.95, toeR:0.36, legThick:1.97, legLength:1, tailThick:1.7, tailLen:0.95, pawW:1.1, pawH:0.6, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.82, shoulderSpread:0.9, shoulderX:6, shoulderY:2.5, hipSpread:2, hipX:9, hipY:-2.5, hipSize:0.44, fPawX:-6, fPawY:-13, bPawX:0, bPawY:-20, fMidX:13, fMidY:-6.5, bMidX:-11, bMidY:-12.5, spineCurve:32, withers:22, withersX:24.5, neckCurve:9.5, thighW:0.66, bladeSize:1, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:0.87, rf2:0.9, rf3:0.46, rf4:2.64, rb2:0.74, rb3:0.84, rb4:0.66, rb5:2.64, bellyX:-17.71, bellyY:-4.03, bellyShade:51.5, bellyTilt:-7, bellyHf:0.82, bellyHr:0.55, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-116.62, fn1y:-19.1, fn2x:-119.17, fn2y:-22.36, fn3x:-62.68, fn3y:-39.58, ff1x:-100.42, ff1y:-19.1, ff2x:-118, ff2y:-11.65, ff3x:-85.04, ff3y:47.28, ff4x:-4.73, ff4y:1.18, bn1x:-153.34, bn1y:-6.4, bn2x:25.7, bn2y:-10.78, bn3x:11.78, bn3y:59.11, bn4x:-143.89, bn4y:6.36, bf1x:-167.76, bf1y:-4.12, bf2x:27.73, bf2y:-11.6, bf3x:11.79, bf3y:-1.56, bf4x:-160.51, bf4y:7.01, fn4a:24.4, ff4a:-280, bn5a:15, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.32, groundReach:40, hipSquare:0, shoulderSquare:0, tail0x:-149.96, tail0y:136.03, tail1x:-129.97, tail1y:-4.57, tail2x:3.68, tail2y:-29.8, tail3x:7.25, tail3y:-70.17, chestR:1.34 },
-  lie: { headSize:1.34, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.95, toeR:0.76, legThick:1.97, legLength:1, tailThick:1.7, tailLen:0.95, pawW:1.02, pawH:0.8, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.82, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.66, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.4, bladeSize:1, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:1, rf3:1, rf4:1, rb2:1, rb3:1, rb4:1, rb5:1, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  stretch: { headSize:1.34, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.95, toeR:0.76, legThick:1.97, legLength:1, tailThick:1.7, tailLen:0.95, pawW:1.02, pawH:0.8, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.82, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.66, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.4, bladeSize:1, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:1, rf3:1, rf4:1, rb2:1, rb3:1, rb4:1, rb5:1, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  jump: { headSize:1.34, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.95, toeR:0.76, legThick:1.97, legLength:1, tailThick:1.7, tailLen:0.95, pawW:1.02, pawH:0.8, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.82, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.66, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.4, bladeSize:1, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:1, rf3:1, rf4:1, rb2:1, rb3:1, rb4:1, rb5:1, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  front: { headSize:1.34, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.95, toeR:0.76, legThick:1.97, legLength:1, tailThick:1.7, tailLen:0.95, pawW:1.02, pawH:0.8, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.82, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.66, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.4, bladeSize:1, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:1, rf3:1, rf4:1, rb2:1, rb3:1, rb4:1, rb5:1, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  spine: { headSize:1.34, headWidth:1, headX:-76.82, headY:23.27, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.95, toeR:0.76, legThick:1.97, legLength:1, tailThick:1.7, tailLen:0.95, pawW:1.02, pawH:0.8, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.82, shoulderSpread:0.9, shoulderX:6, shoulderY:2.5, hipSpread:2, hipX:9, hipY:-2.5, hipSize:0.66, fPawX:-6, fPawY:-13, bPawX:0, bPawY:-20, fMidX:13, fMidY:-6.5, bMidX:-11, bMidY:-12.5, spineCurve:14, withers:-2, withersX:21, neckCurve:10, thighW:1.4, bladeSize:1, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:1, rf3:1, rf4:1, rb2:1, rb3:1, rb4:1, rb5:1, bellyX:-11.11, bellyY:10.96, bellyShade:51.5, bellyTilt:-7, bellyHf:0.82, bellyHr:0.55, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-101.62, fn1y:-20.56, fn2x:-94.49, fn2y:-2.86, fn3x:-64.09, fn3y:9.38, ff1x:-85.42, ff1y:-20.56, ff2x:-73.43, ff2y:-17.11, ff3x:-35.7, ff3y:49.26, ff4x:-4.73, ff4y:1.18, bn1x:-138.34, bn1y:-3.4, bn2x:38.79, bn2y:-22.65, bn3x:5.33, bn3y:50.24, bn4x:-127.44, bn4y:-1.25, bf1x:-147.76, bf1y:3.88, bf2x:49.72, bf2y:2.8, bf3x:10.15, bf3y:19.7, bf4x:-123.87, bf4y:8.57, fn4a:24.4, ff4a:-280, bn5a:20, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.32, groundReach:40, hipSquare:0, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-129.97, tail1y:-4.57, tail2x:-5.91, tail2y:-9.9, tail3x:14.3, tail3y:-77.52, chestR:1 },
+  stand: { headSize:1.24, headWidth:1, headX:-21.84, headY:-3, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:2.06, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.6, pawH:0.44, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.82, hipX:6, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:5.5, fMidY:-9.5, bMidX:0, bMidY:0, spineCurve:-3, withers:3, withersX:1, neckCurve:0, thighW:1.04, bladeSize:1.86, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.58, rf3:0.52, rf4:0.5, rb2:0.54, rb3:0.64, rb4:0.44, rb5:0.42, bellyX:-6.18, bellyY:2.74, bellyShade:51.5, bellyTilt:-1, bellyHf:1.56, bellyHr:1.02, spMx:3.51, spMy:-1.5, spTx:-0.27, spTy:-9.01, spEx:0, spEy:0, spWnx:-5.67, spWny:-2.75, spWbx:-1.35, spWby:-6.25, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:-4.44, spTby:-7.3, spTtx:-24.75, spTty:9.89, spEtx:0, spEty:0, spHnx:-2.83, spHny:-3.48, fn1x:-69.93, fn1y:7.57, fn2x:-37.78, fn2y:-7.71, fn3x:-56.88, fn3y:19.76, ff1x:-44.36, ff1y:6.27, ff2x:-9.91, ff2y:-0.41, ff3x:-31.36, ff3y:16.68, ff4x:-4.73, ff4y:1.18, bn1x:-37.52, bn1y:36.32, bn2x:-20.68, bn2y:-8.37, bn3x:11.65, bn3y:-28.81, bn4x:-16.02, bn4y:4.96, bf1x:-34.78, bf1y:36.29, bf2x:-18.8, bf2y:1.2, bf3x:10.81, bf3y:-28.27, bf4x:-11.82, bf4y:17.18, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:-18.7, tail0y:-6.17, tail1x:-6.5, tail1y:7.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
+  sit: { headSize:1.24, headWidth:1, headX:-121.82, headY:13.96, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:2.22, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.6, pawH:0.44, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.9, shoulderX:6, shoulderY:2.5, hipSpread:2, hipX:9, hipY:-2.5, hipSize:0.4, fPawX:-6, fPawY:-13, bPawX:0, bPawY:-20, fMidX:13, fMidY:-6.5, bMidX:-11, bMidY:-12.5, spineCurve:32, withers:-3.753, withersX:10.236, neckCurve:9.5, thighW:1.04, bladeSize:2.64, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.58, rf3:0.52, rf4:0.5, rb2:0.54, rb3:0.64, rb4:0.44, rb5:0.42, bellyX:-17.71, bellyY:-4.03, bellyShade:51.5, bellyTilt:-7, bellyHf:0.82, bellyHr:0.55, spMx:0, spMy:0, spTx:-5.47, spTy:18.15, spEx:0, spEy:0, spWnx:1.93, spWny:12.22, spWbx:5.66, spWby:4.38, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:-14.27, spTty:6.47, spEtx:0, spEty:0, spHnx:-2.87, spHny:16.28, fn1x:-163.89, fn1y:-35.94, fn2x:-140.15, fn2y:-14.41, fn3x:-126.99, fn3y:7.53, ff1x:-147.42, ff1y:-33.98, ff2x:-125.07, ff2y:-14.41, ff3x:-113.6, ff3y:49.81, ff4x:-4.73, ff4y:1.18, bn1x:-147.59, bn1y:12.37, bn2x:42.45, bn2y:-24.84, bn3x:14.1, bn3y:70.44, bn4x:-143.89, bn4y:6.36, bf1x:-155.74, bf1y:15.36, bf2x:40.05, bf2y:-22.91, bf3x:11.79, bf3y:-1.56, bf4x:-160.51, bf4y:7.01, fn4a:24.4, ff4a:-280, bn5a:15, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:46.5, stp2p3x:2.5, stp2p4y:46, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:28.88, hs0p3y:32.4, hs0p3ix:15.329, hs0p3iy:-11.778, hs0p3ox:-15.329, hs0p3oy:11.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-30.88, hs0p5y:32.4, hs0p5ix:15.69, hs0p5iy:11.04, hs0p5ox:-15.69, hs0p5oy:-11.04, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0, groundReach:0, hipSquare:0, shoulderSquare:0, tail0x:-149.96, tail0y:136.03, tail1x:-129.97, tail1y:-4.57, tail2x:3.68, tail2y:-29.8, tail3x:7.25, tail3y:-70.17, chestR:1.34 },
+  lie: { headSize:1.24, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:2.22, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.6, pawH:0.44, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.04, bladeSize:1.86, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.58, rf3:0.52, rf4:0.5, rb2:0.54, rb3:0.64, rb4:0.44, rb5:0.42, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
+  stretch: { headSize:1.24, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:2.22, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.6, pawH:0.44, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.04, bladeSize:1.86, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.58, rf3:0.52, rf4:0.5, rb2:0.54, rb3:0.64, rb4:0.44, rb5:0.42, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
+  jump: { headSize:1.24, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:2.22, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.6, pawH:0.44, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.04, bladeSize:1.86, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.58, rf3:0.52, rf4:0.5, rb2:0.54, rb3:0.64, rb4:0.44, rb5:0.42, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
+  front: { headSize:1.24, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:2.22, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.6, pawH:0.44, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.04, bladeSize:1.86, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.58, rf3:0.52, rf4:0.5, rb2:0.54, rb3:0.64, rb4:0.44, rb5:0.42, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
+  spine: { headSize:1.24, headWidth:1, headX:-76.82, headY:23.27, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:2.22, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.6, pawH:0.44, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.9, shoulderX:6, shoulderY:2.5, hipSpread:2, hipX:9, hipY:-2.5, hipSize:0.4, fPawX:-6, fPawY:-13, bPawX:0, bPawY:-20, fMidX:13, fMidY:-6.5, bMidX:-11, bMidY:-12.5, spineCurve:14, withers:-2, withersX:21, neckCurve:10, thighW:1.04, bladeSize:1.86, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.58, rf3:0.52, rf4:0.5, rb2:0.54, rb3:0.64, rb4:0.44, rb5:0.42, bellyX:-11.11, bellyY:10.96, bellyShade:51.5, bellyTilt:-7, bellyHf:0.82, bellyHr:0.55, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-101.62, fn1y:-20.56, fn2x:-94.49, fn2y:-2.86, fn3x:-64.09, fn3y:9.38, ff1x:-85.42, ff1y:-20.56, ff2x:-73.43, ff2y:-17.11, ff3x:-35.7, ff3y:49.26, ff4x:-4.73, ff4y:1.18, bn1x:-138.34, bn1y:-3.4, bn2x:38.79, bn2y:-22.65, bn3x:5.33, bn3y:50.24, bn4x:-127.44, bn4y:-1.25, bf1x:-147.76, bf1y:3.88, bf2x:49.72, bf2y:2.8, bf3x:10.15, bf3y:19.7, bf4x:-123.87, bf4y:8.57, fn4a:24.4, ff4a:-280, bn5a:20, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.32, groundReach:40, hipSquare:0, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-129.97, tail1y:-4.57, tail2x:-5.91, tail2y:-9.9, tail3x:14.3, tail3y:-77.52, chestR:1 },
 };
 for (const g in SHAPE_PRESET) headBottomSave(dropOldStain(SHAPE_PRESET[g]));
 for (const g in STAIN_START) SHAPE_PRESET[g] = { ...stainVals(STAIN_START[g]), ...SHAPE_PRESET[g] };   // (a tab open from before the Bézier stain saves without them)
@@ -2524,7 +2547,7 @@ function bellyShape(p, B){
   // side on, the back of the legs is their haunches (see HAUNCH), not the hip circles (kept off the tail point, their backs reach out
   // past the haunches): the belly ends a little inside the haunches, or its back end showed under the tail as a flat-topped block
   { const hz = ['bn', 'bf'].map(q => haunchShape(p, q)).filter(Boolean); if (hz.length) s0 = Math.max(s0, Math.min(...hz.flat().map(S_)) + BELLY_IN); }
-  const blades = bl ? bl.map(B => B.map(q => [S_(q), H_(q)])) : [];
+  const blades = bl ? bl.map(B => B.filter((q, i) => Math.hypot(BLADE[i][0], BLADE[i][1]) <= BLADE_LEG).map(q => [S_(q), H_(q)])) : [];   // (only each blade's round end at shoulder 1, as a front leg's top: the wide blade reaches up toward the chin, and the belly ran up there as a wedge)
   for (const B of blades) for (const [a] of B) s1 = Math.max(s1, L + (a - L) * BELLY.front * k);
   // the body's own lower edge (hip and shoulder circles, the belly line): the blob never shows less of the belly than that
   const circles = ['waistR', 'waistL', 'shoulderR', 'shoulderL'].map(j => [S_(J[j]), H_(J[j]), rad(j)]), line = [];
@@ -4496,11 +4519,37 @@ function hsSegs(P, cx = 0){
   return P.map((A, i) => { const B = P[(i + 1) % P.length], a = q(A), b = q(B); return [a, [a[0] + A[4], a[1] + A[5]], [b[0] + B[2], b[1] + B[3]], b]; });
 }
 const skullD = segs => 'M' + f2(segs[0][0]) + segs.map(([, b, c, d]) => `C${f2(b)} ${f2(c)} ${f2(d)}`).join('') + 'Z';
-const headD = (sh, cx = 0) => HEAD_START.map((_, s) => skullD(hsSegs(hsPts(sh, s), cx))).join('');
+// the open mouth's chin (see LIPS): the chin under the mouth goes down only as far as the opening needs, so a thin rim (CHIN.rim × Nose
+// size) stays under the lower lip (none while the chin as drawn has the room). Only the chin's middle (CHIN.in out to CHIN.out from the
+// mouth's middle, eased), from just under the mouth line down: the head's outline, the chin's stain and the head's fur; the nose, its
+// cheeks and the sides of the face stay. undefined: shut or no need
+const CHIN = { rim:2.5, in:3, out:11 };
+// the open mouth's own faces, set on the Face stain, eyes & nose grid: half open (S.openFaceHalf) and open (S.openFace), each how far the
+// face's numbers are from the closed face's (only the ones it changes, the same in every position). As the mouth opens the face goes
+// from closed to half open, then on to open; a number the half open face hasn't been given is half way to the open one's
+const OPEN_STATES = [0, 0.5, 1];
+const openFace = (sh, open) => {
+  const F = S.openFace || {}, Hf = S.openFaceHalf || {}; if (!(open > 0)) return sh;
+  const keys = new Set([...Object.keys(F), ...Object.keys(Hf)]); if (!keys.size) return sh;
+  const o = { ...sh };
+  for (const k of keys){ const f = F[k] || 0, h = k in Hf ? Hf[k] : f * 0.5; o[k] = (+o[k] || 0) + (open <= 0.5 ? h * open / 0.5 : h + (f - h) * (open - 0.5) / 0.5); }
+  return o;
+};
+// the face state the grid edits: the one Open mouth is nearest (it is put right on it when a point is picked up, so what is dragged is what is kept)
+const openState = o => OPEN_STATES.reduce((b, v) => Math.abs(v - o) < Math.abs(b - o) ? v : b, 0);
+const jawAt = (sh, open) => {
+  if (!(open > 0.005)) return undefined;
+  const s = sh.muzzleSize, x = MUZZLE.x + (sh.muzzleX || 0), y = MUZZLE.y + sh.muzzleY + s * (NOSE_B[2][1] + LIPS.philtrum);
+  const P = HEAD_START.flatMap((_, n) => hsPts(sh, n)), near = P.filter(q => Math.abs(q[0] - x) < CHIN.in), chin = Math.max(...(near.length ? near : P).map(q => q[1]));
+  const drop = y + LIPS.drop * s * open + CHIN.rim * s - chin;
+  return drop > 0.05 ? { x, y: y - 1, ramp:5, drop } : undefined;
+};
+const jawDown = (jaw, y, x) => jaw ? jaw.drop * smooth(clamp((y - jaw.y) / jaw.ramp, 0, 1)) * smooth(clamp((CHIN.out - Math.abs(x - jaw.x)) / (CHIN.out - CHIN.in), 0, 1)) : 0;
+const headD = (sh, cx = 0, jaw) => HEAD_START.map((_, s) => skullD(hsSegs(hsPts(sh, s).map(q => jaw ? [q[0], q[1] + jawDown(jaw, q[1], q[0]), ...q.slice(2)] : q), cx))).join('');
 const headHalfW = sh => Math.max(...hsPts(sh, 0).map(q => Math.abs(q[0])));
 let skullKey = '';
-function updateSkull(sh, cx = 0){
-  const d = headD(sh, +cx.toFixed(1));
+function updateSkull(sh, cx = 0, open = 0){
+  const d = headD(sh, +cx.toFixed(1), jawAt(sh, open));
   if (d === skullKey) return;
   skullKey = d;
   $('skull').setAttribute('d', d);
@@ -4784,7 +4833,7 @@ function upperLeg(p, k){
   // a front leg's top: the lower part of its shoulder blade (see BLADE: up to BLADE_LEG of the way to the withers; above, the blade is
   // the body's), the shoulder circle growing back in only as the cat turns to face you
   const bl = k[0] === 'f' && p.skel && p.skel.blade && p.skel.blade[k === 'fn' ? 0 : 1], vw = clamp((p.skel && p.skel.view) || 0, 0, 1);
-  const bp = bl ? [...bl.filter((q, i) => BLADE[i][0] <= BLADE_LEG).map(q => [q[0], q[1], 0.01]), ...(vw > 0.01 ? [[anchor[0], anchor[1], anchor[2] * vw, corners]] : [])] : null;
+  const bp = bl ? [...bl.filter((q, i) => Math.hypot(BLADE[i][0], BLADE[i][1]) <= BLADE_LEG).map(q => [q[0], q[1], 0.01]), ...(vw > 0.01 ? [[anchor[0], anchor[1], anchor[2] * vw, corners]] : [])] : null;
   const thigh = hp || bp ? circlesHull([...(hp || bp), fold], p.ground) : circlesHull(mid && dist(anchor, fold) > 1e-3 ? [anchor, mid, fold] : [anchor, fold], p.ground);
   const hk = [H[0], H[1], hockR(p)];
   // a back leg: behind the knee the outline would go in and out again (thigh, then the hock further back): a fill from the hip
@@ -4796,7 +4845,8 @@ function upperLeg(p, k){
   return 'M' + P.map(fmt).join('L') + 'Z';
 }
 const BELLY_IN = 3;     // how far inside the haunches' back the belly ends (body units; see bellyShape)
-const BLADE_LEG = 0.3;    // how far up its shoulder blade a front leg's top reaches (0 shoulder 1 … 1 the withers)
+const BLADE_LEG = 0.26;   // a front leg's top: its shoulder blade's round end, the points this near shoulder 1 (× shoulder 1 → withers; the wide blade reaches up
+                          // toward the chin further from it: taken in, the leg's top ran up there as a strip, 2026-11-22)
 const BACK_FILL = 0.85;   // the back of a back leg: the hip circle's share (of its size) in the fill to the hock behind the knee
 const THIGH_FULL = 0.8;   // a back thigh's width half way down: 0 the straight line from hip to knee … 1 as wide as the hip
 // the first fold's circle: a front leg's elbow (2) or a back leg's knee (2) (its ring on the skeleton; foldR: the old Fold size, kept)
@@ -4807,7 +4857,7 @@ const foldR = (p, k) => LIMB[k][1] * p.shape.legThick * (k[0] === 'b' ? (p.shape
    and the soft merge keeps it sharp (coatMerge). Where a marking meets the pale coat there is no line: a soft ramp
    with hairs crossing it both ways. The hairs are made once (fixed seed) and only carried along, so they never crawl.
    frontAt: where the brown starts on the front lower legs, from the top of the lower leg (0) to the ankle (1); back legs stay pale; */
-const COAT = { pale:S.coatWhite, point:S.coatDark, inner:'#f6dcb6', ramp:18, frontAt:0.45, tailAt:0.3 };
+const COAT = { pale:S.coatWhite, point:S.coatDark, inner:'#f6dcb6', ramp:18, frontAt:0.45, tailAt:0.45 };   // (tailAt: where the tail's dark starts, from its root; 0.3 until 2026-11-22, the user wanted more of its pale showing)
 const svgEl = (tag, attrs, parent) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
 const seeded = s => () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
 const f2 = q => q[0].toFixed(2) + ' ' + q[1].toFixed(2);
@@ -4995,7 +5045,7 @@ const MUZZLE = { x:0, y:37 };
    and at its end, in each. Open: the lower lip's middle drops drop under the parting, the opening ends inner of the way along
    the line (it runs on past as a fine point), a tooth sits teeth of the way along, tooth: its half width, half height and how far under the lip its middle is */
 const LIPS = {
-  philtrum:3.4, inner:0.67, drop:14, stainDrop:0.45, teeth:0.55, tooth:[0.72, 1.05, 1.15],
+  philtrum:3.4, inner:0.67, drop:10, teeth:0.55, tooth:[0.72, 1.05, 1.15],
   still:[[0,0], [-2,0.7], [-4,1.2], [-6,1.5], [-8,1.6], [-9.8,1.3], [-11.2,0.7]],
   smile:[[0,0], [-3.4,2.4], [-7,4.3], [-10.2,5.4], [-13,5.8], [-16,5.5], [-18.2,4.2]],
   open: [[0,0], [-3,2.8], [-5.6,4.4], [-8.8,5.2], [-12.4,5.2], [-15.6,4.9], [-18.2,4.3]],
@@ -5026,7 +5076,7 @@ const stainPts = (i, sh, a = 1, jaw) => {
   const dx = ((sh && sh['stp' + i + 'x']) || 0) * a, dy = (sh && sh['stp' + i + 'y']) || 0, k = sh && i === 0 ? sh.muzzleSize / STAIN_FIT.nose - 1 : 0, mx = sh ? (sh.muzzleX || 0) * a : 0, my = sh ? MUZZLE.y + sh.muzzleY : 0;
   return sixPts(i, sh).map(q => {
     const w = k * smooth(clamp((q[1] - STAIN_FIT.from) / (STAIN_FIT.to - STAIN_FIT.from), 0, 1)), x = q[0] + (q[0] - mx) * w, y = q[1] + (q[1] - my) * w + dy;
-    return [x + dx, y + (jaw ? jaw.drop * smooth(clamp((y - jaw.y) / jaw.ramp, 0, 1)) : 0)];
+    return [x + dx, y + jawDown(jaw, y, x)];
   });
 };
 const stainPartD = (i, sh, a, jaw) => { const P = stainPts(i, sh, a, jaw); return 'M' + (STAIN_ORDER[i] ? STAIN_ORDER[i].map(n => P[n]) : P).map(f2).join('L') + 'Z'; };
@@ -5119,7 +5169,9 @@ function taperD(Q, w){
 // one mouth line (the left; see LIPS) as points from where it parts to its end, with its ink
 function lipLine(smile, open){
   const lerp = (a, b, t) => a + (b - a) * t, blend = (A, B, C) => A.map((a, i) => lerp(lerp(a, B[i], smile), C[i], open));   // at rest → smiling → open
-  const P = LIPS.still.map((q, i) => blend(q, LIPS.smile[i], LIPS.open[i])), N = 12, line = [];
+  // (the line itself stays as at rest or smiling when the mouth opens: it is the bottom of the nose's cheeks, which don't move; the
+  // opening hangs under it and only the chin drops. Its open shape, wider and running down, pulled the cheeks down and out, 2026-11-22)
+  const P = LIPS.still.map((q, i) => q.map((v, j) => lerp(v, LIPS.smile[i][j], smile))), N = 12, line = [];
   for (const B of [P.slice(0, 4), P.slice(3)]) for (let i = line.length ? 1 : 0; i <= N; i++) line.push(bezAt(B, i / N));
   return { line, ink: blend(LIPS.ink.still, LIPS.ink.smile, LIPS.ink.open) };
 }
@@ -5142,7 +5194,8 @@ function mouthParts(sh, hw, smile = 0, open = 0){
   if (open < 0.005) return { lines, under };
   // the opening: along the upper lip from corner to corner, and back round under the lower lip, which leaves the upper one as it opens
   const m = Math.round(LIPS.inner * (line.length - 1)), upper = line.slice(0, m + 1), H = LIPS.drop, rev = A => A.slice().reverse();
-  const LOW = [[0, H], [-7.5, H], [-12.4, H - 3.5], upper[m]];   // the lower lip, its middle → the corner
+  const c = upper[m][0], r = Math.abs(c) / 13;   // (the corner; r: the opening's width against the one this was drawn for)
+  const LOW = [[0, H], [c * 0.6, H], [c * 1.08, H * 0.7], upper[m]];   // the lower lip, its middle → the corner: a round U, no corners of its own
   const lower = upper.map((q, i) => { const b = bezAt(LOW, i / m); return [lerp(q[0], b[0], open), lerp(q[1], b[1], open)]; });
   const inside = 'M' + [...rev(upper).map(q => at(q)), ...upper.slice(1).map(q => at(q, -1)), ...rev(lower).slice(1).map(q => at(q, -1)), ...lower.slice(1, -1).map(q => at(q))].map(f2).join('L') + 'Z';
   const lip = d => taperD(rev(lower).map(q => at(q, d)), u => lerp(0.3, 0, u) * s);   // dark at the corner, gone by the middle
@@ -5150,10 +5203,10 @@ function mouthParts(sh, hw, smile = 0, open = 0){
     const [tx, ty] = at(b, d), rx = trx * s * k * (0.7 + 0.3 * open), h = (tRy + tDown) * s * open, top = ty - 0.3 * s;   // a tiny point hanging from the lip
     return `M${f2([tx - rx, top])}L${f2([tx + rx, top])}Q${f2([tx + rx * 0.3, top + h * 0.7])} ${f2([tx, top + h])}Q${f2([tx - rx * 0.3, top + h * 0.7])} ${f2([tx - rx, top])}Z`;
   };
-  const arc = [[-14.5, H + 1.4], [-7.5, H + 5.2], [7.5, H + 5.2], [14.5, H + 1.4]], shade = Array.from({ length: 25 }, (_, i) => at(bezAt(arc, i / 24)));
+  const arc = [[-14.5 * r, H + 1.4], [-7.5 * r, H + 5.2], [7.5 * r, H + 5.2], [14.5 * r, H + 1.4]], shade = Array.from({ length: 25 }, (_, i) => at(bezAt(arc, i / 24)));
   return { lines, under, inside, lowerLip: lip(1) + lip(-1), teeth: tooth(1) + tooth(-1),
-    tongue: { cx: x0, cy: y0 + s * lerp(1, 10.2, open), rx: s * k * lerp(3, 7.4, open), ry: s * 5.4 * open },
-    chin: { cx: x0, cy: y0 + s * (H + 1.3) * open, rx: s * k * lerp(6, 13, open), ry: s * lerp(1.4, 2.4, open) },
+    tongue: { cx: x0, cy: y0 + s * lerp(1, 10.2, open), rx: s * k * lerp(3, 7.4, open) * r, ry: s * 5.4 * open },
+    chin: { cx: x0, cy: y0 + s * (H + 1.3) * open, rx: s * k * lerp(6, 13, open) * r, ry: s * lerp(1.4, 2.4, open) },
     shade: taperD(shade, u => 0.8 * s * Math.sin(u * Math.PI)) };
 }
 const mouthOpenAt = p => Math.round(clamp(S.mouthOpen || 0, 0, 1) * (1 - Math.max(clamp(p.mouth.tongue, 0, 1), lick.w)) * 100) / 100;   // licking, the tongue has the mouth to itself
@@ -5268,9 +5321,9 @@ function stainFur(fur, E, L, tot, sg, skip, cfg, share, mx, sh, turning){
 function drawMask(sh, turn = 1, st, open = 0){
   const a = Math.abs(turn), k = (1 - a) / 2, P = stainB(sh, st);
   const mx = sh.muzzleX * a, g = $('ptFace'), key = JSON.stringify([P, S.furDens, S.furLen, S.furW, S.furSoft, S.furReach, S.furShade, S.furShine, mx, sh.muzzleY, sh.muzzleSize, sh.headWidth, S.noseTop, S.noseTopColor, S.noseLine, S.noseLineBlur, S.coatDark]);
-  const s0 = sh.muzzleSize, jaw = open ? { y: MUZZLE.y + sh.muzzleY + s0 * (NOSE_B[2][1] + LIPS.philtrum) - 2, ramp:7, drop: LIPS.drop * LIPS.stainDrop * s0 * open } : undefined;
+  const jaw = jawAt(sh, open);
   const stainD = faceStainD(sh, a, jaw); if (stainD !== g.stainD){ g.stain.setAttribute('d', g.stainD = stainD); g.mainG.setAttribute('d', stainPartD(0, sh, a, jaw)); }
-  { const t = stainPartD(STAIN_RECT.i, sh, a); if (t !== g.thirdD) g.third.setAttribute('d', g.thirdD = t); }
+  { const t = stainPartD(STAIN_RECT.i, sh, a, jaw); if (t !== g.thirdD) g.third.setAttribute('d', g.thirdD = t); }
   const C = cheekD(sh, a); if (C.join() !== g.cheeksD){ g.cheeksD = C.join(); C.forEach((d, n) => g.cheeks[n].setAttribute('d', d)); }
   if (key === g.key) return;
   g.key = key;
@@ -5508,7 +5561,23 @@ function furHairs(Q, part, F, amt, dark, p, headM){
    changes with each emotion are left out for now) colouring the hairs. It lies over the ears where the head is painted
    again, and the head's own fill, its outline fur and the stain step aside. Made again once the outline, the face or the
    colours have stopped changing for HEAD_FUR.wait ms. Opened from a file (fur.js can't load there), the head stays as it was. */
-const HEAD_FUR = { wait:250, fur:null, box:null, img:null, probe:null, ready:false, want:'', job:null, t:null, busy:false, again:null, url:'', side:0 };
+const HEAD_FUR = { wait:250, fur:null, box:null, img:null, probe:null, ready:false, want:'', job:null, t:null, busy:false, again:null, url:'', side:0, cache:new Map() };
+// each head picture made is kept (its outline, stain, face place and turn, coat, colours and size on screen), so a face Gav comes back to
+// shows at once instead of being made again (a ~300 ms pause on the page each time); dropped when the head's fur values or light change
+const HEAD_CACHE = 16;
+function headFurSide(){ const r = $('skull').getBoundingClientRect(), M = HEAD_FUR.fur.get().margin; return Math.round(clamp(Math.max(r.width, r.height) * 780 / (780 - 2 * M), 120, 1600) / 20) * 20; }
+function headFurShow(e){
+  const H = HEAD_FUR;
+  for (const [k, v] of [['x', e.x], ['y', e.y], ['width', e.w], ['height', e.h]]) H.img.setAttribute(k, v.toFixed(3));
+  H.img.setAttribute('href', e.u);
+  if (H.url && H.url !== e.u && ![...H.cache.values()].some(c => c.u === H.url)) URL.revokeObjectURL(H.url);
+  H.url = e.u; H.ready = true; furApply();   // the fur is the head now (its stains in the fur's colours), unless Fur is ticked off
+}
+function headFurKeep(key, e){
+  const C = HEAD_FUR.cache; C.delete(key); C.set(key, e);
+  while (C.size > HEAD_CACHE){ const [k, old] = C.entries().next().value; C.delete(k); if (old.u !== HEAD_FUR.url) URL.revokeObjectURL(old.u); }
+}
+function headFurForget(){ const H = HEAD_FUR; for (const e of H.cache.values()) if (e.u !== H.url) URL.revokeObjectURL(e.u); H.cache.clear(); }
 const nextFrames = n => new Promise(res => { const f = () => --n > 0 ? requestAnimationFrame(f) : res(); requestAnimationFrame(f); });
 // each coat has its own values (headSiamese, headBlack); one missing takes the other's
 const headFurPart = () => S.coat === 'siamese' ? 'headSiamese' : 'headBlack';
@@ -5541,7 +5610,7 @@ async function headFurStart(){
       HEAD_FUR.cfg[e.data.part] = e.data.settings;
       if (e.data.part !== HEAD_FUR.part) return;
       await HEAD_FUR.fur.set(headFurValues(e.data.part));
-      if (HEAD_FUR.job) headFurBuild(HEAD_FUR.job);
+      headFurForget(); HEAD_FUR.want = '';   // (made again for the face it shows, at the next frame)
     };
   } catch (e) { console.warn('head fur: fur.js not loaded', e); }
 }
@@ -5551,18 +5620,22 @@ function headFur(p){
   { const A = H.img.getCTM(), B = $('catBody').getCTM();   // the floor in the head picture's own units (it turns with the head): it is cut there
     if (A && B){ const m = A.inverse().multiply(B), y = FLOOR_Y - (p.shape.catY || 0), pts = [[-1e4, -1e4], [1e4, -1e4], [1e4, y], [-1e4, y]].map(([x, v]) => { const q = new DOMPoint(x, v).matrixTransform(m); return q.x.toFixed(2) + ',' + q.y.toFixed(2); }).join(' ');
       if (pts !== H.floor.getAttribute('points')) H.floor.setAttribute('points', pts); } }
-  const sia = S.coat === 'siamese', turn = faceTurn(p), fx = faceX(p), d = $('skull').getAttribute('d'), stain = sia ? faceStainD(p.shape, Math.abs(turn)) : '';
-  const cheeks = sia ? cheekD(p.shape, Math.abs(turn)) : [], third = sia ? stainPartD(STAIN_RECT.i, p.shape, Math.abs(turn)) : '';
-  const main = sia ? stainPartD(0, p.shape, Math.abs(turn)) : '';
+  const jaw = jawAt(p.shape, mouthOpenAt(p));   // (the open mouth: the chin and its stain down, as on the drawing)
+  const sia = S.coat === 'siamese', turn = faceTurn(p), fx = faceX(p), d = $('skull').getAttribute('d'), stain = sia ? faceStainD(p.shape, Math.abs(turn), jaw) : '';
+  const cheeks = sia ? cheekD(p.shape, Math.abs(turn)) : [], third = sia ? stainPartD(STAIN_RECT.i, p.shape, Math.abs(turn), jaw) : '';
+  const main = sia ? stainPartD(0, p.shape, Math.abs(turn), jaw) : '';
   const want = [d, stain, ...cheeks, third, fx.toFixed(1), turn < 0, S.coat, sia ? coatKey + S.stainBlur + [S.cheekFrom, S.cheekMid, S.cheekTo, S.cheekBlur, S.mainFrom, S.mainMid, S.mainTo, S.mainMix, S.thirdFrom, S.thirdMid, S.thirdTo, S.thirdBlur, ...GRADS.map(G => S[G.key])] : S.catColor].join('|');
   if (want === H.want) return;
   H.want = want; clearTimeout(H.t);
-  const job = H.job = { d, sia, stain, cheeks, main, third, fx, turn };
+  const key = want + '|' + headFurSide(), hit = H.cache.get(key);
+  if (hit){ headFurKeep(key, hit); H.job = null; H.again = null; headFurShow(hit); return; }   // (made before: shown at once)
+  const job = H.job = { d, sia, stain, cheeks, main, third, fx, turn, key };
   H.t = setTimeout(() => headFurBuild(job), H.ready ? H.wait : 0);
 }
 async function headFurBuild(job){
   const H = HEAD_FUR;
   if (H.busy){ H.again = job; return; }
+  { const hit = job.key && H.cache.get(job.key); if (hit){ if (H.job === job) headFurShow(hit); return; } }   // (made meanwhile)
   H.busy = true;
   try {
     // as many pixels as the head has on screen (fur.js sizes its canvas to its box)
@@ -5587,9 +5660,9 @@ async function headFurBuild(job){
     const tx = (780 - b.width * s) / 2 - b.x * s, ty = (780 - b.height * s) / 2 - b.y * s;
     const blob = await new Promise(res => out.toBlob(res)), u = URL.createObjectURL(blob);
     const pre = new Image(); pre.src = u; await pre.decode().catch(() => {});
-    for (const [k, v] of [['x', -tx / s], ['y', -ty / s], ['width', 780 / s], ['height', 780 / s]]) H.img.setAttribute(k, v.toFixed(3));
-    H.img.setAttribute('href', u); if (H.url) URL.revokeObjectURL(H.url); H.url = u;
-    H.ready = true; furApply();   // the fur is the head now (its stains in the fur's colours), unless Fur is ticked off
+    const e = { u, x:-tx / s, y:-ty / s, w:780 / s, h:780 / s };
+    if (job.key) headFurKeep(job.key, e);
+    if (H.job === job || !H.ready) headFurShow(e);   // (the face moved on meanwhile: kept, not shown)
   } catch (e) { console.warn('head fur:', e); }
   H.busy = false;
   if (H.again){ const j = H.again; H.again = null; headFurBuild(j); }
@@ -5778,7 +5851,7 @@ function bodyFurWatch(){
       const changed = Object.keys(G).filter(k => JSON.stringify(G[k]) !== JSON.stringify(was[k]));
       if (!changed.length) return;
       F.busy = true; F.gav = G;
-      if (G.head && G.head.light !== HEAD_FUR.light){ HEAD_FUR.light = G.head.light || ''; HEAD_FUR.want = ''; }   // (the light changed: the head made again)
+      if (G.head && G.head.light !== HEAD_FUR.light){ HEAD_FUR.light = G.head.light || ''; HEAD_FUR.want = ''; headFurForget(); }   // (the light changed: the head made again)
       for (const g of F.groups) if (changed.includes(g.part)){ g.rest = G[g.part].spines; if (furUsed(g) && furDrawing(g.part, F.coat)) await g.fur.setShape(furDrawing(g.part, F.coat)); }
     } catch (e) { console.warn('body fur: new parts not taken in', e); }
     F.busy = false;
@@ -5895,6 +5968,7 @@ let legLayerAt = '', bellyLayerAt = '';
 let furLayers = null;   // this frame's layers as the drawing has them (see draw), for the fur (see bodyFur)   // the order the lower legs are stacked in now; the belly's among the upper legs
 // dt: seconds since the last frame (paused: 0); left out for a still drawn for the panel
 function draw(p, ht, dt){
+  if ((S.openFace || S.openFaceHalf) && p.mouth){ const o = mouthOpenAt(p); if (o > 0) p.shape = openFace(p.shape, o); }   // (the open mouth's own face, see openFace)
   p = spinPose(p); p.legX = {}; p.ground = groundOf(p, ht);
   catBody.setAttribute('transform', `translate(0 ${(-ht).toFixed(1)})`);
   const bandB = p.fx.chest < 0.5 && (p.skel ? pressedBody(p, p.ground) : p.body), belly = bandB && p.skel ? bellyShape(p, bandB) : null;
@@ -6053,9 +6127,10 @@ function draw(p, ht, dt){
       return [rb[0] + x * Math.cos(ra) - y * Math.sin(ra), rb[1] + x * Math.sin(ra) + y * Math.cos(ra), 0]; });
     const hc2 = j => { const c = hc(j); return [c[0], c[1], c[2], 0]; }, hips = [hc2('waistR'), hc2('waistL')];
     const lerpTo = (q, k) => [pc[0] + (q[0] - pc[0]) * k, pc[1] + (q[1] - pc[1]) * k, 0], kc = clamp(1 + Math.min(0, p.shape.spineCurve || 0) / 8, 0, 1) * Math.max(v, 1 - clamp((pc[1] + pc[5] - 205) / 15, 0, 1));   // side views: while the hips are up (lying / sitting keep their own lines)
-    const rump = p.skel.rump && p.skel.rump[2] > 0.5 ? [[...p.skel.rump, 0]] : [];   // (under the spine's tail point, see applyShape)
+    const rump = p.skel.rump && p.skel.rump[2] > 0.5 ? [[...p.skel.rump, 0]] : [];   // (under the spine's tail point, see applyShape; not with the haunches: they reach up to T, and it
+    // hung out behind and below T, past them, sitting: only the hips shape the behind, the user 2026-11-22)
     const hn = ['bn', 'bf'].map(k => haunchShape(p, k)), hz = hn[0] && hn[1] ? [...hn[0], ...hn[1]].map(q => [q[0], q[1], 0.01]) : null;   // (side on: the haunches, see HAUNCH)
-    els.massPel.setAttribute('d', 'M' + circlesHull([...(hz || hips), ...rump, ...(kb > 0 ? [[pc[0], pc[1], Math.min(pc[2], pc[4]) * 0.9 * kb, 0]] : []), ...(nc < 1 ? ribPts.map(q => lerpTo(q, kc * (1 - nc))) : []),
+    els.massPel.setAttribute('d', 'M' + circlesHull([...(hz || hips), ...(hz ? [] : rump), ...(kb > 0 ? [[pc[0], pc[1], Math.min(pc[2], pc[4]) * 0.9 * kb, 0]] : []), ...(nc < 1 ? ribPts.map(q => lerpTo(q, kc * (1 - nc))) : []),
       ...(nc && v > 0 ? ['shoulderR', 'shoulderL'].map(j => [pc[0] + (J[j][0] - pc[0]) * v, pc[1] + (J[j][1] - pc[1]) * v, J[j][2] * v * nc, 0]) : [])], p.ground).map(fmt).join('L') + 'Z');   // facing you: shoulders and hips joined round
       // (side views leave them out: they would only be a point in the middle of the pelvis, a spike once the hips are dragged away from it)
     // the two waist halves (haunches): they shape the body only when it faces you (side views: the thighs do it)
@@ -6094,7 +6169,7 @@ function draw(p, ht, dt){
       e.setAttribute('transform', `${at} translate(${q[0].toFixed(2)} ${q[1].toFixed(2)})${head ? ` rotate(${(-p.head.rot).toFixed(2)})` : ''} scale(${(1 / (viewScale * (head ? hs : 1))).toFixed(4)})`);
     });
   } else for (const e of [$('refHandle'), $('refTurn'), $('refSize')]) e.setAttribute('display', 'none');
-  updateSkull(sh, HEAD.follow * faceX(p));
+  updateSkull(sh, HEAD.follow * faceX(p), mouthOpenAt(p));
   const ef = p.head.flex || [[0, 0, 0], [0, 0, 0]];   // the flick bends each ear up its spine (see earFlexStep)
   const earDx = HEAD.follow * faceX(p) - REF.face;   // (centred on the head's outline, whichever way the face is turned)
   els.earL.setAttribute('d', earPath('L', sh.earScale, -p.head.ear, ef[0].map(a => -a), earDx));
@@ -6487,10 +6562,25 @@ function legDown(e, l, i){
   }
   // a back leg's 4 moves only itself (and 5 with it): the knee (2) and hock (3), which the leg's reach would carry along, stay put
   const keep = l[0] === 'b' && i === 3 ? { l, at: stillLeg(l).slice(1, 3) } : null;
-  startDrag(e, { kx: l + (i + 1) + 'x', ky: l + (i + 1) + 'y', sy:1, q0: skelPts[l] && skelPts[l][i], keep, name: `${LEG_NAME[l]} ${i + 1}` });
+  // a front leg's 1 moves only its shoulder (and its blade grows or shrinks with how far it is from the withers): the withers, which sit
+  // over the two shoulders' middle, are held where they are, and the spine and the other shoulder with them (the user asked, 2026-11-22)
+  const keepW = l[0] === 'f' && i === 0 ? stillW() : null;
+  startDrag(e, { kx: l + (i + 1) + 'x', ky: l + (i + 1) + 'y', sy:1, q0: skelPts[l] && skelPts[l][i], keep, keepW, name: `${LEG_NAME[l]} ${i + 1}` });
 }
 // a leg's points in the position (or state) being edited, held still (no breathing)
 function stillLeg(l){ const { P, T } = stateMoment([stateEdit || editGroup]); return dragPoints(poseAt(P, T))[l]; }
+// the withers in the position (or state) being edited, held still
+function stillW(){ const { P, T } = stateMoment([stateEdit || editGroup]), C = poseAt(P, T).skel?.ctl; return C && C.W ? C.W.slice(0, 2) : null; }
+// after a front leg's 1 moved: the withers moved back to where they were by their own two values (up: withers, forward: withersX)
+function keepWithers(at, t){
+  const up = skelSpine.up, fw = skelSpine.fwd; if (!up || !fw) return;
+  for (let k = 0; k < 4; k++){
+    const W = stillW(); if (!W) return;
+    const d = [at[0] - W[0], at[1] - W[1]]; if (Math.hypot(d[0], d[1]) < 0.05) break;
+    t.withers = +((t.withers || 0) + (d[0] * up[0] + d[1] * up[1]) / (up[0] * up[0] + up[1] * up[1] || 1)).toFixed(3);
+    t.withersX = +((t.withersX || 0) + (d[0] * fw[0] + d[1] * fw[1]) / (fw[0] * fw[0] + fw[1] * fw[1] || 1)).toFixed(3);
+  }
+}
 // after a back leg's 4 moved: 2 and 3 moved back by their own nudges to where they were (a few rounds: the floor may hold them)
 function keepUpper(K, t){
   for (let k = 0; k < 3; k++){
@@ -6538,12 +6628,14 @@ addEventListener('pointermove', e => {
   if (g){
     t[D.kx] = +(D.o0[0] + g.q[0] - D.still[0]).toFixed(2); t[D.ky] = +(D.o0[1] + (g.q[1] - D.still[1]) * D.sy).toFixed(2);
     if (D.keep) keepUpper(D.keep, t);
+    if (D.keepW) keepWithers(D.keepW, t);
     legNote(`${D.name}: on ${g.name}`); return;
   }
   const snap = v => e.altKey ? Math.round(v * 2) / 2 : Math.round(v / GRID.snap) * GRID.snap;
   const x = clamp(snap(q[0]), GRID.x, GRID.x + GRID.size), y = clamp(snap(q[1]), GRID.y, GRID.y + GRID.size);   // inside the grid
   t[D.kx] = +(D.o0[0] + x - D.q0[0]).toFixed(2); t[D.ky] = +(D.o0[1] + (y - D.q0[1]) * D.sy).toFixed(2);
   if (D.keep) keepUpper(D.keep, t);
+  if (D.keepW) keepWithers(D.keepW, t);
   legNote(`${D.name}: x ${+(x - GRID.x).toFixed(1)}, y ${+(GRID.y + GRID.size - y).toFixed(1)}`);
 });
 const legUp = () => { if (legDrag && legDrag.moved) save(); legDrag = null; };
@@ -8367,10 +8459,6 @@ document.querySelectorAll('[data-pupil]').forEach(b => b.onclick = () => { S.pup
 // screen picked with the browser's eyedropper where it has one
 $('eyebrowColor').addEventListener('input', () => edDraw());
 for (const k of ['eyebrowAngle', 'eyebrowW', 'eyebrowH', 'eyebrowBlur', 'eyebrowOp']) $(k).addEventListener('input', () => edDraw());
-// the Fur settings: the markings' fur is painted again (at most every FUR_EVERY ms while a slider moves, and once it stops)
-const furHold = {};
-for (const k of ['furDens', 'furLen', 'furW', 'furSoft', 'furReach', 'furShade', 'furShine'])
-  $(k).addEventListener('input', () => furSoon(furHold, () => { furParts = null; if (S.coat === 'siamese') buildCoat(); }));
 if (window.EyeDropper){
   $('eyebrowPick').hidden = false;
   $('eyebrowPick').onclick = () => new EyeDropper().open().then(r => {
@@ -8598,6 +8686,8 @@ mkV.skull = mk('path', { fill: COAT.pale }, mkSvg);
   mkV.mainG = mk('path', { class: 'stainGradP', fill: 'url(#mainGrad)', filter: 'url(#stainGrad)', opacity: S.mainMix ?? 0.5 }, g);
   mkV.third = mk('path', { fill: 'url(#thirdGrad)', filter: 'url(#thirdSoft)' }, g); mkV.stain.before(mkV.third);   // (under the main stain)
   mkV.pads = mk('path', { fill: STAIN_INK.pad, 'fill-opacity': 0 }, g);
+  mkV.mouthIn = mk('path', { fill: MOUTH_DARK }, g);   // the open mouth (Open mouth past 0)
+  mkV.lowerLip = mk('path', { fill: LIP_INK, 'fill-opacity': 0.8 }, g);
   mkV.mouth = mk('path', { fill: LIP_INK }, g);
   mkV.bell = mk('path', { fill: 'url(#noseBell)', filter: 'url(#noseBellEdge)' }, g);
   Object.assign(mkV, noseShapes(g, 'cpNoseEd'));
@@ -8658,10 +8748,20 @@ const hsOf = j => [Math.floor((j - MK_HS) / MK_HS_STEP), (j - MK_HS) % MK_HS_STE
 const STAIN_SHOW = { 0:'main', [STAIN_RECT.i]:'third', [STAIN_CHEEKS[0]]:'cheeks', [STAIN_CHEEKS[1]]:'cheeks' };   // each part's tick above the grid
 const mkOn = j => j >= MK_HS ? mkShow[HEAD_SHOW[hsOf(j)[0]]] : gradOf(j) ? mkShow[gradOf(j)[0].show] : sixOf(j) ? mkShow[STAIN_SHOW[sixOf(j)[0]]] : j === MK_NOSE ? mkShow.nose : j === MK_EYES ? mkShow.eyes : j === MK_ALL ? mkShow.all : mkShow[STAIN_SHOW[j - MK_PART]];
 document.querySelectorAll('#mkShow input').forEach(c => { c.checked = mkShow[c.dataset.show]; c.addEventListener('change', () => { mkShow[c.dataset.show] = c.checked; UI.mkShow = { ...mkShow }; saveUI(); if (mkSel && mkSel.j >= MK_NOSE && !mkOn(mkSel.j)) mkSel = null; mkDraw(); }); });
-// what the box shows: the position being edited or, in the Eyes tab, the sitting cat with the emotion's own stain
-const mkView = () => { if (!eyeEditing) return shapeView(); const o = { ...S.shapes.sit }; stainLook(edId).forEach((v, i) => { o[STAIN_ALL[i]] += v; }); return o; };
+// what the box shows: the position being edited (with the mouth as open as Open mouth, and the open mouth's own face blended in, see
+// openFace) or, in the Eyes tab, the sitting cat with the emotion's own stain
+const mkOpen = () => eyeEditing ? 0 : clamp(S.mouthOpen || 0, 0, 1);
+const mkView = () => { if (!eyeEditing) return openFace(shapeView(), mkOpen()); const o = { ...S.shapes.sit }; stainLook(edId).forEach((v, i) => { o[STAIN_ALL[i]] += v; }); return o; };
 // a stain number set there: for the position or, in the Eyes tab, as the emotion's change. Default's are the positions' own, all moved alike
 function mkSet(k, v){
+  // Open mouth on half open or open: that face (its change from the closed one); closed: the position's own face, below
+  const st = eyeEditing ? 0 : openState(mkOpen());
+  if (st){
+    const d = +(v - (+shapeView()[k] || 0)).toFixed(3);
+    if (st === 1){ const F = (S.openFace ||= {}); if (Math.abs(d) > 0.0005) F[k] = d; else delete F[k]; }
+    else { const Hf = (S.openFaceHalf ||= {}); if (Math.abs(d - ((S.openFace || {})[k] || 0) * 0.5) > 0.0005) Hf[k] = d; else delete Hf[k]; }
+    return;
+  }
   if (!eyeEditing) return setShapeKey(k, v);
   const dv = +(v - S.shapes.sit[k]).toFixed(3);
   if (edId === 'round'){ for (const g of SHAPE_GROUPS) S.shapes[g][k] = +(S.shapes[g][k] + dv).toFixed(3); return; }
@@ -8673,18 +8773,20 @@ function mkDraw(){
   const sh = mkView(), eg = eyeEditing ? 'sit' : stateEdit || GROUP_POSE[editGroup], P = POSES[eg] || POSES[GROUP_POSE[GROUP_OF[eg]]] || POSES.sit, hw = sh.headWidth;   // (a move's first and last frame: its position's)
   const ear = (P.head && P.head.ear) || 0, sx = `scale(${hw.toFixed(3)} 1)`;
   mkV.bg.setAttribute('fill', S.bgColor);
-  const sd = headD(sh);   // the head's outline and the ears right round the middle of the face (on Gav they go HEAD.follow of the way with it)
+  const op = mkOpen(), jaw = jawAt(sh, op);   // (the mouth as open as Open mouth: the chin down, the opening drawn)
+  const sd = headD(sh, 0, jaw);   // the head's outline and the ears right round the middle of the face (on Gav they go HEAD.follow of the way with it)
   mkV.skull.setAttribute('transform', sx); mkV.ears.setAttribute('transform', sx);
   mkV.clip.removeAttribute('transform'); mkV.inner.setAttribute('transform', sx);
   mkV.skull.setAttribute('d', sd); mkV.clip.setAttribute('d', sd);
   mkV.ears.setAttribute('d', ['L', 'R'].map(e => skullD(earSegs(EAR[e].outer, earMap(e, sh.earScale, e === 'L' ? -ear : ear, -REF.face)))).join(''));
   const M = stainB(sh), V = scaleEye(M, hw, 1), m = muzzleParts(sh, hw);   // V: the points as seen
-  mkV.stain.setAttribute('d', OLD_STAIN ? eyePath(M) : faceStainD(sh)); mkV.edge.setAttribute('d', OLD_STAIN ? eyePath(V) : STAIN_PARTS.map(i => eyeEditing || mkOn(MK_PART + i) ? stainPartD(i, sh) : '').join(''));
-  cheekD(sh).forEach((d, n) => mkV.cheeks[n].setAttribute('d', OLD_STAIN ? '' : d)); mkV.mainG.setAttribute('d', OLD_STAIN ? '' : stainPartD(0, sh)); mkV.third.setAttribute('d', OLD_STAIN ? '' : stainPartD(STAIN_RECT.i, sh));
+  mkV.stain.setAttribute('d', OLD_STAIN ? eyePath(M) : faceStainD(sh, 1, jaw)); mkV.edge.setAttribute('d', OLD_STAIN ? eyePath(V) : STAIN_PARTS.map(i => eyeEditing || mkOn(MK_PART + i) ? stainPartD(i, sh, 1, jaw) : '').join(''));
+  cheekD(sh).forEach((d, n) => mkV.cheeks[n].setAttribute('d', OLD_STAIN ? '' : d)); mkV.mainG.setAttribute('d', OLD_STAIN ? '' : stainPartD(0, sh, 1, jaw)); mkV.third.setAttribute('d', OLD_STAIN ? '' : stainPartD(STAIN_RECT.i, sh, 1, jaw));
+  { const mo = op >= 0.005 ? mouthParts(sh, hw, 0, op) : null; mkV.mouthIn.setAttribute('d', mo ? mo.inside : ''); mkV.lowerLip.setAttribute('d', mo ? mo.lowerLip : ''); }
   if (!OLD_STAIN) mkV.stain.setAttribute('filter', 'url(#stainMap)');
   mkV.arms.setAttribute('d', !OLD_STAIN ? '' : V.map(q => `M${q[0] + q[2]} ${q[1] + q[3]}L${q[0]} ${q[1]}L${q[0] + q[4]} ${q[1] + q[5]}`).join(''));
   mkV.pads.setAttribute('d', m.pads); mkV.bell.setAttribute('d', m.bell); mkV.mouth.setAttribute('d', m.mouth); mkV.nose.setAttribute('d', m.nose); mkV.light.setAttribute('d', m.noseLight); mkV.nostrils.setAttribute('d', m.nostrils); noseTopPaint(mkV.light);
-  mkV.hitNose.setAttribute('d', m.nose + m.pads); mkV.hitPart.forEach(({ h, i }) => h.setAttribute('d', stainPartD(i, sh)));
+  mkV.hitNose.setAttribute('d', m.nose + m.pads); mkV.hitPart.forEach(({ h, i }) => h.setAttribute('d', stainPartD(i, sh, 1, jaw)));
   [[mkV.hitNose, MK_NOSE], ...mkV.hitPart.map(({ h, i }) => [h, MK_PART + i]), ...mkV.hitEye.map(h => [h, MK_EYES])].forEach(([h, j]) => h.setAttribute('display', !eyeEditing && mkOn(j) ? 'inline' : 'none'));
   // the eyes (open; in the Eyes tab the emotion's): eye spacing × head width either side of the middle
   const L = lookShape(eyeEditing ? edId : 'round');
@@ -8732,6 +8834,7 @@ mkSvg.addEventListener('pointerdown', e => {
   const g = document.elementsFromPoint(e.clientX, e.clientY).map(t => t.closest('#maskBox .dot')).filter(Boolean).sort((a, b) => far(a) - far(b))[0];
   if (!g){ mkSel = null; mkDraw(); return; }
   e.preventDefault(); mkSvg.setPointerCapture(e.pointerId);
+  if (!eyeEditing){ const o = mkOpen(), st = openState(o); if (o !== st) setMouthOpen(st); }   // (on the face state being edited, exactly)
   mkSel = { j: +g.dataset.j, h: g.dataset.h || null }; mkDrag = { moved: false, from: mkPt(e), was: { ...mkView() } }; mkBox.classList.add('dragging'); mkDraw();
 });
 // a whole part, moved with one hold by as far as the pointer has gone (in half units from where it was, so nothing jumps to the
@@ -8754,7 +8857,13 @@ function gradMove(e, [G, end]){
 const gradPicker = document.createElement('input'); gradPicker.type = 'color'; gradPicker.setAttribute('aria-label', 'Gradient colour');
 gradPicker.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none'; document.body.appendChild(gradPicker);
 let gradPickKey = '';
-for (const k of ['mainFrom', 'mainMid', 'mainTo', 'cheekFrom', 'cheekMid', 'cheekTo', 'thirdFrom', 'thirdMid', 'thirdTo']) $(k).addEventListener('input', () => mkDraw());   // (the scales' pickers: the grid's dots in their colours)
+for (const k of ['mainFrom', 'mainMid', 'mainTo', 'cheekFrom', 'cheekMid', 'cheekTo', 'thirdFrom', 'thirdMid', 'thirdTo']) $(k).addEventListener('input', () => mkDraw());
+// (the grid shows the mouth that open, and edits the face state it is nearest). Near closed, half open or open (MOUTH_STOP) it stops right on
+// it, so the face being shaped is exactly that state's, with no jump when a point is picked up
+const MOUTH_STOP = 0.05;
+$('mouthOpen').addEventListener('input', () => { mkSel = null; const v = +$('mouthOpen').value, st = openState(v); if (v !== st && Math.abs(v - st) <= MOUTH_STOP) setMouthOpen(st); else mkDraw(); });
+function setMouthOpen(v){ S.mouthOpen = v; $('mouthOpen').value = v; const out = document.querySelector('output[for="mouthOpen"]'); if (out) out.textContent = fmtOut.mouthOpen(v); save(); mkDraw(); }
+document.querySelectorAll('#mouthStates [data-o]').forEach(b => b.addEventListener('click', () => { mkSel = null; setMouthOpen(+b.dataset.o); }));   // (the scales' pickers: the grid's dots in their colours)
 gradPicker.addEventListener('input', () => { if (!gradPickKey) return; S[gradPickKey] = gradPicker.value; $(gradPickKey).value = gradPicker.value; stainPaint(); mkDraw(); save(); });
 function gradPick([G, end], e){ gradPickKey = [G.from, G.to, G.mid][end]; gradPicker.value = S[gradPickKey]; gradPicker.style.left = e.clientX + 'px'; gradPicker.style.top = e.clientY + 'px'; gradPicker.click(); }
 function mkHold(e){
