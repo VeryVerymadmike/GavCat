@@ -211,16 +211,21 @@ layout(location=6) in vec4 a_s1;
 layout(location=7) in vec4 a_s2;
 layout(location=8) in vec4 a_s3;
 layout(location=9) in vec4 a_w;      // …and the share of each
-uniform float u_px, u_bent, u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}];
+uniform float u_px, u_bent, u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}], u_ln[${MAXP / 4}];
 out vec4 v_col; out float v_side; out float v_soft;
 ${SPINE_GLSL}
 void main(){
   float t = a_tv.x, off = a_off, soft = a_shape.z, fold = 0.0; vec2 bone = vec2(0.0);
+// how long the hairs are at a spot on a spine (× as drawn: each spine point's own, see bend), along its segment
+float lnOf(int i){ return u_ln[i / 4][i % 4]; }
+float lnAt(vec4 s){ int i = int(s.x + 0.5); return mix(lnOf(i), lnOf(min(i + 1, ${MAXP - 1})), clamp(s.y, 0.0, 1.0)); }
   float ang  = a_root.z + off * 0.7;                          // root turns a little…
   float bend = a_shape.y + off * 0.8;                         // …tip bends more
   float len  = a_root.w * (1.0 - 0.25 * min(1.0, abs(off)));  // ruffled hair stands up → shorter
   vec2 c  = vec2(t * len, 0.5 * bend * len * t * t);
   vec2 tg = normalize(vec2(1.0, bend * t));
+  vec4 cw = a_w;
+  if (u_bent > 0.5) { cw = crease(a_s0, a_s1, a_s2, a_s3, a_w, fold); len *= cw.x * lnAt(a_s0) + cw.y * lnAt(a_s1) + cw.z * lnAt(a_s2) + cw.w * lnAt(a_s3); }   // (its spine points' hair length)
   float k = u_bent > 0.5 ? u_k : 1.0;                         // view units per stage unit
   float w = a_shape.x * (1.0 + 0.7 * soft) * (1.0 - t);
   float a = a_col.a * smoothstep(0.0, a_shape.w, t) * (1.0 - 0.35 * t) * (1.0 - 0.35 * soft); // root fades in
@@ -229,7 +234,6 @@ void main(){
   vec2 p = c + vec2(-tg.y, tg.x) * a_tv.y * w, r = a_root.xy;
   if (u_bent > 0.5) {                                         // bent: root and direction go with the spines
     vec2 d = vec2(0.0); r = vec2(0.0);
-    vec4 cw = crease(a_s0, a_s1, a_s2, a_s3, a_w, fold);
     take(a_s0, cw.x, r, d); take(a_s1, cw.y, r, d); take(a_s2, cw.z, r, d); take(a_s3, cw.w, r, d);
     boneAt(a_s0, cw.x, bone); boneAt(a_s1, cw.y, bone); boneAt(a_s2, cw.z, bone); boneAt(a_s3, cw.w, bone);
     ang += atan(d.y, d.x);
@@ -663,7 +667,7 @@ export function createFur(container, options = {}) {
     gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; };
   const prog = link(VS, FS), progB = link(VSB, FSB);
   const U = (p, ...n) => Object.fromEntries(n.map(k => [k, gl.getUniformLocation(p, 'u_' + k)]));
-  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'rs', 'floor'), uB = U(progB, 'k', 'view', 'sp', 'rs', 'tex', 'floor', 'fsoft', 'layer', 'uvpx');
+  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'rs', 'floor', 'ln'), uB = U(progB, 'k', 'view', 'sp', 'rs', 'tex', 'floor', 'fsoft', 'layer', 'uvpx');
   // the bent base: grid (x, y, then its spine spots and their shares: 2 + SPF floats a point), and the base picture as a texture
   const vaoB = gl.createVertexArray(), gridBuf = gl.createBuffer(), idxBuf = gl.createBuffer(), tex = gl.createTexture(); let nIdx = 0;
   gl.bindVertexArray(vaoB); gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf);
@@ -787,7 +791,7 @@ export function createFur(container, options = {}) {
     if (!N) { gl.bindVertexArray(vaoH); return; }
     gl.useProgram(prog); gl.bindVertexArray(vaoH);
     gl.uniform1f(uH.px, cv.width / view[2]); gl.uniform4fv(uH.view, view); gl.uniform1f(uH.bent, BENT ? 1 : 0); gl.uniform1f(uH.k, k); gl.uniform1f(uH.floor, BENT ? BENT.floor : 1e9);
-    if (BENT) { gl.uniform4fv(uH.sp, BENT.sp); gl.uniform4fv(uH.rs, RS); }
+    if (BENT) { gl.uniform4fv(uH.sp, BENT.sp); gl.uniform4fv(uH.rs, RS); gl.uniform4fv(uH.ln, BENT.ln); }
     if (!BENT || PARTS.length < 2) { hairsFrom(0); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, VERTS, N); return; }
     const z = PARTS.map((P, j) => BENT.z && typeof BENT.z[j] === 'number' ? BENT.z[j] : HUB[j] ? -1 : j);   // (no z given: the hub at the back, the rest in order)
     const order = PARTS.map((P, j) => j).filter(j => PARTS[j][1]).sort((a, b) => z[a] - z[b] || a - b);
@@ -855,7 +859,7 @@ export function createFur(container, options = {}) {
       prepSpines(); prepGrid(); prepField(); prepBaseField(); prepColors(); paintBase(); build();
     },
     // the shape's spines as they are now: one list of points per data-fur-spine line (same order and counts), each point
-    // [x, y] or [x, y, width scale], in the units of view {x, y, width, height} (the rectangle the canvas shows; keep it the
+    // [x, y], [x, y, width scale] or [x, y, width scale, hair length scale], in the units of view {x, y, width, height} (the rectangle the canvas shows; keep it the
     // canvas's shape). view left out: the stage in the shape's own units. null: back to the shape as drawn. Only redraws.
     // floor (optional, a y in view units): nothing goes below it; hairs that would bend aside to lie along it, each hair's floor a little
     // above the line so the edge there is ragged like fur; the soft base fades out just above it
@@ -866,7 +870,7 @@ export function createFur(container, options = {}) {
       const sp = BENT?.sp || new Float32Array(MAXP * 4); let n = 0;
       spines.forEach(p => p.forEach((q, i) => sp.set([q[0], q[1], q[2] ?? 1, (i === 0 ? 1 : 0) | (i === p.length - 1 ? 2 : 0)], 4 * n++)));
       const v = view || { x: -FIT.tx / FIT.s, y: -FIT.ty / FIT.s, width: W / FIT.s, height: H / FIT.s };
-      BENT = { sp, view: [v.x, v.y, v.width, v.height], floor: typeof floor === 'number' ? floor : 1e9, z: Array.isArray(z) ? [...z] : null };
+      BENT = { sp, ln, view: [v.x, v.y, v.width, v.height], floor: typeof floor === 'number' ? floor : 1e9, z: Array.isArray(z) ? [...z] : null };
       baseCv.style.visibility = 'hidden'; draw();
     },
     spines: () => JSON.parse(JSON.stringify(SPINES_SVG)),   // the shape's spines as drawn (its own units)

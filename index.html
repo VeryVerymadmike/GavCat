@@ -5641,7 +5641,7 @@ function neckLine(p, a, b){
 let FUR_EDIT = null;
 const FUR_SPINES = {
   tail: p => FUR_EDIT && FUR_EDIT.tail || [p.tailIn ? [p.tailIn, ...p.tail] : [p.tail[0], ...p.tail]],   // (from inside the body, where it is drawn from: its root follows the spine's way)
-  legs: p => FUR_EDIT && FUR_EDIT.legs || ['bf', 'bn', 'ff', 'fn'].map(k => furLegSpine(p, k)),
+  legs: p => (FUR_EDIT && FUR_EDIT.legs || ['bf', 'bn', 'ff', 'fn'].map(k => furLegSpine(p, k))).map((P, i) => pawFurOn(P, ['bf', 'bn', 'ff', 'fn'][i])),
   // the body with its neck: one line from the hips along the back to the withers, then the neck's top (the skeleton's spine) to the head
   body: p => { if (FUR_EDIT && FUR_EDIT.body) return FUR_EDIT.body; const sk = p.skel; if (!sk || !sk.spine) return null; const e = sk.spine[sk.spine.length - 1], h = [p.head.x, p.head.y + HEAD_DROP], nH = p.neckH; return [[...sk.spine, nH ? bez3(e, [e[0] + nH[0][0], e[1] + nH[0][1]], [h[0] + nH[1][0], h[1] + nH[1][1]], h, 0.5) : neckMid(p, e, h), h]]; },
   fullBody: p => { const b = FUR_SPINES.body(p), l = FUR_SPINES.legs(p); return b ? [...b, l[1], l[3]] : null; },   // (in its drawing's order: body with its neck, closer back and front legs, each its own layer)
@@ -5659,7 +5659,11 @@ const furCoat = () => S.coat === 'siamese' ? 'Siamese' : 'Black';
 const furFull = () => !!(BODY_FUR.cfg.options && BODY_FUR.cfg.options.fullBody);
 const FUR_UNDER = new Set(['body', 'legs']), furUsed = g => furFull() ? g.part !== 'body' : g.part !== 'fullBody';   // (full body: the closer legs are in it; the legs' groups still draw one of them where it goes over the head)
 const bodyFurValues = (part, coat) => { const C = BODY_FUR.cfg, from = furFull() && FUR_UNDER.has(part) ? 'fullBody' : part;
-  const { glow, glowSize, glowMid, glowOval, glowTurn, glowColors, ...v } = C[from + coat] || { ...((from === 'innerEars' && C['ears' + coat]) || (from === 'fullBody' && C['legs' + coat]) || C['head' + coat] || C.headSiamese), points: BODY_FUR.gav[from].points };
+  const { glow, glowSize, glowMid, glowOval, glowTurn, glowColors, pawFur, ...v } = C[from + coat] || { ...((from === 'innerEars' && C['ears' + coat]) || (from === 'fullBody' && C['legs' + coat]) || C['head' + coat] || C.headSiamese), points: BODY_FUR.gav[from].points };
+// Paw fur (the fur page, with the cat's values): the hairs' length from front leg point 3 / back leg point 4 down to the toe, × the leg's
+// (easing in from the point above). Gav's own (on the leg spines' points, see FUR_SPINES.legs), so fur.js never takes it as a value
+const furPaw = () => { const C = BODY_FUR.cfg || {}, c = BODY_FUR.coat || furCoat(), v = (C[(furFull() ? 'fullBody' : 'legs') + c] || C['legs' + c] || {}).pawFur; return v > 0 ? v : 1; };
+const pawFurOn = (P, k) => { const f = furPaw(), from = k[0] === 'b' ? 4 : 3; return P.map((q, i) => [q[0], q[1], q[2] ?? 1, i >= from ? f : 1]); };   // (spine points: above the top, 1, 2, …)
   v.points = (C[part + coat] || {}).points || BODY_FUR.gav[part].points;   // (the flow points are each drawing's own: placed on it)
   return { ...v, pet:false, invert: part === 'innerEars', keepShape:fur_keep(v), edgeInset:0, unit:FUR_UNIT }; };   // (keepShape: how far inside the drawn part it may end, see fur_keep)
 // a part's drawing in a coat (none: the part isn't in that coat, as the black cat's inner ears), the inner ears' gradients placed
@@ -5815,7 +5819,7 @@ function bodyFur(p){
     if (!sp || sp.length !== g.rest.length || sp.some((P, i) => !P || P.length !== g.rest[i].length)){ g.box.style.visibility = 'hidden'; continue; }
     if (g.part === 'ears' || g.part === 'innerEars') sp = sp.map((P, i) => { const w = spineLen(P) / (spineLen(g.rest[i]) || 1); return P.map(q => [q[0], q[1], w]); });   // (an ear grows and shrinks all over)
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    sp = sp.map((P, i) => { if (show && !show.includes(i)) return P.map(q => [q[0] + 1e5, q[1], q[2]]);
+    sp = sp.map((P, i) => { if (show && !show.includes(i)) return P.map(q => [q[0] + 1e5, q[1], q[2], q[3]]);
       for (const q of P){ x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }
       return P; });
     const need = Math.max(x1 - x0, y1 - y0) + 2 * g.pad;

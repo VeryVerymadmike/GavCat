@@ -133,6 +133,7 @@ const GROUPS = {
     ['edgeDensity', 'Edge density', 0.5, 6, 'thinner', 'thicker', 1, true], ['edgeBand', 'Edge band width', 10, 160, 'narrow rim', 'wide rim', 0, true],
     ['crisp', 'Sharp inner hairs', 0, 1, 'soft', 'crisp', 2, false], ['variation', 'Strand variation', 0, 0.5, 'even colour', 'streaky', 2, true],
     ['rim', 'Edge brightness', 0, 0.6, 'none', 'glowing rim', 2, true],
+    ['pawFur', 'Paw fur', 0.2, 1.5, 'shorter', 'longer', 2, true],
   ],
   'Shape blur': [['blur', 'Shape blur', 0, 100, 'sharper', 'softer', 0, true], ['hairInset', 'Fur outset', 0, 15, 'slimmer', 'fatter', 1, true]],
   'Flow': [['gravity', 'Gravity', -1, 1, 'lifts up', 'hangs down', 2, false], ['edgeOut', 'Edge hair points outward', 0, 1.5, 'lies along the outline', 'sticks out', 2, false],
@@ -141,7 +142,7 @@ const GROUPS = {
 };
 // the middles: what looked right on 2026-11-20 (Fur outset as shown: how far outside the outline the fur starts)
 const MID = {
-  Cat: { hairMin: 20, hairMax: 16, edgeLength: 0.2, innerDensity: 1, edgeDensity: 2.9, edgeBand: 120, variation: 0.25, rim: 0.05, blur: 17, hairInset: 2, waviness: 0.43, colorBlur: 20, shading: 0.1 },
+  Cat: { pawFur: 1, hairMin: 20, hairMax: 16, edgeLength: 0.2, innerDensity: 1, edgeDensity: 2.9, edgeBand: 120, variation: 0.25, rim: 0.05, blur: 17, hairInset: 2, waviness: 0.43, colorBlur: 20, shading: 0.1 },
   Ears: { hairMin: 4, hairMax: 14, edgeLength: 0, innerDensity: 1, edgeDensity: 3.9, edgeBand: 101, variation: 0.22, rim: 0, blur: 5, hairInset: 0, waviness: 0.41, colorBlur: 12, shading: 0 },
   'Inner ears': { hairMin: 3, hairMax: 5, edgeLength: 0.5, innerDensity: 0.25, edgeDensity: 1.9, edgeBand: 25, variation: 0.14, rim: 0, blur: 1, hairInset: 0, waviness: 0.24, colorBlur: 0, shading: 0 },
 };
@@ -186,9 +187,10 @@ for (const [box, list] of Object.entries(INNER)) for (const d of list) {
 const innerColors = () => valuesOf('innerEars').glowColors || (() => { try { return [...frame.contentDocument.getElementById('earGlowL').children].map(e => e.getAttribute('stop-color')); } catch (e) { return ['#bf776c', '#a9756d', '#312526']; } })();
 [0, 1, 2].forEach(k => $('gc' + k).oninput = () => { const c = innerColors().slice(); c[k] = $('gc' + k).value; queue({ glowColors: c }); });
 function syncControls() {
-  const inner = target === 'Inner ears', s = { ...DEFAULTS, ...GLOW, ...valuesOf(mainPart()) };
+  const inner = target === 'Inner ears', s = { ...DEFAULTS, ...GLOW, pawFur: 1, ...valuesOf(mainPart()) };
   $('groups').hidden = inner; $('inner').hidden = !inner;
   for (const [key, { inp, d }] of Object.entries(inputs)) { const k = d[0]; inp.value = toScale(d, FLIP.has(k) ? Math.max(0, -s[k]) : s[k]); }
+  inputs.pawFur.inp.closest('.ctl').hidden = target !== 'Cat';   // (Paw fur: the legs' tips, Gav's own: see furPaw in the cat page)
   if (inner) innerColors().forEach((c, k) => { if (c) $('gc' + k).value = c; });
 }
 // a value moved: every part of this coat takes it (a moment after the slider stops: each part's fur is made again)
