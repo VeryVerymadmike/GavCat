@@ -4787,7 +4787,9 @@ function upperLeg(p, k){
   // a back leg: behind the knee the outline would go in and out again (thigh, then the hock further back): a fill from the hip
   // circle (a little smaller) to the hock bridges it, so the back of the leg runs on smoothly from the rump to the hock; the knee
   // still shows in front (it reaches past that fill)
-  const P = p.legs[k].length > 4 ? hullsUnion(hullsUnion(thigh, circlesHull([fold, hk], p.ground)), circlesHull(hp ? [...hp, hk] : [[anchor[0], anchor[1], anchor[2] * BACK_FILL, 0], hk], p.ground)) : thigh;
+  // (with a haunch: the three — thigh, shin, that fill — make one outline round the haunch, knee and hock, the same in every position;
+  // joined one by one, the haunch's edge, in two of them, was gone round twice and the top of the leg came out empty: a step under the tail)
+  const P = hp && p.legs[k].length > 4 ? circlesHull([...hp, fold, hk], p.ground) : p.legs[k].length > 4 ? hullsUnion(hullsUnion(thigh, circlesHull([fold, hk], p.ground)), circlesHull(hp ? [...hp, hk] : [[anchor[0], anchor[1], anchor[2] * BACK_FILL, 0], hk], p.ground)) : thigh;
   return 'M' + P.map(fmt).join('L') + 'Z';
 }
 const BLADE_LEG = 0.3;    // how far up its shoulder blade a front leg's top reaches (0 shoulder 1 … 1 the withers)
