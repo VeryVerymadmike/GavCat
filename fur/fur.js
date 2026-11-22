@@ -31,6 +31,8 @@ export const DEFAULTS = {
   hairInset: 24,            // hair outline pulled inside the shape (units)
   edgeBand: 45,             // width of the edge zone (units)
   rim: 0.22,                // edge hair brightening
+  rimSpread: 0,             // 0: the rim only in the edge band; else how far into the shape its light reaches (units), fading softly
+  rimTop: 0,                // 0: that rim all round the outline; 1: only where the outline faces up (the shape's own up), none where it faces less than about 12° above level
   // base: soft shape under the fur
   blur: 23,                 // shape edge blur (units)
   edgeInset: -8,            // + inside / − outside the outline
@@ -59,7 +61,7 @@ const QUALITY = {
   low:    { cover: 0.5,  hw: 2.0, seg: 2, dpr: 1.5 },
 };
 const BASE_KEYS = new Set(['blur', 'edgeInset', 'keepShape']);
-const COLOR_KEYS = new Set(['unit', 'colorInner', 'colorOuter', 'shading', 'colorSource', 'colorBlur', 'invert', 'variation', 'rim', 'crisp', 'hairInset', 'edgeBand']);   // (the last five: the base takes the hairs' average brightness)
+const COLOR_KEYS = new Set(['unit', 'colorInner', 'colorOuter', 'shading', 'colorSource', 'colorBlur', 'invert', 'variation', 'rim', 'rimTop', 'rimSpread', 'crisp', 'hairInset', 'edgeBand']);   // (the last five: the base takes the hairs' average brightness)
 const LIVE_KEYS = new Set(['pet', 'petRadius']);
 
 /* ---------- small helpers ---------- */
@@ -214,18 +216,18 @@ layout(location=9) in vec4 a_w;      // …and the share of each
 uniform float u_px, u_bent, u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}], u_ln[${MAXP / 4}];
 out vec4 v_col; out float v_side; out float v_soft;
 ${SPINE_GLSL}
-void main(){
-  float t = a_tv.x, off = a_off, soft = a_shape.z, fold = 0.0; vec2 bone = vec2(0.0);
 // how long the hairs are at a spot on a spine (× as drawn: each spine point's own, see bend), along its segment
 float lnOf(int i){ return u_ln[i / 4][i % 4]; }
 float lnAt(vec4 s){ int i = int(s.x + 0.5); return mix(lnOf(i), lnOf(min(i + 1, ${MAXP - 1})), clamp(s.y, 0.0, 1.0)); }
+void main(){
+  float t = a_tv.x, off = a_off, soft = a_shape.z, fold = 0.0; vec2 bone = vec2(0.0);
   float ang  = a_root.z + off * 0.7;                          // root turns a little…
   float bend = a_shape.y + off * 0.8;                         // …tip bends more
   float len  = a_root.w * (1.0 - 0.25 * min(1.0, abs(off)));  // ruffled hair stands up → shorter
-  vec2 c  = vec2(t * len, 0.5 * bend * len * t * t);
-  vec2 tg = normalize(vec2(1.0, bend * t));
   vec4 cw = a_w;
   if (u_bent > 0.5) { cw = crease(a_s0, a_s1, a_s2, a_s3, a_w, fold); len *= cw.x * lnAt(a_s0) + cw.y * lnAt(a_s1) + cw.z * lnAt(a_s2) + cw.w * lnAt(a_s3); }   // (its spine points' hair length)
+  vec2 c  = vec2(t * len, 0.5 * bend * len * t * t);
+  vec2 tg = normalize(vec2(1.0, bend * t));
   float k = u_bent > 0.5 ? u_k : 1.0;                         // view units per stage unit
   float w = a_shape.x * (1.0 + 0.7 * soft) * (1.0 - t);
   float a = a_col.a * smoothstep(0.0, a_shape.w, t) * (1.0 - 0.35 * t) * (1.0 - 0.35 * soft); // root fades in
@@ -288,6 +290,8 @@ export function createFur(container, options = {}) {
   if (!gl) throw new Error('fur.js needs WebGL2');
 
   let rand, lastShape = null;
+  // how much of the rim a spot of the outline gets (rimTop: only where it faces up; NY is the outline's outward way there, −1 = up)
+  const rimK = s => { const t = o.rimTop || 0; if (!t) return 1; const u = clamp((-0.2 - NY[s]) / 0.6, 0, 1); return 1 - t + t * u * u * (3 - 2 * u); };
   let COV = null, SDFB = null, SVG_PX = null, LIGHT_PX = null, FADE_PX = null, IN = null, SDF, NEAR, NX, NY, COL, BASE_RGB, DMAX = 1, CEN = { x: W / 2, y: H / 2 };
   // spines: as drawn (shape units, SPINES_SVG) and in stage units (SPINES; SP all their points, FLAG first/last, RT directions);
   // FIT: how the shape sits in the stage (stage = shape × s + t); BENT: the spines as they are now (see bend)
@@ -402,7 +406,24 @@ export function createFur(container, options = {}) {
     for (let i = 0; i < NC; i++) if (IN[i]) { inside++; if (SVG_PX[i * 4 + 3] > 127 && SVG_PX[i * 4] + SVG_PX[i * 4 + 1] + SVG_PX[i * 4 + 2] > 60) coloured++; }
     return coloured > inside * 0.2;
   }
+  // the rim's light at each spot (0–1) when it spreads (rimSpread): the shape as a rounded body (its surface curving away from you over
+  // rimSpread units in from the outline, flat deeper in) lit from above and a little in front with rimTop (so the top of a body is lit
+  // most, the middle of a leg or a tail softly, nothing underneath), or near the outline all round without; blurred, so no line shows
+  // where the top's light meets the bottom's. Its light mixes the colour toward white by o.rim at most (so pale fur doesn't clip to flat
+  // white and dark fur shows a sheen). null: the edge band's rim (see makeLines)
+  let RIM = null;
+  const RIM_L = [-0.8, 0.6];   // (the light: up, toward you)
+  function prepRim() {
+    const z = Z(), sp = (o.rimSpread || 0) * z;
+    if (!(sp > 0) || !o.rim) { RIM = null; return; }
+    const A = new Float32Array(NC * 4), hi = o.hairInset * z;
+    for (let i = 0; i < NC; i++) { const s = NEAR[i] >= 0 ? NEAR[i] : i, d = IN[i] ? Math.max(0, SDF[i] - hi) : 0, t = clamp(1 - d / sp, 0, 1);
+      A[i * 4] = o.rimTop ? Math.max(0, (RIM_L[0] * NY[s] * t + RIM_L[1] * Math.sqrt(1 - t * t))) * o.rimTop + (1 - o.rimTop) * t * t * (3 - 2 * t) : t * t * (3 - 2 * t); }
+    const r = Math.max(1, Math.round(sp / GS / 5)); for (let k = 0; k < 3; k++) boxBlur(A, GN, GN, r);
+    RIM = new Float32Array(NC); for (let i = 0; i < NC; i++) RIM[i] = A[i * 4];
+  }
   function prepColors() {
+    prepRim();
     const ci = hex(o.colorInner), co = hex(o.colorOuter);
     const useSvg = o.colorSource === 'svg' || (o.colorSource === 'auto' && svgHasColour());
     let S4 = null, S4o = null;
@@ -429,11 +450,11 @@ export function createFur(container, options = {}) {
       const k = 1 - o.shading * (LIGHT_PX && LIGHT_PX[s * 4 + 3] > 127 ? LIGHT_PX[s * 4] / 255 : clamp(0.75 - lit, 0, 1));   // (a light given: shaded by it)
       // the base is as bright as the hairs over it are on average (strand variation and the edge's rim lighten them, see makeLines), so
       // where the hair is thinner (inside, or stretched as a part bends) it doesn't show as a darker patch
-      const e = IN[i] ? edgeOf(SDF[i]) : 1, cr = e + (1 - e) * o.crisp, jm = 1 + o.rim * e + o.variation * 0.35 * (cr * (1 + 0.4 * (1 - e)) + (1 - cr) * 0.6);
+      const e = IN[i] ? edgeOf(SDF[i]) : 1, cr = e + (1 - e) * o.crisp, rl = o.rim * (RIM ? RIM[i] : e * rimK(s)), jm = 1 + (RIM ? 0 : rl) + o.variation * 0.35 * (cr * (1 + 0.4 * (1 - e)) + (1 - cr) * 0.6);
       for (let q = 0; q < 3; q++) {
         const a = S4 ? S4[i * 4 + 3] : 0;
         const base = S4 && a > 0.05 ? S4[i * 4 + q] / a : ci[q] + (co[q] - ci[q]) * u;
-        const c = base * k; COL[i * 3 + q] = c; C[i * 4 + q] = c * jm;
+        const c = base * k; COL[i * 3 + q] = c; C[i * 4 + q] = c * jm; if (RIM) C[i * 4 + q] += (255 - Math.min(255, C[i * 4 + q])) * rl;
       }
       if (S4o && !IN[i] && S4o[i * 4 + 3] > 0.05) for (let q = 0; q < 3; q++) COL[i * 3 + q] = S4o[i * 4 + q] / S4o[i * 4 + 3] * k;   // (hair only: the base keeps the shape's)
       C[i * 4 + 3] = 1;
@@ -647,11 +668,12 @@ export function createFur(container, options = {}) {
           const mi = gi(x + Math.cos(a) * len * 0.4, y + Math.sin(a) * len * 0.4);
           const c1 = mi >= 0 && (ex ? !IN[mi] && SVG_PX[mi * 4 + 3] > 127 : IN[mi]) ? [COL[mi * 3], COL[mi * 3 + 1], COL[mi * 3 + 2]] : c0;
           const soft = rand() < edge + (1 - edge) * o.crisp ? 0 : 0.85;
-          const j = (1 + o.rim * edge + o.variation * P.jit * (soft ? 0.6 : 1 + 0.4 * (1 - edge)) * (1.3 * rand() - 0.3)) / 255;
+          const rl = o.rim * (RIM ? RIM[i] : edge * rimK(NEAR[i] >= 0 ? NEAR[i] : i));
+          const j = (1 + (RIM ? 0 : rl) + o.variation * P.jit * (soft ? 0.6 : 1 + 0.4 * (1 - edge)) * (1.3 * rand() - 0.3)) / 255;
           const fd = fadeAt(i); if (fd > 0.98) continue;
           list.push({ x, y, a, len, op: (P.op[0] + P.op[1] * rand()) * (1 - fd), hw: (0.75 + 0.35 * rand()) * q.hw * (rim ? 0.75 : 1),
             bend: angDiff(flow(x + Math.cos(a) * len, y + Math.sin(a) * len, ex), a) + (rand() - 0.5) * (rim ? 0.7 : 0.15),
-            soft, fade: 0.3 + 0.45 * edge, c: [0, 1, 2].map(n => clamp((c0[n] + c1[n]) / 2 * j, 0, 1)), z: ex ? 1e4 + d : SDF[i] });   // (inverted edge hairs on top)
+            soft, fade: 0.3 + 0.45 * edge, c: [0, 1, 2].map(n => { const v = clamp((c0[n] + c1[n]) / 2 * j, 0, 1); return RIM ? v + (1 - v) * rl : v; }), z: ex ? 1e4 + d : SDF[i] });   // (inverted edge hairs on top)
         }
       }
       list.sort((a, b) => a.z - b.z);                                    // edge first, inner on top
@@ -867,8 +889,8 @@ export function createFur(container, options = {}) {
     bend(spines, view, floor, z) {
       if (!spines || !SPINES.length) { BENT = null; baseCv.style.visibility = ''; draw(); return; }
       if (spines.length !== SPINES.length || spines.some((p, j) => p.length !== SPINES[j].length)) throw new Error('bend needs the shape\'s spines, point for point');
-      const sp = BENT?.sp || new Float32Array(MAXP * 4); let n = 0;
-      spines.forEach(p => p.forEach((q, i) => sp.set([q[0], q[1], q[2] ?? 1, (i === 0 ? 1 : 0) | (i === p.length - 1 ? 2 : 0)], 4 * n++)));
+      const sp = BENT?.sp || new Float32Array(MAXP * 4), ln = BENT?.ln || new Float32Array(MAXP); let n = 0;
+      spines.forEach(p => p.forEach((q, i) => { ln[n] = q[3] ?? 1; sp.set([q[0], q[1], q[2] ?? 1, (i === 0 ? 1 : 0) | (i === p.length - 1 ? 2 : 0)], 4 * n++); }));
       const v = view || { x: -FIT.tx / FIT.s, y: -FIT.ty / FIT.s, width: W / FIT.s, height: H / FIT.s };
       BENT = { sp, ln, view: [v.x, v.y, v.width, v.height], floor: typeof floor === 'number' ? floor : 1e9, z: Array.isArray(z) ? [...z] : null };
       baseCv.style.visibility = 'hidden'; draw();

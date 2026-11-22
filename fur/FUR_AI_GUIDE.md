@@ -65,6 +65,8 @@ fur.spines();                                  // the shape's spines as drawn (i
 | `hairInset` | 24 | How far inside the outline the edge hairs start. More = more overlap, smaller outer fuzz. Below 0, the fur starts that far outside the outline (fatter). Gav's fur page shows it as **Fur outset**, 0 to 15 (= hairInset 0 to −15); at 15 a leg looks about 30% fatter. |
 | `edgeBand` | 45 | Width of the edge zone. |
 | `rim` | 0.22 | Brightening of edge hairs (backlit look). |
+| `rimSpread` | 0 | 0: `rim` only in the edge band, brightening the colour (old behaviour); else the shape is lit as a rounded body (curving away over rimSpread units from the outline), from above and a little in front with `rimTop` (top of a body most, a leg's or tail's middle softly, nothing underneath), blurred so no seam shows. That light mixes the colour toward white by `rim` at most, so pale fur doesn't clip and dark fur gets a sheen. Added 2026-11-22. |
+| `rimTop` | 0 | 0: `rim` all round the outline; 1: only where the outline faces up (the shape's own up), none where it faces less than about 12° above level. Gav always uses 1 (added 2026-11-22). |
 | `blur` | 23 | Base shape edge softness. |
 | `edgeInset` | −8 | Where the soft base edge sits: + inside, − outside the outline. |
 | `keepShape` | `false` | Keeps the soft base from shrinking inside the shape: a number is how far inside the outline it may end at most (units; `true` = 0, solid right up to the outline), whatever `edgeInset` says; it can still fade out past it. Added 2026-11-11; Gav's parts use it (the fur page's "Most inset", 6 unless set). |

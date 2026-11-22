@@ -19,6 +19,7 @@
   #cat{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
   #overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
   #overlay.place{pointer-events:all;cursor:crosshair}
+  #overlay.off{display:none}
   .modes{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
   button,select{font:inherit;padding:6px 10px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--text)}
   button.on{background:var(--accent);color:#2a2530;border-color:var(--accent)}
@@ -26,6 +27,7 @@
   #panel{width:100%;display:flex;flex-direction:column;gap:6px}
   details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
   summary{cursor:pointer;font-weight:600;padding:2px 0}
+  .ctl[hidden]{display:none}
   .ctl{display:grid;grid-template-columns:1fr 190px;gap:10px;align-items:center;margin:8px 0;font-size:13px}
   .ends{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--dim);margin-top:-2px} .ends i{font-style:normal}
   input[type=range]{width:100%;accent-color:var(--accent)}
@@ -48,6 +50,7 @@
     <button data-mode="source">+ Source point</button>
     <button data-mode="remove">Remove point</button>
     <button data-mode="glow" id="glowMode" hidden>Move gradient</button>
+    <label class="bend"><input type="checkbox" id="showCtl" style="width:auto" checked>Controls</label>
   </div>
   <div id="info">loading…</div>
  </div>
@@ -132,7 +135,7 @@ const GROUPS = {
     ['edgeLength', 'Edge hair length', 0, 4, 'tighter outline', 'fluffier outline', 1, true], ['innerDensity', 'Inner density', 0, 1, 'thinner', 'thicker', 2, true],
     ['edgeDensity', 'Edge density', 0.5, 6, 'thinner', 'thicker', 1, true], ['edgeBand', 'Edge band width', 10, 160, 'narrow rim', 'wide rim', 0, true],
     ['crisp', 'Sharp inner hairs', 0, 1, 'soft', 'crisp', 2, false], ['variation', 'Strand variation', 0, 0.5, 'even colour', 'streaky', 2, true],
-    ['rim', 'Edge brightness', 0, 0.6, 'none', 'glowing rim', 2, true],
+    ['rim', 'Top edge brightness', 0, 0.6, 'none', 'glowing top', 2, true], ['rimSpread', 'Top light spread', 0, 150, 'edge only', 'over the body', 0, true],
     ['pawFur', 'Paw fur', 0.2, 1.5, 'shorter', 'longer', 2, true],
   ],
   'Shape blur': [['blur', 'Shape blur', 0, 100, 'sharper', 'softer', 0, true], ['hairInset', 'Fur outset', 0, 15, 'slimmer', 'fatter', 1, true]],
@@ -142,12 +145,14 @@ const GROUPS = {
 };
 // the middles: what looked right on 2026-11-20 (Fur outset as shown: how far outside the outline the fur starts)
 const MID = {
-  Cat: { pawFur: 1, hairMin: 20, hairMax: 16, edgeLength: 0.2, innerDensity: 1, edgeDensity: 2.9, edgeBand: 120, variation: 0.25, rim: 0.05, blur: 17, hairInset: 2, waviness: 0.43, colorBlur: 20, shading: 0.1 },
+  Cat: { pawFur: 1, rimSpread: 50, hairMin: 20, hairMax: 16, edgeLength: 0.2, innerDensity: 1, edgeDensity: 2.9, edgeBand: 120, variation: 0.25, rim: 0.05, blur: 17, hairInset: 2, waviness: 0.43, colorBlur: 20, shading: 0.1 },
   Ears: { hairMin: 4, hairMax: 14, edgeLength: 0, innerDensity: 1, edgeDensity: 3.9, edgeBand: 101, variation: 0.22, rim: 0, blur: 5, hairInset: 0, waviness: 0.41, colorBlur: 12, shading: 0 },
   'Inner ears': { hairMin: 3, hairMax: 5, edgeLength: 0.5, innerDensity: 0.25, edgeDensity: 1.9, edgeBand: 25, variation: 0.14, rim: 0, blur: 1, hairInset: 0, waviness: 0.24, colorBlur: 0, shading: 0 },
 };
 // shown the other way round: Fur outset is how far outside Gav's outline the fur starts (fur.js's hairInset below 0)
 const FLIP = new Set(['hairInset']);
+// one light over the whole cat: set only with the cat's values (the ears take it from them)
+const CAT_ONLY = ['rim', 'rimSpread'];
 const inputs = {};
 // the scale (-1 … 1) ↔ a value: through the middle, or evenly from end to end
 const midOf = ([key, , lo, hi, , , , centred]) => { const m = centred && MID[target][key]; return m === undefined || m === false || m - lo < 0.03 * (hi - lo) || hi - m < 0.03 * (hi - lo) ? (lo + hi) / 2 : m; };
@@ -190,6 +195,7 @@ function syncControls() {
   const inner = target === 'Inner ears', s = { ...DEFAULTS, ...GLOW, pawFur: 1, ...valuesOf(mainPart()) };
   $('groups').hidden = inner; $('inner').hidden = !inner;
   for (const [key, { inp, d }] of Object.entries(inputs)) { const k = d[0]; inp.value = toScale(d, FLIP.has(k) ? Math.max(0, -s[k]) : s[k]); }
+  for (const k of CAT_ONLY) inputs[k].inp.closest('.ctl').hidden = target !== 'Cat';   // (the light: the cat's, the ears take it)
   inputs.pawFur.inp.closest('.ctl').hidden = target !== 'Cat';   // (Paw fur: the legs' tips, Gav's own: see furPaw in the cat page)
   if (inner) innerColors().forEach((c, k) => { if (c) $('gc' + k).value = c; });
 }
@@ -213,7 +219,7 @@ async function catReady() {
 const POSE_NAMES = { stand: 'As drawn', sit: 'Sit', sitMid: 'Sitting down', lie: 'Lie', lieMid: 'Lying down', stretch: 'Stretch', reach: 'Reach',
   jumpReady: 'Ready to jump', jumpPush: 'Jump', jumpFly: 'In the air', jumpAbsorb: 'Landing' };
 let pose = 'stand';
-function setPose(name) { pose = name; $('pose').value = name; if (!cd()) return; cd().furEdit = null; cd().pose(name); }
+function setPose(name) { pose = name; $('pose').value = name; if (!cd()) return; cd().furEdit = null; cd().pose(name); wake(); }
 $('pose').replaceChildren(...Object.entries(POSE_NAMES).map(([k, v]) => new Option(v, k)));
 $('pose').onchange = () => setPose($('pose').value);
 
@@ -370,9 +376,22 @@ addEventListener('pointerup', () => {
   savePart(it.part + coat, { ...valuesOf(it.part), points: d.pts });
 });
 
-/* ---------- the overlay, drawn every frame from where the cat is ---------- */
+/* ---------- the overlay, drawn from where the cat is: every frame while something is dragged or just after the page was used,
+   else a few times a second (the cat is still then; see FUR_STILL in the cat page) ---------- */
+// the controls on the cat (spine dots, flow points, gradients): shown or not, remembered in this browser
+try { $('showCtl').checked = localStorage.getItem('furShowCtl') !== '0'; } catch (e) {}
+const showCtl = () => $('overlay').classList.toggle('off', !$('showCtl').checked);
+$('showCtl').onchange = () => { showCtl(); try { localStorage.setItem('furShowCtl', $('showCtl').checked ? '1' : '0'); } catch (e) {} };
+showCtl();
+let awakeUntil = 0, overlayT = null;
+function wake() {
+  awakeUntil = performance.now() + 1500;
+  if (overlayT) { clearTimeout(overlayT); overlayT = null; requestAnimationFrame(drawOverlay); }
+}
+for (const ev of ['pointerdown', 'pointermove', 'input', 'change', 'keydown']) addEventListener(ev, wake, true);
 function drawOverlay() {
-  requestAnimationFrame(drawOverlay);
+  if (drag || performance.now() < awakeUntil) requestAnimationFrame(drawOverlay);
+  else overlayT = setTimeout(() => { overlayT = null; requestAnimationFrame(drawOverlay); }, 300);
   const m = W && maps(); if (!m) return;
   const r = wrapRect(), sp = cd().furSpines(); let h = '';
   $('overlay').setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
