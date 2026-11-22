@@ -172,3 +172,6 @@ Put eyes, nose and other artwork in an element **on top of** the container, with
 3. Always `destroy()` on unmount and never create two instances in one container.
 4. Debounce rebuild-triggering changes. Never call `set()` every frame.
 5. If you do edit `fur.js`, keep the public API above unchanged and tell me what changed.
+
+- `data-fur-short` (added 2026-11-22): like `data-fur-fade`, a grey picture in the shape, white where the hairs are shortest (up to 75% shorter, by how white). Gav's head puts a soft oval at the chin so the fur lies closer there.
+- `pawFold` (added 2026-11-22, default false): each spine's last joint (a paw's wrist / ball) creases from 45° to 95° instead of 158° to 175°, so a paw turned against its leg takes the fur past the leg's end with it. Gav's leg fur uses it.

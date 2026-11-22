@@ -32,6 +32,7 @@ export const DEFAULTS = {
   edgeBand: 45,             // width of the edge zone (units)
   rim: 0.22,                // edge hair brightening
   rimSpread: 0,             // 0: the rim only in the edge band; else how far into the shape its light reaches (units), fading softly
+  pawFold: false,           // a leg's fur: its paw's joint (each spine's last but one point) creases at far smaller bends (see PAW_FOLD)
   rimTop: 0,                // 0: that rim all round the outline; 1: only where the outline faces up (the shape's own up), none where it faces less than about 12° above level
   // base: soft shape under the fur
   blur: 23,                 // shape edge blur (units)
@@ -62,7 +63,7 @@ const QUALITY = {
 };
 const BASE_KEYS = new Set(['blur', 'edgeInset', 'keepShape']);
 const COLOR_KEYS = new Set(['unit', 'colorInner', 'colorOuter', 'shading', 'colorSource', 'colorBlur', 'invert', 'variation', 'rim', 'rimTop', 'rimSpread', 'crisp', 'hairInset', 'edgeBand']);   // (the last five: the base takes the hairs' average brightness)
-const LIVE_KEYS = new Set(['pet', 'petRadius']);
+const LIVE_KEYS = new Set(['pet', 'petRadius', 'pawFold']);   // (pawFold: read when drawn)
 
 /* ---------- small helpers ---------- */
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -103,7 +104,10 @@ function chamfer(d, near, GN) {                      // 2-pass 8-neighbour dista
 // Each spot goes with up to four segments (a_s0…a_s3), shared out by a_w: the shares change smoothly everywhere, so the fur
 // never tears where one segment or part hands over to the next
 // a joint's crease: folded from FOLD[0]° (nothing yet) to FOLD[1]° (cut all the way), and how dark its shadow is at most
-const FOLD = [158, 175, 0.25];   // (from 158°: only a joint folded nearly flat creases; Sit's knee (about 150°) blends as before)
+const FOLD = [158, 175, 0.25];
+// with pawFold (a leg's fur): its last joint (the paw's: wrist, ball of the foot) creases from far less, so a paw turned against its leg takes
+// the fur past the leg's end with it, none of it going on along the leg (it stuck out past the turned paw: the user, 2026-11-22)
+const PAW_FOLD = [45, 95];   // (from 158°: only a joint folded nearly flat creases; Sit's knee (about 150°) blends as before)
 // how much of a bit of fur a leg (any part not the hub) must hold for it to be in that leg's layer (see build, bend's z)
 const LEG_LAYER = 0.3;
 // how far a hair reaching the floor turns: 1 just far enough to stop at it, more curls it in under the paw
@@ -148,7 +152,9 @@ float foldAt(int J, out float sg){
   vec2 a = u_sp[J].xy - u_sp[J - 1].xy, b = u_sp[J + 1].xy - u_sp[J].xy; float la = length(a), lb = length(b);
   if (la < 1e-5 || lb < 1e-5) return 0.0;
   a /= la; b /= lb; sg = a.x * b.y - a.y * b.x >= 0.0 ? 1.0 : -1.0;
-  return smoothstep(${(FOLD[0] * Math.PI / 180).toFixed(4)}, ${(FOLD[1] * Math.PI / 180).toFixed(4)}, acos(clamp(dot(a, b), -1.0, 1.0)));
+  float ang = acos(clamp(dot(a, b), -1.0, 1.0));
+  if (u_pawFold > 0.5 && (int(u_sp[J + 1].w + 0.5) & 2) != 0) return smoothstep(${(PAW_FOLD[0] * Math.PI / 180).toFixed(4)}, ${(PAW_FOLD[1] * Math.PI / 180).toFixed(4)}, ang);
+  return smoothstep(${(FOLD[0] * Math.PI / 180).toFixed(4)}, ${(FOLD[1] * Math.PI / 180).toFixed(4)}, ang);
 }
 // one tie's share kept (1, or less where it lies past its bone across a crease), and the fold's shadow on it (its bone below a crease)
 float creaseOf(vec4 s, inout float shade, float w){
@@ -177,7 +183,7 @@ layout(location=2) in vec4 a_s1;
 layout(location=3) in vec4 a_s2;
 layout(location=4) in vec4 a_s3;
 layout(location=5) in vec4 a_w;
-uniform float u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}]; uniform int u_layer;
+uniform float u_k, u_floor, u_pawFold; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}]; uniform int u_layer;
 out vec2 v_uv; out float v_y; out float v_own; out float v_shade; out float v_cut;
 ${SPINE_GLSL}
 float own(vec4 s, float w){ return w > 0.0 && int(u_rs[int(s.x + 0.5)].z + 0.5) == u_layer ? w : 0.0; }   // (u_rs .z: each point's spine)
@@ -213,7 +219,7 @@ layout(location=6) in vec4 a_s1;
 layout(location=7) in vec4 a_s2;
 layout(location=8) in vec4 a_s3;
 layout(location=9) in vec4 a_w;      // …and the share of each
-uniform float u_px, u_bent, u_k, u_floor; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}], u_ln[${MAXP / 4}];
+uniform float u_px, u_bent, u_k, u_floor, u_pawFold; uniform vec4 u_view, u_sp[${MAXP}], u_rs[${MAXP}], u_ln[${MAXP / 4}];
 out vec4 v_col; out float v_side; out float v_soft;
 ${SPINE_GLSL}
 // how long the hairs are at a spot on a spine (× as drawn: each spine point's own, see bend), along its segment
@@ -292,6 +298,8 @@ export function createFur(container, options = {}) {
   let rand, lastShape = null;
   // how much of the rim a spot of the outline gets (rimTop: only where it faces up; NY is the outline's outward way there, −1 = up)
   const rimK = s => { const t = o.rimTop || 0; if (!t) return 1; const u = clamp((-0.2 - NY[s]) / 0.6, 0, 1); return 1 - t + t * u * u * (3 - 2 * u); };
+  let SHORT_PX = null;
+  const SHORT = 0.75, shortAt = i => SHORT_PX && i >= 0 && SHORT_PX[i * 4 + 3] ? SHORT_PX[i * 4] / 255 * SHORT_PX[i * 4 + 3] / 255 : 0;   // (0 full length … 1 SHORT off)
   let COV = null, SDFB = null, SVG_PX = null, LIGHT_PX = null, FADE_PX = null, IN = null, SDF, NEAR, NX, NY, COL, BASE_RGB, DMAX = 1, CEN = { x: W / 2, y: H / 2 };
   // spines: as drawn (shape units, SPINES_SVG) and in stage units (SPINES; SP all their points, FLAG first/last, RT directions);
   // FIT: how the shape sits in the stage (stage = shape × s + t); BENT: the spines as they are now (see bend)
@@ -345,6 +353,15 @@ export function createFur(container, options = {}) {
       fadeSrc = L.innerHTML;
       for (const r of [g, outline]) r.querySelectorAll('[data-fur-fade]').forEach(el => el.remove());
     }
+    // shorter hair (data-fur-short: a grey picture, white where the hairs are shortest, SHORT of their length off at most): a place the fur
+    // should lie closer (a kitten's chin). Only short pictures, then left out of the others
+    let shortSrc = null;
+    if (g.querySelector('[data-fur-short]')) {
+      const L = g.cloneNode(true);
+      L.querySelectorAll('path,ellipse,circle,rect,polygon,polyline,line,text,use,image').forEach(el => { if (!el.closest('[data-fur-short]') && !el.closest('defs')) el.remove(); });
+      shortSrc = L.innerHTML;
+      for (const r of [g, outline]) r.querySelectorAll('[data-fur-short]').forEach(el => el.remove());
+    }
     const bb = outline.getBBox(), maskSrc = outline.innerHTML, colorSrc = g.innerHTML;
     holder.remove();
     if (!bb.width || !bb.height) throw new Error('The shape is empty');
@@ -370,6 +387,7 @@ export function createFur(container, options = {}) {
     SVG_PX = await raster(colorSrc, false);                         // the SVG's own colours
     LIGHT_PX = lightSrc ? await raster(lightSrc, false) : null;     // the light, if given
     FADE_PX = fadeSrc ? await raster(fadeSrc, false) : null;        // the fade, if given
+    SHORT_PX = shortSrc ? await raster(shortSrc, false) : null;     // shorter hair, if given
     return m;
   }
 
@@ -650,7 +668,7 @@ export function createFur(container, options = {}) {
           if (ex ? d < hairInset || d > hairInset + edgeBand || SVG_PX[i * 4 + 3] < 128 : !inv && d < hairInset) break;   // roots inside the hair outline
           const dn = clamp(1 - d / DMAX, 0, 1), e = inv && !ex ? 0 : edgeOf(d);
           const len0 = (hairMin + (hairMax - hairMin) * dn ** 1.6) * P.len * (0.75 + 0.5 * rand());
-          let len = len0 * (1 + o.edgeLength * e * e);                   // longer toward the edge
+          let len = len0 * (1 + o.edgeLength * e * e) * (1 - SHORT * shortAt(i));   // longer toward the edge (shorter where data-fur-short says)
           const a = flow(x, y, ex) + (rand() - 0.5) * 0.22;
           const ai = gi(x + Math.cos(a) * 12 * z, y + Math.sin(a) * 12 * z), rim = !(inv && !ex) && (ai < 0 || (ex ? -SDF[ai] : SDF[ai]) < hairInset);
           if (rim) len *= 1.2 + 0.6 * rand();                            // wispy outline
@@ -689,7 +707,7 @@ export function createFur(container, options = {}) {
     gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; };
   const prog = link(VS, FS), progB = link(VSB, FSB);
   const U = (p, ...n) => Object.fromEntries(n.map(k => [k, gl.getUniformLocation(p, 'u_' + k)]));
-  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'rs', 'floor', 'ln'), uB = U(progB, 'k', 'view', 'sp', 'rs', 'tex', 'floor', 'fsoft', 'layer', 'uvpx');
+  const uH = U(prog, 'px', 'bent', 'k', 'view', 'sp', 'rs', 'floor', 'ln', 'pawFold'), uB = U(progB, 'k', 'view', 'sp', 'rs', 'tex', 'floor', 'fsoft', 'layer', 'uvpx', 'pawFold');
   // the bent base: grid (x, y, then its spine spots and their shares: 2 + SPF floats a point), and the base picture as a texture
   const vaoB = gl.createVertexArray(), gridBuf = gl.createBuffer(), idxBuf = gl.createBuffer(), tex = gl.createTexture(); let nIdx = 0;
   gl.bindVertexArray(vaoB); gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf);
@@ -799,7 +817,7 @@ export function createFur(container, options = {}) {
     const base = layer => {
       if (!BENT || !nIdx) return;
       gl.useProgram(progB); gl.bindVertexArray(vaoB);
-      gl.uniform1f(uB.k, k); gl.uniform1f(uB.floor, BENT.floor); gl.uniform1f(uB.fsoft, 0.5 * o.hairMax * Z() * k);   // (fsoft: the soft base fades out over half a long hair above the floor)
+      gl.uniform1f(uB.k, k); gl.uniform1f(uB.pawFold, o.pawFold ? 1 : 0); gl.uniform1f(uB.floor, BENT.floor); gl.uniform1f(uB.fsoft, 0.5 * o.hairMax * Z() * k);   // (fsoft: the soft base fades out over half a long hair above the floor)
       gl.uniform4fv(uB.view, view); gl.uniform4fv(uB.sp, BENT.sp); gl.uniform4fv(uB.rs, RS); gl.uniform1i(uB.tex, 0); gl.uniform1i(uB.layer, layer);
       gl.uniform1f(uB.uvpx, view[2] / (780 * cv.width * k));   // (how much of the base's picture one pixel spans, drawn at its own size)
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -812,7 +830,7 @@ export function createFur(container, options = {}) {
     base(-1);
     if (!N) { gl.bindVertexArray(vaoH); return; }
     gl.useProgram(prog); gl.bindVertexArray(vaoH);
-    gl.uniform1f(uH.px, cv.width / view[2]); gl.uniform4fv(uH.view, view); gl.uniform1f(uH.bent, BENT ? 1 : 0); gl.uniform1f(uH.k, k); gl.uniform1f(uH.floor, BENT ? BENT.floor : 1e9);
+    gl.uniform1f(uH.pawFold, o.pawFold ? 1 : 0); gl.uniform1f(uH.px, cv.width / view[2]); gl.uniform4fv(uH.view, view); gl.uniform1f(uH.bent, BENT ? 1 : 0); gl.uniform1f(uH.k, k); gl.uniform1f(uH.floor, BENT ? BENT.floor : 1e9);
     if (BENT) { gl.uniform4fv(uH.sp, BENT.sp); gl.uniform4fv(uH.rs, RS); gl.uniform4fv(uH.ln, BENT.ln); }
     if (!BENT || PARTS.length < 2) { hairsFrom(0); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, VERTS, N); return; }
     const z = PARTS.map((P, j) => BENT.z && typeof BENT.z[j] === 'number' ? BENT.z[j] : HUB[j] ? -1 : j);   // (no z given: the hub at the back, the rest in order)

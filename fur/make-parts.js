@@ -60,6 +60,12 @@ function snap(which) {
   const fewer = (P, k) => Array.from({ length: k }, (_, i) => P[Math.round(i * (P.length - 1) / (k - 1))]);
   // a leg's round top (hip / shoulder circle) fades out toward the body's up, so where it lies over the body it melts into it, no edge
   const fadeTop = k => { const j = p.skel.joints[LEG_JOINT[k]], r = j[3] || j[2], u = k[0] === 'b' ? p.skel.hipUp : p.skel.up, id = 'furFade-' + k;
+    // the closer front leg runs up its shoulder blade to the withers (its point 1): its fur fades out from the shoulder (2) toward there, gone
+    // 70% of the way (the blade's top corner by the neck too), so the blade is furred but the shoulder doesn't show round and nothing grows past the spine (the user, 2026-11-22)
+    const W = k === 'fn' && p.skel.ctl && p.skel.ctl.W, B = W && p.skel.blade && p.skel.blade[0];
+    if (W && B){
+      return `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${f(j[0])}" y1="${f(j[1])}" x2="${f(j[0] + (W[0] - j[0]) * 0.7)}" y2="${f(j[1] + (W[1] - j[1]) * 0.7)}"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient></defs>` +
+        `<polygon data-fur-fade="" points="${B.map(q => f(q[0]) + ',' + f(q[1])).join(' ')}" fill="url(#${id})"/>`; }   // (only on the blade itself: a box round it faded the other legs laid out beside it)
     // (a back leg's once faded out over its whole hip circle (radial): its edge hairs still drew the circle round the hip, a round patch on
     // the body. Now as a front leg's: a straight fade upward from the joint, so the hip melts into the body's fur with no edge)
     return `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${f(j[0] - u[0] * r * 0.1)}" y1="${f(j[1] - u[1] * r * 0.1)}" x2="${f(j[0] + u[0] * r * 0.9)}" y2="${f(j[1] + u[1] * r * 0.9)}"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient></defs>` +
@@ -79,7 +85,10 @@ function snap(which) {
     : [item([$('tail'), $('ptTailCoat')], [$('tail')], FUR_SPINES.tail(p)[0])];
   if (L.every(it => !it.outline)) return null;   // (nothing of it in this coat)
   // side by side (legs: two rows, the back pair over the front pair), apart enough that every spot of each lies nearer its own spine than any other (a round shoulder reaches far from its spine)
-  const perRow = which === 'legs' ? 2 : L.length, GAP = 42, boxes = L.map(it => { const h = holder(`<g>${it.outline}</g>`), b = h.firstChild.getBBox(); h.remove(); return b; });   // (the outline only: colour bands are bigger, cut to it)
+  const perRow = which === 'legs' ? 2 : L.length, GAP = 42, boxes = L.map(it => { const h = holder(`<g>${it.outline}</g>`), o = h.firstChild.getBBox(); h.remove();
+    // (its line too: a front leg's starts at the withers, behind its shoulder, and reached back over the leg beside it, whose fur then followed it)
+    const xs = [o.x, o.x + o.width, ...it.spine.map(q => q[0])], ys = [o.y, o.y + o.height, ...it.spine.map(q => q[1])], x = Math.min(...xs), y = Math.min(...ys);
+    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }; });   // (the outline only: colour bands are bigger, cut to it)
   let body = '', y = null; const spines = [], refs = new Set();
   for (let r = 0; r * perRow < L.length; r++) {
     const row = L.slice(r * perRow, (r + 1) * perRow), rb = boxes.slice(r * perRow, (r + 1) * perRow), top = Math.min(...rb.map(b => b.y));
@@ -205,6 +214,12 @@ function stagePoints([svg, pts]) {
   await page.addInitScript(c => { window.__FURCFG = c; }, furCfg);
   await page.goto('file://' + path.join(ROOT, 'cat-stretch.html'));
   await page.waitForFunction(() => window.catDebug);
+  // the fur's template paws: the toe's ring (5, a front leg's 4 on the page) as big as the wrist's / ball's, so the paw is even from one to the
+  // other; the fur then takes each position's own two rings, its width running straight between them (from Gav's own standing cone, the
+  // two scaled differently, it bulged up half way: the user, 2026-11-22). Only in this snapshot: see furLegWidths
+  // and longer (PAW_LONG × its length): a short paw's fur all lay within its wrist's ring, tied to the leg and the paw alike, and stayed there
+  // when the paw turned (the toe's ring showed bare); bent to each position it takes that position's own paw length
+  await page.evaluate(() => { const st = catDebug.settings.shapes.stand; st.rf4 = 2 * (st.rf3 ?? 1); st.rb5 = 2 * (st.rb4 ?? 1); st.pawW = (st.pawW ?? 1) * 2.4; });
   const GAV = {};
   // the one light, from Gav standing (the Siamese: the outline is the same in both coats)
   await page.evaluate(() => document.querySelector('input[name=coat][value=siamese]').click());
