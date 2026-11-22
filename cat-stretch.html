@@ -5659,7 +5659,10 @@ const FUR_UNDER = new Set(['body', 'legs']), furUsed = g => furFull() ? g.part !
 // Paw fur (the fur page, with the cat's values): the hairs' length from front leg point 3 / back leg point 4 down to the toe, × the leg's
 // (easing in from the point above). Gav's own (on the leg spines' points, see FUR_SPINES.legs), so fur.js never takes it as a value
 const furPaw = () => { const C = BODY_FUR.cfg || {}, c = BODY_FUR.coat || furCoat(), v = (C[(furFull() ? 'fullBody' : 'legs') + c] || C['legs' + c] || {}).pawFur; return v > 0 ? v : 1; };
-const pawFurOn = (P, k) => { const f = furPaw(), from = k[0] === 'b' ? 4 : 3; return P.map((q, i) => [q[0], q[1], q[2] ?? 1, i >= from ? f : 1]); };   // (spine points: above the top, 1, 2, …)
+// (spine points: above the top, 1, 2, …). A front leg's sock is its long forearm, elbow 2 → wrist 3, so its point 2 already takes half
+// (a back leg's lower part is short: it eases in from the hock, 3 → 4)
+const pawFurOn = (P, k) => { const f = furPaw(), from = k[0] === 'b' ? 4 : 3;
+  return P.map((q, i) => [q[0], q[1], q[2] ?? 1, i >= from ? f : k[0] === 'f' && i === from - 1 ? (1 + f) / 2 : 1]); };
 const bodyFurValues = (part, coat) => { const C = BODY_FUR.cfg, from = furFull() && FUR_UNDER.has(part) ? 'fullBody' : part;
   const { glow, glowSize, glowMid, glowOval, glowTurn, glowColors, pawFur, ...v } = C[from + coat] || { ...((from === 'innerEars' && C['ears' + coat]) || (from === 'fullBody' && C['legs' + coat]) || C['head' + coat] || C.headSiamese), points: BODY_FUR.gav[from].points };
   v.points = (C[part + coat] || {}).points || BODY_FUR.gav[part].points;   // (the flow points are each drawing's own: placed on it)

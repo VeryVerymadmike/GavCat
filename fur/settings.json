@@ -28,7 +28,8 @@
   "points": [],
   "pet": false,
   "petRadius": 70,
-  "rimSpread": 60
+  "rimSpread": 60,
+  "pawFur": 0.56
  },
  "headBlack": {
   "quality": "medium",
@@ -124,7 +125,8 @@
   "points": [],
   "pet": false,
   "petRadius": 70,
-  "rimSpread": 60
+  "rimSpread": 60,
+  "pawFur": 0.56
  },
  "legsSiamese": {
   "quality": "medium",
@@ -155,7 +157,8 @@
   "points": [],
   "pet": false,
   "petRadius": 70,
-  "rimSpread": 60
+  "rimSpread": 60,
+  "pawFur": 0.56
  },
  "bodySiamese": {
   "quality": "medium",
@@ -193,7 +196,8 @@
   ],
   "pet": false,
   "petRadius": 70,
-  "rimSpread": 60
+  "rimSpread": 60,
+  "pawFur": 0.56
  },
  "neckSiamese": {
   "quality": "medium",
@@ -407,6 +411,7 @@
   "points": [],
   "pet": false,
   "petRadius": 40,
-  "rimSpread": 60
+  "rimSpread": 60,
+  "pawFur": 0.56
  }
 }
