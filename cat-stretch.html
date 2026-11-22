@@ -2517,6 +2517,9 @@ function bellyShape(p, B){
   const at = ([s, h]) => [H[0] + ux * s + nx * h, H[1] + uy * s + ny * h];
   // from the back of the hips to past the front of the chest
   let s0 = -(rad('waistR') + rad('waistL')) / 2 * k, s1 = L + (rad('shoulderR') + rad('shoulderL')) / 2 * BELLY.front * k; const X = sh.bellyX || 0, Y = sh.bellyY || 0;
+  // side on, the back of the legs is their haunches (see HAUNCH), not the hip circles (kept off the tail point, their backs reach out
+  // past the haunches): the belly ends a little inside the haunches, or its back end showed under the tail as a flat-topped block
+  { const hz = ['bn', 'bf'].map(q => haunchShape(p, q)).filter(Boolean); if (hz.length) s0 = Math.max(s0, Math.min(...hz.flat().map(S_)) + BELLY_IN); }
   const blades = bl ? bl.map(B => B.map(q => [S_(q), H_(q)])) : [];
   for (const B of blades) for (const [a] of B) s1 = Math.max(s1, L + (a - L) * BELLY.front * k);
   // the body's own lower edge (hip and shoulder circles, the belly line): the blob never shows less of the belly than that
@@ -4788,6 +4791,7 @@ function upperLeg(p, k){
   const P = hp && p.legs[k].length > 4 ? circlesHull([...hp, fold, hk], p.ground) : p.legs[k].length > 4 ? hullsUnion(hullsUnion(thigh, circlesHull([fold, hk], p.ground)), circlesHull(hp ? [...hp, hk] : [[anchor[0], anchor[1], anchor[2] * BACK_FILL, 0], hk], p.ground)) : thigh;
   return 'M' + P.map(fmt).join('L') + 'Z';
 }
+const BELLY_IN = 3;     // how far inside the haunches' back the belly ends (body units; see bellyShape)
 const BLADE_LEG = 0.3;    // how far up its shoulder blade a front leg's top reaches (0 shoulder 1 … 1 the withers)
 const BACK_FILL = 0.85;   // the back of a back leg: the hip circle's share (of its size) in the fill to the hock behind the knee
 const THIGH_FULL = 0.8;   // a back thigh's width half way down: 0 the straight line from hip to knee … 1 as wide as the hip
