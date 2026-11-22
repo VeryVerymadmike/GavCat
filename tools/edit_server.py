@@ -65,9 +65,11 @@ class Handler(SimpleHTTPRequestHandler):
                 try:
                     with open(FUR) as f: allp = json.load(f)
                 except FileNotFoundError: allp = {}
+                drawn = (allp.get(part) or {}).get('backSock') != settings.get('backSock')   # (Back leg socks: in Gav's drawing, so the snapshot)
                 allp[part] = settings
                 with open(FUR + '.tmp', 'w') as f: json.dump(allp, f, indent=1)
                 os.replace(FUR + '.tmp', FUR)
+            if drawn: parts_soon()
         except Exception as e:
             print('fur save failed:', e); return self.reply(400, {'error': str(e)})
         self.reply(200, {'ok': True})

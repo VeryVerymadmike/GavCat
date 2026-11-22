@@ -200,6 +200,9 @@ function stagePoints([svg, pts]) {
     window.requestAnimationFrame = cb => { q.push(cb); return q.length; }; window.cancelAnimationFrame = () => {};
     window.__tick = (n, ms = 16) => { for (let i = 0; i < n; i++){ T += ms; const run = q; q = []; run.forEach(cb => cb(T)); } };
   });
+  // the fur page's own values for Gav's drawing (Back leg socks): the cat page has no fur loaded here to read them from
+  const furCfg = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'fur', 'settings.json'), 'utf8')); } catch (e) { return {}; } })();
+  await page.addInitScript(c => { window.__FURCFG = c; }, furCfg);
   await page.goto('file://' + path.join(ROOT, 'cat-stretch.html'));
   await page.waitForFunction(() => window.catDebug);
   const GAV = {};

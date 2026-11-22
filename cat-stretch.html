@@ -263,7 +263,7 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
       </mask>
       <!-- where the tail is painted again: over the lower legs under its layer (they lie outside the soft-merge layer the tail is in) -->
       <clipPath id="cpTailOver"><use href="#low-bf"/><use href="#low-ff"/><use href="#low-bn"/><use href="#low-fn"/></clipPath>
-      <clipPath id="cpLow-ff"><use href="#low-ff"/></clipPath><clipPath id="cpLow-fn"><use href="#low-fn"/></clipPath>
+      <clipPath id="cpLow-ff"><use href="#low-ff"/></clipPath><clipPath id="cpLow-fn"><use href="#low-fn"/></clipPath><clipPath id="cpLow-bf"><use href="#low-bf"/></clipPath><clipPath id="cpLow-bn"><use href="#low-bn"/></clipPath>
       <!-- a little bigger than the ears (round each anchor), so its edge never lands on theirs and shows as a line -->
       <clipPath id="cpEars"><use href="#earL" transform="translate(-22.33 -8.91) scale(1.06) translate(22.33 8.91)"/><use href="#earR" transform="translate(30.79 -8.93) scale(1.06) translate(-30.79 8.93)"/></clipPath>
       <!-- an upper leg's edge melts into the body, so its shading is no hard shape sliding over it -->
@@ -358,7 +358,7 @@ html.dockR #showBtn{left:auto;right:calc(12px + env(safe-area-inset-right, 0px))
         </g>
         <!-- tail wrapped in front of the body (lying down): a wall-colored outline separates it from the body -->
         <!-- lower legs + paws: crisp edges so ankles and heels keep sharp corners -->
-        <g id="lowerLegs"><path id="low-bf"/><path id="low-ff"/><g class="coat" clip-path="url(#cpLow-ff)"><g id="ptLow-ff"></g></g><path id="low-bn"/><path id="low-fn"/><g class="coat" clip-path="url(#cpLow-fn)"><g id="ptLow-fn"></g></g></g>
+        <g id="lowerLegs"><path id="low-bf"/><g class="coat" clip-path="url(#cpLow-bf)"><g id="ptLow-bf"></g></g><path id="low-ff"/><g class="coat" clip-path="url(#cpLow-ff)"><g id="ptLow-ff"></g></g><path id="low-bn"/><g class="coat" clip-path="url(#cpLow-bn)"><g id="ptLow-bn"></g></g><path id="low-fn"/><g class="coat" clip-path="url(#cpLow-fn)"><g id="ptLow-fn"></g></g></g>
         <!-- the head over the lower legs under its layer: painted again, only in a box round each leg (ears and face stain come next) -->
         <g id="skullOverLegs" clip-path="url(#cpLegBoxes)" pointer-events="none"><use href="#skull"/></g>
         <!-- the ears: behind the head, which is painted again over them (only where they are, so it covers nothing else) -->
@@ -5281,6 +5281,7 @@ function drawMask(sh, turn = 1, st, open = 0){
 }
 function buildCoat(){
   for (const k of ['ff', 'fn']) buildBand($('ptLow-' + k), 30, COAT.ramp);
+  for (const k of ['bf', 'bn']) buildBand($('ptLow-' + k), 80, COAT.ramp);   // (wide: the foot runs on forward from the ball)
   buildBand($('ptTail'), 40, COAT.ramp);
   buildMask($('ptFace'));
 }
@@ -5296,6 +5297,17 @@ function along(C, L, s){
   const a = C[i-1], b = C[i], d = [b[0] - a[0], b[1] - a[1]], l = Math.hypot(...d) || 1, t = clamp((s - L[i-1]) / l, 0, 1);
   return { q:[a[0] + d[0]*t, a[1] + d[1]*t], u:[d[0] / l, d[1] / l], i };
 }
+// where a back leg's sock starts (Back leg socks, 0 none … 1 toward the hock: that share of BACK_SOCK_TOP of the way from the ball of the
+// foot (4) up to the hock (3); higher, it would start above the lower leg's own drawing and end there in a hard edge), the way down the leg there, and how far
+// past it the band must reach; null: none
+const BACK_SOCK_TOP = 0.7;   // (Back leg socks at its highest: this share of the way up to the hock; right at the hock the brown met the lower leg's top)
+function backSockAt(p, k, s = furCatValue('backSock', 0)){
+  const L = p.legs[k]; if (!(s > 0.01) || !L || L.length < 5) return null;
+  const [, , hk, ball, toe] = L, P = ball, Q = hk, t = BACK_SOCK_TOP * clamp(s, 0, 1), O = [P[0] + (Q[0] - P[0]) * t, P[1] + (Q[1] - P[1]) * t];
+  if (dist(P, Q) < 1e-6) return null;
+  const u = [(P[0] - Q[0]) / dist(P, Q), (P[1] - Q[1]) / dist(P, Q)];
+  return { O, u, far: Math.max(dist(O, ball), dist(O, toe)) + 40 };
+}
 function drawCoat(p, tailC, tailR){
   if (S.coat !== 'siamese') return;
   const r = COAT.ramp, sh = p.shape;
@@ -5304,6 +5316,9 @@ function drawCoat(p, tailC, tailR){
     const [, K, W] = p.legs[k], d = [W[0] - K[0], W[1] - K[1]], l = Math.hypot(...d) || 1, u = [d[0] / l, d[1] / l];
     putBand($('ptLow-' + k), [K[0] + d[0] * COAT.frontAt, K[1] + d[1] * COAT.frontAt], u, l * (1 - COAT.frontAt) + 40);
   }
+  // back legs: dark from as high as Back leg socks (the fur page) says down to the toe; none at 0
+  for (const k of ['bf', 'bn']){ const m = $('ptLow-' + k), B = backSockAt(p, k); if (!m) continue;
+    m.parentNode.setAttribute('display', B ? 'inline' : 'none'); if (B) putBand(m, B.O, B.u, B.far); }
   // tail: point all along, painted pale from the root to the ramp (following its curve)
   const L = [0];
   for (let i = 1; i < tailC.length; i++) L.push(L[i-1] + dist(tailC[i], tailC[i-1]));
@@ -5420,10 +5435,10 @@ function buildFur(){
   for (const j in els.massW) part(els.massW[j], 190, { run:toRump });
   els.vol.forEach(e => part(e, 70, { run:toRump }));
   for (const k in els.legs) part(els.legs[k], 230, { run:p => unit2(p.legs[k][0], p.legs[k][1]), steady:1 });
-  for (const k in els.low) part(els.low[k], 230, { run:p => { const L = p.legs[k], n = L.length; return unit2(L[n - 3], L[n - 2]); }, steady:-1, dark:k[0] === 'f' && ((x, y, h, p) => {
+  for (const k in els.low) part(els.low[k], 230, { run:p => { const L = p.legs[k], n = L.length; return unit2(L[n - 3], L[n - 2]); }, steady:-1, dark:k[0] === 'f' ? ((x, y, h, p) => {
     const [, K, W] = p.legs[k], u = unit2(K, W), l = dist(K, W) || 1;
     return ((x - K[0]) * u[0] + (y - K[1]) * u[1]) / l > COAT.frontAt + h.at * 0.2;
-  }) });
+  }) : ((x, y, h, p) => { const B = backSockAt(p, k); return !!B && (x - B.O[0]) * B.u[0] + (y - B.O[1]) * B.u[1] > h.at * 6; }) });
   part(els.neck, 150, { run:p => unit2([p.head.x, p.head.y], p.neck || p.tail[0]) });
   part($('skull'), 250, { head:true });
   for (const e of ['L', 'R']){
@@ -5658,13 +5673,17 @@ const FUR_LIGHT = ['rim', 'rimSpread'], furLightPart = () => furFull() ? 'fullBo
 const FUR_UNDER = new Set(['body', 'legs']), furUsed = g => furFull() ? g.part !== 'body' : g.part !== 'fullBody';   // (full body: the closer legs are in it; the legs' groups still draw one of them where it goes over the head)
 // Paw fur (the fur page, with the cat's values): the hairs' length from front leg point 3 / back leg point 4 down to the toe, × the leg's
 // (easing in from the point above). Gav's own (on the leg spines' points, see FUR_SPINES.legs), so fur.js never takes it as a value
-const furPaw = () => { const C = BODY_FUR.cfg || {}, c = BODY_FUR.coat || furCoat(), v = (C[(furFull() ? 'fullBody' : 'legs') + c] || C['legs' + c] || {}).pawFur; return v > 0 ? v : 1; };
+// a value set on the fur page with the cat's (Gav's own, not fur.js's: Paw fur, Back leg socks), this coat's; make-parts.js, which has no
+// fur loaded, hands the settings in as window.__FURCFG
+const furCatValue = (key, dflt) => { const C = BODY_FUR.cfg || window.__FURCFG || {}, c = BODY_FUR.coat || furCoat(), full = !!(C.options && C.options.fullBody);
+  const v = (C[(full ? 'fullBody' : 'legs') + c] || C['legs' + c] || {})[key]; return typeof v === 'number' ? v : dflt; };
+const furPaw = () => { const v = furCatValue('pawFur', 1); return v > 0 ? v : 1; };
 // (spine points: above the top, 1, 2, …). A front leg's sock is its long forearm, elbow 2 → wrist 3, so its point 2 already takes half
 // (a back leg's lower part is short: it eases in from the hock, 3 → 4)
 const pawFurOn = (P, k) => { const f = furPaw(), from = k[0] === 'b' ? 4 : 3;
   return P.map((q, i) => [q[0], q[1], q[2] ?? 1, i >= from ? f : k[0] === 'f' && i === from - 1 ? (1 + f) / 2 : 1]); };
 const bodyFurValues = (part, coat) => { const C = BODY_FUR.cfg, from = furFull() && FUR_UNDER.has(part) ? 'fullBody' : part;
-  const { glow, glowSize, glowMid, glowOval, glowTurn, glowColors, pawFur, ...v } = C[from + coat] || { ...((from === 'innerEars' && C['ears' + coat]) || (from === 'fullBody' && C['legs' + coat]) || C['head' + coat] || C.headSiamese), points: BODY_FUR.gav[from].points };
+  const { glow, glowSize, glowMid, glowOval, glowTurn, glowColors, pawFur, backSock, ...v } = C[from + coat] || { ...((from === 'innerEars' && C['ears' + coat]) || (from === 'fullBody' && C['legs' + coat]) || C['head' + coat] || C.headSiamese), points: BODY_FUR.gav[from].points };
   v.points = (C[part + coat] || {}).points || BODY_FUR.gav[part].points;   // (the flow points are each drawing's own: placed on it)
   if (part === 'ears'){ const c = C[furLightPart() + coat] || {}; for (const k of FUR_LIGHT) if (k in c) v[k] = c[k]; }   // (one light over the whole cat: the ears take the cat's)
   return { ...v, pet:false, invert: part === 'innerEars', keepShape:fur_keep(v), edgeInset:0, unit:FUR_UNIT, rimTop:1 }; };   // (rimTop: the edge brightness only on top, the user asked 2026-11-22)   // (keepShape: how far inside the drawn part it may end, see fur_keep)
