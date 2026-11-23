@@ -1271,6 +1271,9 @@ const toeK = (p, k) => (k[0] === 'b' ? p.shape.rb5 : p.shape.rf4) ?? 1;   // the
 const toeTipR = (p, k) => ankleBase(p, k) * 0.5 * toeK(p, k);   // (its ring's size only: Paw height and Toe roundness went, 2026-11-22: the paw is its rings)
 const TOE_AT = {};   // each leg's toe tip circle as last drawn ({ c, r }: for the back legs' ring at 5)
 const ankleR = (p, k) => ankleBase(p, k) * ((k[0] === 'f' ? p.shape.rf3 : p.shape.rb4) ?? 1);
+// the rings at 4 and at 5 are one size on all four legs: sizing one pair's ring sizes the other pair's too, to the same radius
+// (a front ring's base is 7.2, a back one's 7.6: [the other pair's key, × its value])
+const PAW_RING_TWIN = { rb4:['rf3', 7.6 / 7.2], rf3:['rb4', 7.2 / 7.6], rb5:['rf4', 7.6 / 7.2], rf4:['rb5', 7.2 / 7.6] };
 function solveLegs(p){
   for (const l in p.legs){
     // a back leg is solved as two bones, thigh + foot (they stay parallel) and the shin, then split (see "back legs: five points")
@@ -1486,9 +1489,10 @@ function refreshShapes(){
 // Shoulder blade size (bladeSize, dragged on its edge) grows both round their top at the withers, so they stay on the spine and reach
 // further down, shoulder 1 (and its leg) going with them: side on they are the chest's front (the shoulder circles only count as the cat turns to face you)
 const BLADE = [[0.753, -0.655], [0.572, -0.602], [0.385, -0.504], [0.205, -0.384], [0.064, -0.274], [-0.038, -0.172], [-0.1, -0.078], [-0.11, 0.007], [-0.071, 0.088], [0.029, 0.14], [0.188, 0.15], [0.391, 0.167], [0.637, 0.197], [0.852, 0.222], [1, 0.249], [1, 0.145], [0.989, 0.029], [0.997, -0.117], [1, -0.265], [1, -0.425], [0.99, -0.558], [0.905, -0.65]];   // (traced from the user's green shape over the cat skeleton, 2026-11-22: high and wide toward the neck, round round shoulder 1)
-function bladeShape(S, W, H, k = 1, g = 1){
+const FRONT_BLADE = 1.3, FRONT_BLADE_W = 0.5;   // facing you: a blade's top this many shoulder radii over the shoulder; its width × this
+function bladeShape(S, W, H, k = 1, g = 1, wy = 1){   // wy: × its width (facing you it is seen edge on: narrow)
   const dx = W[0] - S[0], dy = W[1] - S[1]; let v = [-dy, dx]; if (v[0] * (H[0] - S[0]) + v[1] * (H[1] - S[1]) > 0) v = [dy, -dx];   // (away from the head)
-  return BLADE.map(([x, y]) => { x = 1 + (x - 1) * g; y *= g; return [S[0] + (dx * x + v[0] * y) * k, S[1] + (dy * x + v[1] * y) * k]; });
+  return BLADE.map(([x, y]) => { x = 1 + (x - 1) * g; y *= g * wy; return [S[0] + (dx * x + v[0] * y) * k, S[1] + (dy * x + v[1] * y) * k]; });
 }
 // the haunch (a back leg's top, the behind): traced from the user's drawing over a real sitting cat's skeleton (mirrored to face the
 // way Gav does). It hangs between hip 1, the spine's tail point T and the knee (2): each point of it is [a, b] in T's frame (hip 1 at
@@ -1499,13 +1503,49 @@ const HAUNCH = [[-1.629, 2.156, 1.071, 0.145, 1], [-1.475, 2.377, 1.118, 0.048, 
   [1, 1.174, 0.171, -0.653, 0.31], [1, 0.981, 0.088, -0.643, 0.23], [1, 0.629, -0.022, -0.551, 0.11], [1, 0.317, -0.117, -0.466, 0], [1, 0.086, -0.182, -0.394, 0],
   [0.945, -0.121, -0.228, -0.306, 0], [0.541, -0.289, -0.207, -0.132, 0.01], [0.149, -0.362, -0.155, 0.019, 0.19], [-0.106, -0.347, -0.1, 0.105, 0.42],
   [-0.33, -0.08, 0.037, 0.131, 0.77], [-0.636, 0.436, 0.277, 0.136, 1], [-0.966, 1.02, 0.545, 0.136, 1], [-1.244, 1.501, 0.767, 0.139, 1], [-1.482, 1.85, 0.935, 0.154, 1]];
-// a back leg's haunch where it is now (its outline's points), or null: facing you, or with no tail point or knee to hang it from
-function haunchShape(p, k){
-  const sk = p.skel, C = sk && sk.ctl, L = p.legs[k]; if (!C || !C.T || (sk.view || 0) >= 0.5 || !L || L.length < 5) return null;
+// the haunch as traced (HAUNCH), hung from the hip, the spine's tail point T and the knee: it bends with the three, so it is only used
+// to measure Sit's haunch once (see haunchRef), side on
+function haunchTraced(p, k){
+  const sk = p.skel, C = sk && sk.ctl, L = p.legs[k]; if (!C || !C.T || !L || L.length < 5) return null;
   const h = L[0], uT = [C.T[0] - h[0], C.T[1] - h[1]], uK = [L[1][0] - h[0], L[1][1] - h[1]];
   if (Math.hypot(uT[0], uT[1]) < 1 || Math.hypot(uK[0], uK[1]) < 1) return null;
   const at = (u, a, b) => [h[0] + u[0] * a - u[1] * b, h[1] + u[1] * a + u[0] * b];
-  return HAUNCH.map(([a, b, c, d, w]) => { const q = at(uT, a, b), r = at(uK, c, d); return [q[0] + (r[0] - q[0]) * w, Math.min(q[1] + (r[1] - q[1]) * w, FLOOR_Y)]; });
+  return HAUNCH.map(([a, b, c, d, w]) => { const q = at(uT, a, b), r = at(uK, c, d); return [q[0] + (r[0] - q[0]) * w, q[1] + (r[1] - q[1]) * w]; });
+}
+/* a back leg's haunch where it is now (its outline's points), or null. The user, 2026-11-23: it keeps one shape, Sit's (as the Sit position
+   draws it), in every position and all through every move; it only turns with the thigh and shrinks (never below HAUNCH_MIN, never past
+   Sit's size) as the knee comes nearer the hip than in Sit. (Hung from T and the knee as traced, it bent and flipped between positions and
+   the fur broke on it.) Each leg has Sit's own haunch, as [along hip → knee, across] in Sit's hip → knee lengths.
+   Facing you the two are mirror images: the leg whose haunch would lie in over the body (HAUNCH_MIRROR) turns over through the move
+   (its haunch thins to HAUNCH_MIN across, half way round, and widens again the other way), so it never jumps */
+const HAUNCH_MIN = 0.01, HAUNCH_MIRROR = 'bf';
+const HAUNCH_REF = { key:null, bn:null, bf:null, busy:false };
+function haunchRef(k){
+  const key = JSON.stringify(S.shapes && S.shapes.sit);
+  if (HAUNCH_REF.key !== key && !HAUNCH_REF.busy){
+    HAUNCH_REF.busy = true;
+    try {
+      const { P, T } = stateMoment(['sit']), ps = poseAt(P, T);
+      for (const q of ['bn', 'bf']){
+        const hs = haunchTraced(ps, q), L = ps.legs[q]; if (!hs) { HAUNCH_REF[q] = null; continue; }
+        const h = L[0], e0 = [L[1][0] - h[0], L[1][1] - h[1]], d = Math.hypot(e0[0], e0[1]) || 1, e = [e0[0] / d, e0[1] / d], n = [-e[1], e[0]];
+        HAUNCH_REF[q] = { d, pts: hs.map(r => { const x = r[0] - h[0], y = r[1] - h[1]; return [(x * e[0] + y * e[1]) / d, (x * n[0] + y * n[1]) / d]; }) };
+      }
+      HAUNCH_REF.key = key;
+    } catch (err) { console.warn('haunch: Sit not measured', err); }
+    finally { HAUNCH_REF.busy = false; }
+  }
+  return HAUNCH_REF[k];
+}
+function haunchShape(p, k){
+  const sk = p.skel, L = p.legs[k]; if (!sk || !L || L.length < 5) return null;
+  if (HAUNCH_REF.busy) return haunchTraced(p, k);   // (while Sit itself is being measured)
+  const R = haunchRef(k); if (!R) return null;
+  const h = L[0], e0 = [L[1][0] - h[0], L[1][1] - h[1]], d = Math.hypot(e0[0], e0[1]); if (d < 1e-3) return null;
+  const e = [e0[0] / d, e0[1] / d], n = [-e[1], e[0]], s = clamp(d / R.d, HAUNCH_MIN, 1) * R.d;
+  let f = 1;
+  if (k === HAUNCH_MIRROR){ const m = 1 - 2 * clamp(sk.view || 0, 0, 1); f = (m < 0 ? -1 : 1) * Math.max(HAUNCH_MIN, Math.abs(m)); }
+  return R.pts.map(([a, b]) => [h[0] + (e[0] * a + n[0] * b * f) * s, Math.min(h[1] + (e[1] * a + n[1] * b * f) * s, FLOOR_Y)]);
 }
 const HIP_REF = 0.66;   // the Hip size whose circle reaches up to the spine's tail point T (bigger hips grow away from T, into the body)
 const RUMP_RIM = 1.0;   // how far the back of the body may reach past the hips (1 = their rim)
@@ -1652,7 +1692,8 @@ function applyShape(p){
   for (const [j, l] of [['shoulderR', 'fn'], ['shoulderL', 'ff']]) J[j] = [J[j][0] + sh[l + '1x'], J[j][1] + sh[l + '1y'], ...J[j].slice(2)];
   // head rides on the neck base (front-top of the ribcage)
   const nUV = mix(NECK_UV, NECK_UV_FRONT, v), n0 = fromFrame(F0[2], nUV), n1 = fromFrame(FJ, nUV);
-  p.head.x += n1[0] - n0[0] + sh.headX * (1 - face); p.head.y += n1[1] - n0[1] - sh.headY; p.head.rot += sh.headRot || 0;
+  p.head.x += n1[0] - n0[0] + sh.headX * (1 - face) + (sh.headFx || 0) * face;   // (headFx: left / right, facing you)
+  p.head.y += n1[1] - n0[1] - sh.headY; p.head.rot += sh.headRot || 0;
   p.neck = n1;   // (no chest: see below, the neck hangs under the spine)
   p.neckBow = (sh.neckCurve || 0) * (1 - v);   // the neck's bend (+: its back bows out), see neckMid
   /* the spine: Bézier curves through five points, each with its own handles, all dragged on the skeleton: the head (H), the withers (W, over
@@ -1702,7 +1743,17 @@ function applyShape(p){
     let lo = 0, hi = 1; for (let k = 0; k < 14; k++){ const m = (lo + hi) / 2; if (outSpine(lerp2(q, f, m)) > -BLADE_IN) lo = m; else hi = m; }
     return lerp2(q, f, hi);
   });
-  const blades = kS > 0.02 ? ['shoulderR', 'shoulderL'].map(j => underSpine(bladeShape([J[j][0], J[j][1]], spW, H, kS), J[j])) : null;
+  // facing you (after reference/image copy 28.png, 2026-11-23) there is no withers to share: each front leg has its own blade, from its
+  // shoulder (point 2) straight up to its own top (point 1: FRONT_BLADE × the shoulder's size above it, moved by fn0x / fn0y, ff0x / ff0y),
+  // seen edge on (narrow, FRONT_BLADE_W), its wide side out to the side. Half way round the side blades hand over to these
+  let fMid = null;   // (facing you: the bent middle, see below)
+  const tops = {}, FB = v >= 0.5 ? ['shoulderR', 'shoulderL'].map((j, n) => {
+    const l = n ? 'ff' : 'fn', S0 = [J[j][0], J[j][1]], d0 = [S0[0] - sm[0], S0[1] - sm[1]], dl = Math.hypot(d0[0], d0[1]);
+    const out = dl > 0.5 ? [d0[0] / dl, d0[1] / dl] : [sf[0] * (n ? 1 : -1), sf[1] * (n ? 1 : -1)];
+    const top = tops[l] = [S0[0] - su[0] * FRONT_BLADE * shR(j) + (sh[l + '0x'] || 0), S0[1] - su[1] * FRONT_BLADE * shR(j) + (sh[l + '0y'] || 0)];
+    return bladeShape(S0, top, [S0[0] + out[0] * 10, S0[1] + out[1] * 10], v, 1, FRONT_BLADE_W);
+  }) : null;
+  const blades = FB || (kS > 0.02 ? ['shoulderR', 'shoulderL'].map(j => underSpine(bladeShape([J[j][0], J[j][1]], spW, H, kS), J[j])) : null);
   // no chest: the outline runs round the shoulder circles in front and the hip circles behind (their size is the
   // body's depth there), and the back and belly lines go straight from one to the other; Spine curve bends them
   if (nc > 0){
@@ -1734,11 +1785,14 @@ function applyShape(p){
       return [P0, [(P0[0] + 2 * Q[0] + P2[0]) / 4, (P0[1] + 2 * Q[1] + P2[1]) / 4], P2];   // the curve's middle (bandPath goes through it)
     };
     // the back is the spine itself, from T to the withers (its curves: see bandPath); the belly the circles' outer tangent
-    const low = C => { const a = C.map(c => side(c, -1)), b = Math.max(...a), w = a.map(x => Math.exp((x - b) / 3)), n = w.reduce((t, x) => t + x, 0); return [0, 1, 2].map(i => C.reduce((t, c, k) => t + c[i] * w[k], 0) / n); };   // (the blades' lowest, smoothly)
-    const hb = pick(H2, -1), sb = blades ? low(SB) : pick(S2, -1);
-    const bot = tangent(hb, sb, -1), bentMid = (a, c) => { const m = mix(a, c, 0.5), k = bendAt(m); return [m[0] + bv[0] * k, m[1] + bv[1] * k]; };
+    // the belly is the side away from the spine (the back): downward, or upward when the cat lies on its back (On spine: it was put on the
+    // floor side, on the spine itself, and the body between the chest and the hips was gone, 2026-11-23)
+    const bs = (spM[0] - (mS[0] + mH[0]) / 2) * sUp[0] + (spM[1] - (mS[1] + mH[1]) / 2) * sUp[1] < 0 ? 1 : -1;
+    const low = C => { const a = C.map(c => side(c, bs)), b = Math.max(...a), w = a.map(x => Math.exp((x - b) / 3)), n = w.reduce((t, x) => t + x, 0); return [0, 1, 2].map(i => C.reduce((t, c, k) => t + c[i] * w[k], 0) / n); };   // (the blades' lowest, smoothly)
+    const hb = pick(H2, bs), sb = blades ? low(SB) : pick(S2, bs);
+    const bot = tangent(hb, sb, bs), bentMid = (a, c) => { const m = mix(a, c, 0.5), k = bendAt(m); return [m[0] + bv[0] * k, m[1] + bv[1] * k]; };
     B[0] = spT; B[1] = spM; B[2] = spW;
-    if (bot) [B[6], B[5], B[4]] = bow(hb, sb, bot, -1); else B[5] = bentMid(B[4], B[6]);
+    if (bot) [B[6], B[5], B[4]] = bow(hb, sb, bot, bs); else B[5] = bentMid(B[4], B[6]);
     // side on, the behind is the haunches' (see HAUNCH: drawn with the back legs and the hips' mass), so the body itself goes no further
     // back than the tail point: its back points (7, and 6 where the belly starts) stop at the line through T across the body; the hip
     // circles, which reach out past the haunches, no longer push it out below T (the user, 2026-11-22)
@@ -1748,6 +1802,13 @@ function applyShape(p){
     }
     // facing you: the outline tucks inside the shoulder and hip circles, which are joined round (see draw)
     const C4 = [...S2, ...H2].map(c => [c[0], c[1], c[2] * 0.4]), m4 = mid2([mS, mH]);
+    // facing you the spine's middle (fsMx / fsMy, dragged on the skeleton) bends the body: a circle at the middle as wide as the body is
+    // there (so undragged it changes nothing), moved by it, joins the outline (and the hips' mass, see draw)
+    if (FB && (sh.fsMx || sh.fsMy)){
+      const wide = (C, k) => C.reduce((t, c) => t + Math.abs((c[0] - m4[0]) * sf[0] + (c[1] - m4[1]) * sf[1]) + c[2] * k, 0) / C.length, o = [sh.fsMx || 0, sh.fsMy || 0];
+      C4.push([m4[0] + o[0], m4[1] + o[1], wide([...S2, ...H2], 0.4)]);
+      fMid = [m4[0] + o[0], m4[1] + o[1], wide([...S2.map(c => [c[0], c[1], c[2] * nc]), ...H2], 1), 0];
+    }
     const Bf = face ? p.body.map(q => hullSupport(C4, m4, q)) : B, Bm = face ? B.map((q, i) => mix(q, Bf[i], face)) : B;
     p.body = p.body.map((q, i) => [q[0] + (Bm[i][0] - q[0]) * nc, Math.min(q[1] + (Bm[i][1] - q[1]) * nc, FLOOR_Y)]);
   }
@@ -1773,7 +1834,7 @@ function applyShape(p){
     ctl: C,      // the spine's points and handles (see above; E, hTt, hEt with the tail)
     // the chest's top: a shoulder blade from each shoulder (1) to the withers, the drawing's shape scaled to the distance between them
     // (see BLADE), drawn with the shoulder circles (see draw); facing you it shrinks into the shoulder
-    blade: blades,
+    blade: blades, bladeTop: FB ? tops : null, frontMid: fMid,   // (facing you: each front leg's own blade top, its point 1)
     // the behind: a tail's thickness under T, joined to the hip circles (see draw)
     rump: (() => { const r = LIMB.tail[0] * sh.tailThick * kS; return [spT[0] + hipDn[0] * r, spT[1] + hipDn[1] * r, r]; })(),
     bowUp: sUp, bowK: (1 - face) * smooth(clamp(Math.abs(ax[0]) / al / 0.25, 0, 1)), up: [-F[2].ay[0], -F[2].ay[1]], hipUp: [-F[1].ay[0], -F[1].ay[1]], chestless: nc };
@@ -1798,10 +1859,15 @@ function applyShape(p){
   // a neck's radius below the line at the withers, 0.9 of it at the head; neckOff: how far its head end is from the head's middle). It
   // bends with the spine's neck curve (neckH: that curve's two handles, from the withers and from the head)
   if (nc > 0){
-    const e = spW, h = H, d = Math.hypot(h[0] - e[0], h[1] - e[1]) || 1, up = p.skel.up, nr = NECK_R * sh.neckW;
+    // (facing you, 2026-11-23: from the withers between the blades' tops, up the middle to the head: no shift toward the back, no side-on curve)
+    const fw = FB ? [(tops.fn[0] + tops.ff[0]) / 2, (tops.fn[1] + tops.ff[1]) / 2] : null, kb = fw ? 0 : 1;
+    const e = fw || spW, h = H, d = Math.hypot(h[0] - e[0], h[1] - e[1]) || 1, up = p.skel.up, nr = NECK_R * sh.neckW;
     let n = [-(h[1] - e[1]) / d, (h[0] - e[0]) / d]; if (n[0] * up[0] + n[1] * up[1] < 0) n = [-n[0], -n[1]];   // (toward the back)
-    p.neck = mix(n1, [e[0] - n[0] * nr, e[1] - n[1] * nr], nc); p.neckOff = [-n[0] * nr * 0.9 * nc, -n[1] * nr * 0.9 * nc];
-    p.neckH = [[(C.hWn[0] - e[0]) * nc, (C.hWn[1] - e[1]) * nc], [(C.hHn[0] - h[0]) * nc, (C.hHn[1] - h[1]) * nc]];
+    p.neck = mix(n1, [e[0] - n[0] * nr * kb, e[1] - n[1] * nr * kb], nc); p.neckOff = [-n[0] * nr * 0.9 * nc * kb, -n[1] * nr * 0.9 * nc * kb];
+    p.neckH = [[(C.hWn[0] - spW[0]) * nc * kb, (C.hWn[1] - spW[1]) * nc * kb], [(C.hHn[0] - h[0]) * nc * kb, (C.hHn[1] - h[1]) * nc * kb]];
+    // facing you its middle is dragged sideways (fNx / fNy, the diamond on the skeleton): the curve's two handles, a third of the way along,
+    // each moved 4/3 of it, so its middle goes exactly there
+    if (fw){ const o = [(sh.fNx || 0) * nc, (sh.fNy || 0) * nc]; p.neckH = [[(h[0] - e[0]) / 3 + o[0] * 4 / 3, (h[1] - e[1]) / 3 + o[1] * 4 / 3], [(e[0] - h[0]) / 3 + o[0] * 4 / 3, (e[1] - h[1]) / 3 + o[1] * 4 / 3]]; }
   }
   return p;
 }
@@ -1996,12 +2062,12 @@ for (const k of ['spM', 'spT', 'spE', 'spWn', 'spWb', 'spMw', 'spMt', 'spTb', 's
 // (1 shoulder, 2 elbow, 3 wrist, 4 paw tip): fn1x / fn1y … ff3y, and fn4a, point 4's turn round point 3 (degrees; fn4x /
 // fn4y are from older saves). Back legs 1–5 (1 hip, 2 knee, 3 hock, 4 ball of the foot, 5 toe tip): bn1x … bf4y, and
 // bn5a, point 5's turn round point 4
-const LEG_KEY = /^(f[nf]([1-4][xy]|4a)|b[nf]([1-4][xy]|5a))$/;
+const LEG_KEY = /^(f[nf]([0-4][xy]|4a)|b[nf]([1-4][xy]|5a))$/;   // (f…0: a front leg's own blade top, facing you)
 const legPts = l => l[0] === 'b' ? 5 : 4;   // how many points a leg has
 // on the skeleton a front leg has five, like a back leg: 1 the withers (where the spine meets its shoulder blade, shared by both; dragged it
 // moves the withers), 2 the shoulder (fn1 / ff1 keys), 3 the elbow, 4 the wrist, 5 the paw tip (the user, 2026-11-22). Its keys are as before
 const FRONT_1 = l => l[0] === 'f' ? 1 : 0;
-for (const l of ['fn', 'ff', 'bn', 'bf']) for (let i = 1; i <= 4; i++){ SHAPE_DEFAULT[l + i + 'x'] = 0; SHAPE_DEFAULT[l + i + 'y'] = 0; }
+for (const l of ['fn', 'ff', 'bn', 'bf']) for (let i = l[0] === 'f' ? 0 : 1; i <= 4; i++){ SHAPE_DEFAULT[l + i + 'x'] = 0; SHAPE_DEFAULT[l + i + 'y'] = 0; }
 for (const l of ['fn', 'ff', 'bn', 'bf']) SHAPE_DEFAULT[l + legPts(l) + 'a'] = 0;
 // the back legs had four points until 2026-11-07 (hip, one fold, ankle, paw tip): settings saved before then mean other
 // points by bn2 … bf4a. They are swapped for these, worked out from where those old points put each leg, position by
@@ -2146,7 +2212,8 @@ Object.assign(SHAPE_DEFAULT, { groundFlat:0.5, groundReach:14, hipSquare:0, shou
 // tail0x / tail0y: where the tail leaves the body, from the spine's end (side on, where the tail grows out of the spine: see tailIn)
 const TAIL_KEY = /^(t[1-5]|tail[0-3])[xy]$/;
 SHAPE_DEFAULT.headRot = 0;
-SHAPE_DEFAULT.catX = 0; SHAPE_DEFAULT.catY = 0;   // the whole cat moved on the editing canvas (move handle in the middle of the body)
+SHAPE_DEFAULT.catX = 0; SHAPE_DEFAULT.catY = 0; SHAPE_DEFAULT.headFx = 0; SHAPE_DEFAULT.fsMx = 0; SHAPE_DEFAULT.fsMy = 0; SHAPE_DEFAULT.fNx = 0; SHAPE_DEFAULT.fNy = 0;   // (facing you: the head left / right, the spine's middle)
+   // the whole cat moved on the editing canvas (move handle in the middle of the body)
 for (let i = 1; i <= 5; i++){ SHAPE_DEFAULT['t' + i + 'x'] = 0; SHAPE_DEFAULT['t' + i + 'y'] = 0; }
 for (let i = 0; i <= 3; i++){ SHAPE_DEFAULT['tail' + i + 'x'] = 0; SHAPE_DEFAULT['tail' + i + 'y'] = 0; }
 // tuned settings, built in: a new browser (or a fresh copy of this file) starts from these;
@@ -2206,13 +2273,13 @@ function migrateShape(g){
 }
 // tuned shape for each position (built in; "Reset this position" goes back to it)
 const SHAPE_PRESET = {
-  stand: { headSize:1.24, headWidth:1, headX:-36.84, headY:-14.13, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.82, hipX:6, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:5.5, fMidY:-9.5, bMidX:0, bMidY:0, spineCurve:-3, withers:19.5, withersX:-25.5, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.58, rf4:0.5, rb2:0.54, rb3:0.82, rb4:0.56, rb5:0.42, bellyX:-6.18, bellyY:2.74, bellyShade:51.5, bellyTilt:-1, bellyHf:1.56, bellyHr:1.02, spMx:3.51, spMy:-1.5, spTx:-0.27, spTy:-9.01, spEx:0, spEy:0, spWnx:-5.67, spWny:-2.75, spWbx:0.82, spWby:5.26, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:-4.44, spTby:-7.3, spTtx:-24.75, spTty:9.89, spEtx:0, spEty:0, spHnx:-2.83, spHny:-3.48, fn1x:-58.24, fn1y:27.43, fn2x:-46.74, fn2y:10.59, fn3x:-56.88, fn3y:19.76, ff1x:-50.44, ff1y:42.43, ff2x:-36.44, ff2y:6.72, ff3x:-16.11, ff3y:20.2, ff4x:-4.73, ff4y:1.18, bn1x:-37.52, bn1y:36.32, bn2x:-20.68, bn2y:-8.37, bn3x:11.65, bn3y:-28.81, bn4x:-16.02, bn4y:4.96, bf1x:-34.78, bf1y:36.29, bf2x:-18.8, bf2y:1.2, bf3x:10.81, bf3y:-28.27, bf4x:-11.82, bf4y:17.18, fn4a:46.8, ff4a:-311.2, bn5a:20, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:-18.7, tail0y:-6.17, tail1x:-6.5, tail1y:7.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  sit: { headSize:1.24, headWidth:1, headX:-131.82, headY:8.96, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.98, toeR:0.8, legThick:1.97, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:1.25, pawH:0.61, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.9, shoulderX:6, shoulderY:2.5, hipSpread:2, hipX:9, hipY:-2.5, hipSize:0.4, fPawX:-6, fPawY:-13, bPawX:0, bPawY:-20, fMidX:13, fMidY:-6.5, bMidX:-11, bMidY:-12.5, spineCurve:32, withers:-0.117, withersX:17.648, neckCurve:9.5, thighW:1.04, bladeSize:3.48, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.72, rf3:0.42, rf4:1.28, rb2:0.54, rb3:0.76, rb4:0.38, rb5:1.04, bellyX:-17.71, bellyY:-4.03, bellyShade:51.5, bellyTilt:-7, bellyHf:0.82, bellyHr:0.55, spMx:0, spMy:0, spTx:-13.44, spTy:3.31, spEx:-7.48, spEy:-36.24, spWnx:7.82, spWny:23.89, spWbx:7.16, spWby:1.81, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:-14.27, spTty:6.47, spEtx:0, spEty:0, spHnx:-6.85, spHny:16.65, fn1x:-146.62, fn1y:-10.56, fn2x:-148.19, fn2y:-15.6, fn3x:-63.84, fn3y:-1.36, ff1x:-148.96, ff1y:-31.73, ff2x:-104.61, ff2y:-43.16, ff3x:-45.35, ff3y:-81.84, ff4x:-4.73, ff4y:1.18, bn1x:-161.62, bn1y:22.17, bn2x:42.59, bn2y:-24.8, bn3x:5.45, bn3y:64.99, bn4x:-147.09, bn4y:-0.58, bf1x:-175.77, bf1y:25.24, bf2x:40.05, bf2y:-22.91, bf3x:14.3, bf3y:2.66, bf4x:-160.51, bf4y:7.01, fn4a:4, ff4a:-5.6, bn5a:60, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:46.5, stp2p3x:2.5, stp2p4y:46, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:28.88, hs0p3y:32.4, hs0p3ix:15.329, hs0p3iy:-11.778, hs0p3ox:-15.329, hs0p3oy:11.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-30.88, hs0p5y:32.4, hs0p5ix:15.69, hs0p5iy:11.04, hs0p5ox:-15.69, hs0p5oy:-11.04, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0, groundReach:0, hipSquare:0, shoulderSquare:0, tail0x:-149.96, tail0y:136.03, tail1x:-129.97, tail1y:-4.57, tail2x:3.68, tail2y:-29.8, tail3x:7.25, tail3y:-70.17, chestR:1.34 },
-  lie: { headSize:1.24, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.58, rf4:0.5, rb2:0.54, rb3:0.82, rb4:0.56, rb5:0.42, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  stretch: { headSize:1.24, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.58, rf4:0.5, rb2:0.54, rb3:0.82, rb4:0.56, rb5:0.42, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  jump: { headSize:1.24, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.58, rf4:0.5, rb2:0.54, rb3:0.82, rb4:0.56, rb5:0.42, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  front: { headSize:1.24, headWidth:1, headX:-11.84, headY:8.21, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.58, rf4:0.5, rb2:0.54, rb3:0.82, rb4:0.56, rb5:0.42, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-38.24, fn1y:-1.7, fn2x:-36.79, fn2y:-6.94, fn3x:-36.88, fn3y:9.21, ff1x:-20.44, ff1y:-1.7, ff2x:11.23, ff2y:-6.19, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-30.2, bn2y:-7.11, bn3x:-1.01, bn3y:-15.77, bn4x:1.66, bn4y:2.48, bf1x:1.7, bf1y:-2.5, bf2x:-16.13, bf2y:-6.35, bf3x:7.29, bf3y:-17.54, bf4x:13.78, bf4y:4.96, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
-  spine: { headSize:1.24, headWidth:1, headX:-76.82, headY:23.27, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.9, shoulderX:6, shoulderY:2.5, hipSpread:2, hipX:9, hipY:-2.5, hipSize:0.4, fPawX:-6, fPawY:-13, bPawX:0, bPawY:-20, fMidX:13, fMidY:-6.5, bMidX:-11, bMidY:-12.5, spineCurve:14, withers:-2, withersX:21, neckCurve:10, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.58, rf4:0.5, rb2:0.54, rb3:0.82, rb4:0.56, rb5:0.42, bellyX:-11.11, bellyY:10.96, bellyShade:51.5, bellyTilt:-7, bellyHf:0.82, bellyHr:0.55, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn1x:-101.62, fn1y:-20.56, fn2x:-94.49, fn2y:-2.86, fn3x:-64.09, fn3y:9.38, ff1x:-85.42, ff1y:-20.56, ff2x:-73.43, ff2y:-17.11, ff3x:-35.7, ff3y:49.26, ff4x:-4.73, ff4y:1.18, bn1x:-138.34, bn1y:-3.4, bn2x:38.79, bn2y:-22.65, bn3x:5.33, bn3y:50.24, bn4x:-127.44, bn4y:-1.25, bf1x:-147.76, bf1y:3.88, bf2x:49.72, bf2y:2.8, bf3x:10.15, bf3y:19.7, bf4x:-123.87, bf4y:8.57, fn4a:24.4, ff4a:-280, bn5a:20, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.32, groundReach:40, hipSquare:0, shoulderSquare:0, tail0x:0, tail0y:0, tail1x:-129.97, tail1y:-4.57, tail2x:-5.91, tail2y:-9.9, tail3x:14.3, tail3y:-77.52, chestR:1 },
+  stand: { headSize:1.24, headWidth:1, headX:-42.27, headY:-18.45, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.82, hipX:6, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:5.5, fMidY:-9.5, bMidX:0, bMidY:0, spineCurve:-3, withers:21.32, withersX:-15.07, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.507, rf4:0.802, rb2:0.54, rb3:0.82, rb4:0.48, rb5:0.76, bellyX:-6.18, bellyY:2.74, bellyShade:51.5, bellyTilt:-1, bellyHf:1.56, bellyHr:1.02, spMx:3.51, spMy:-1.5, spTx:-3.54, spTy:-8.58, spEx:-71.72, spEy:57.14, spWnx:1.57, spWny:8.97, spWbx:0.82, spWby:5.26, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:-4.44, spTby:-7.3, spTtx:-2.54, spTty:38.46, spEtx:18.83, spEty:32.5, spHnx:-2.83, spHny:-3.48, fn0x:0, fn0y:0, fn1x:-78.67, fn1y:36.75, fn2x:-67.17, fn2y:9.91, fn3x:-74.35, fn3y:17.6, ff0x:0, ff0y:0, ff1x:-50.87, ff1y:36.75, ff2x:-36.44, ff2y:6.72, ff3x:-36.54, ff3y:23.04, ff4x:-4.73, ff4y:1.18, bn1x:-37.52, bn1y:36.32, bn2x:-21.28, bn2y:-3.84, bn3x:8.73, bn3y:-20.65, bn4x:-16.02, bn4y:4.96, bf1x:-34.78, bf1y:36.29, bf2x:-14.45, bf2y:5.94, bf3x:10.8, bf3y:-27.99, bf4x:-11.82, bf4y:17.18, fn4a:46.8, ff4a:-311.2, bn5a:50, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, catX:0.43, catY:0.68, headFx:0, fsMx:0, fsMy:0, fNx:0, fNy:0, tail0x:-18.7, tail0y:-6.17, tail1x:-6.5, tail1y:7.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
+  sit: { headSize:1.24, headWidth:1, headX:-131.82, headY:8.96, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.9, shoulderX:6, shoulderY:2.5, hipSpread:2, hipX:9, hipY:-2.5, hipSize:0.4, fPawX:-6, fPawY:-13, bPawX:0, bPawY:-20, fMidX:13, fMidY:-6.5, bMidX:-11, bMidY:-12.5, spineCurve:32, withers:9, withersX:9, neckCurve:9.5, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.507, rf4:0.802, rb2:0.54, rb3:0.82, rb4:0.48, rb5:0.76, bellyX:-17.71, bellyY:-4.03, bellyShade:51.5, bellyTilt:-7, bellyHf:0.82, bellyHr:0.55, spMx:0, spMy:0, spTx:-15.57, spTy:15.04, spEx:-114.61, spEy:90.49, spWnx:7.82, spWny:23.89, spWbx:7.16, spWby:1.81, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:-21, spTty:25.69, spEtx:40.28, spEty:-43.14, spHnx:-6.85, spHny:16.65, fn0x:0, fn0y:0, fn1x:-146.62, fn1y:-10.56, fn2x:-159.76, fn2y:-6.78, fn3x:-145.87, fn3y:1.63, ff0x:0, ff0y:0, ff1x:-148.96, ff1y:-31.73, ff2x:-148.9, ff2y:-11.07, ff3x:-115.35, ff3y:3.44, ff4x:-4.73, ff4y:1.18, bn1x:-161.62, bn1y:22.17, bn2x:42.59, bn2y:-24.8, bn3x:5.45, bn3y:64.99, bn4x:-147.09, bn4y:-0.58, bf1x:-175.77, bf1y:25.24, bf2x:40.05, bf2y:-22.91, bf3x:14.3, bf3y:2.66, bf4x:-160.51, bf4y:7.01, fn4a:4, ff4a:-5.6, bn5a:60, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:46.5, stp2p3x:2.5, stp2p4y:46, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:28.88, hs0p3y:32.4, hs0p3ix:15.329, hs0p3iy:-11.778, hs0p3ox:-15.329, hs0p3oy:11.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-30.88, hs0p5y:32.4, hs0p5ix:15.69, hs0p5iy:11.04, hs0p5ox:-15.69, hs0p5oy:-11.04, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0, groundReach:0, hipSquare:0, shoulderSquare:0, catX:117.13, catY:3.27, headFx:0, fsMx:0, fsMy:0, fNx:0, fNy:0, tail0x:-149.96, tail0y:136.03, tail1x:-129.97, tail1y:-4.57, tail2x:3.68, tail2y:-29.8, tail3x:7.25, tail3y:-70.17, chestR:1.34 },
+  lie: { headSize:1.24, headWidth:1, headX:-13.78, headY:15.77, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:15.5, withersX:4.5, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.507, rf4:0.802, rb2:0.54, rb3:0.82, rb4:0.48, rb5:0.76, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:-6.55, spMy:-19.2, spTx:-15.09, spTy:6.07, spEx:-197.76, spEy:-116.65, spWnx:0, spWny:0, spWbx:-1.56, spWby:-13.05, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:-6.22, spTby:-15.45, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn0x:0, fn0y:0, fn1x:-54.04, fn1y:-3.42, fn2x:-64.02, fn2y:-1.54, fn3x:-13.46, fn3y:9.5, ff0x:0, ff0y:0, ff1x:-8.92, ff1y:-3.42, ff2x:-19.34, ff2y:-6.63, ff3x:23.16, ff3y:3.54, ff4x:-4.73, ff4y:1.18, bn1x:-8.3, bn1y:7.5, bn2x:-15.08, bn2y:18.22, bn3x:-9.74, bn3y:-20.99, bn4x:34.03, bn4y:4, bf1x:1.7, bf1y:-2.5, bf2x:-7.17, bf2y:29.5, bf3x:-5.74, bf3y:-25.75, bf4x:63.73, bf4y:-11, fn4a:22.4, ff4a:-172.2, bn5a:-270, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, headFx:0, fsMx:0, fsMy:0, fNx:0, fNy:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
+  stretch: { headSize:1.24, headWidth:1, headX:-10, headY:16.96, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:10.798, withersX:-22.14, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.507, rf4:0.802, rb2:0.54, rb3:0.82, rb4:0.48, rb5:0.76, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0.55, spMy:5.23, spTx:8.89, spTy:-1.82, spEx:-13.66, spEy:-84.88, spWnx:0, spWny:0, spWbx:4.45, spWby:6.19, spMwx:2.48, spMwy:7.56, spMtx:-1.92, spMty:-2.34, spTbx:14.56, spTby:-9.08, spTtx:0, spTty:0, spEtx:65.43, spEty:56.83, spHnx:0, spHny:0, fn0x:0, fn0y:0, fn1x:-32.72, fn1y:21.03, fn2x:-36.94, fn2y:-7.01, fn3x:-36.88, fn3y:9.21, ff0x:0, ff0y:0, ff1x:-2.83, ff1y:19.07, ff2x:11.23, ff2y:-6.19, ff3x:6.79, ff3y:3.51, ff4x:-4.73, ff4y:1.18, bn1x:-25.68, bn1y:14.96, bn2x:-31.88, bn2y:-6.83, bn3x:1.84, bn3y:-13.39, bn4x:0.58, bn4y:-2.56, bf1x:1.7, bf1y:-2.5, bf2x:-32.19, bf2y:-1.37, bf3x:-8.69, bf3y:-17.67, bf4x:20.82, bf4y:-10.08, fn4a:22.4, ff4a:-172.2, bn5a:10, bf5a:10, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, catX:-53.88, catY:-2.46, headFx:0, fsMx:0, fsMy:0, fNx:0, fNy:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
+  jump: { headSize:1.24, headWidth:1, headX:1, headY:7.79, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:6.5, withersX:18.5, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.507, rf4:0.802, rb2:0.54, rb3:0.82, rb4:0.48, rb5:0.76, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:4.85, spMy:-49.72, spTx:-66.2, spTy:-6.36, spEx:-24.74, spEy:17.27, spWnx:0, spWny:0, spWbx:8.35, spWby:-13.87, spMwx:7.26, spMwy:31.42, spMtx:4.53, spMty:-7.78, spTbx:10.86, spTby:-54.05, spTtx:3.46, spTty:20.17, spEtx:32.79, spEty:-55.37, spHnx:0, spHny:0, fn0x:0, fn0y:0, fn1x:-65.84, fn1y:-2.14, fn2x:-65.69, fn2y:-27.92, fn3x:-56.47, fn3y:6.72, ff0x:0, ff0y:0, ff1x:-49.32, ff1y:-2.14, ff2x:-63.68, ff2y:-39.31, ff3x:-12.76, ff3y:1.05, ff4x:-4.73, ff4y:1.18, bn1x:-33.77, bn1y:4.3, bn2x:-27.37, bn2y:-20.41, bn3x:-15.87, bn3y:-11.29, bn4x:-9.67, bn4y:-0.02, bf1x:-18.56, bf1y:8.93, bf2x:-27.98, bf2y:1.11, bf3x:-27.5, bf3y:-22.5, bf4x:0.97, bf4y:2.46, fn4a:22.4, ff4a:-172.2, bn5a:20, bf5a:5, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.5, zhead:4.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, headFx:0, fsMx:0, fsMy:0, fNx:0, fNy:0, tail0x:0, tail0y:0, tail1x:-8.5, tail1y:17.4, tail2x:-16.97, tail2y:20.09, chestR:1 },
+  front: { headSize:1.24, headWidth:1, headX:-40.12, headY:-0.15, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.64, shoulderX:7, shoulderY:-8, hipSpread:0.78, hipX:13, hipY:-2.5, hipSize:0.4, fPawX:9.5, fPawY:0.5, bPawX:0, bPawY:0, fMidX:8.5, fMidY:-5.5, bMidX:0, bMidY:0, spineCurve:-4, withers:0, withersX:0, neckCurve:0, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.507, rf4:0.802, rb2:0.54, rb3:0.82, rb4:0.48, rb5:0.76, bellyX:-2.07, bellyY:7.62, bellyShade:51.5, bellyTilt:2, bellyHf:1.24, bellyHr:1.41, spMx:0, spMy:0, spTx:0, spTy:0, spEx:0, spEy:0, spWnx:0, spWny:0, spWbx:0, spWby:0, spMwx:0, spMwy:0, spMtx:0, spMty:0, spTbx:0, spTby:0, spTtx:0, spTty:0, spEtx:0, spEty:0, spHnx:0, spHny:0, fn0x:15, fn0y:50.96, fn1x:-19.36, fn1y:-30.85, fn2x:-0.74, fn2y:-39.05, fn3x:-19.7, fn3y:11.74, ff0x:-20, ff0y:50.96, ff1x:12.72, ff1y:-30.85, ff2x:2.45, ff2y:-38.68, ff3x:-5.94, ff3y:13.58, ff4x:-4.73, ff4y:1.18, bn1x:6.67, bn1y:-3.5, bn2x:-14.88, bn2y:11.24, bn3x:55, bn3y:-5, bn4x:-17.17, bf1x:1.69, bf1y:-3.5, bf2x:14.96, bf2y:21.29, bf3x:-50, bf3y:7.5, bf4x:10.53, bf4y:7.46, fn4a:-190.7, ff4a:-261.9, bn5a:-15, bf5a:5, zbf:1, zff:3, zbn:2, zfn:4, zbelly:0.5, zhead:4.25, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.23, groundReach:8, hipSquare:0.12, shoulderSquare:0, headFx:-3.32, fsMx:-3.75, fsMy:17.5, fNx:-3.75, fNy:12.5, tail0x:0, tail0y:0, tail1x:1.68, tail1y:7.3, tail2x:-31.47, tail2y:-16.23, tail3x:-27.47, tail3y:-43.95, chestR:1 },
+  spine: { headSize:1.24, headWidth:1, headX:-38.42, headY:-7.5, ribW:0.7, ribH:0.95, waistLen:0.94, waistH:0.99, pelW:0.6, pelH:1.15, neckW:1.66, toeR:0.8, legThick:1.92, legLength:1.1, tailThick:1.31, tailLen:0.88, pawW:0.65, pawH:0.42, eyeSize:1.12, eyeGap:19.5, eyeX:0.3, eyeShift:-0.5, eyeY:-14, earScale:0.91, shoulderSpread:0.9, shoulderX:6, shoulderY:2.5, hipSpread:2, hipX:9, hipY:-2.5, hipSize:0.4, fPawX:-6, fPawY:-13, bPawX:0, bPawY:-20, fMidX:13, fMidY:-6.5, bMidX:-11, bMidY:-12.5, spineCurve:14, withers:42.252, withersX:-8.571, neckCurve:10, thighW:1.04, bladeSize:3.14, kneeF:1, kneeB:1, kneeOut:1, hipW:1, hipLen:1.04, foldR:1.09, rf2:0.64, rf3:0.507, rf4:0.802, rb2:0.54, rb3:0.82, rb4:0.48, rb5:0.76, bellyX:-11.11, bellyY:10.96, bellyShade:51.5, bellyTilt:-7, bellyHf:0.82, bellyHr:0.55, spMx:-3.68, spMy:5.83, spTx:13.1, spTy:12.14, spEx:145.09, spEy:50.24, spWnx:-11.74, spWny:10.53, spWbx:12.18, spWby:4.72, spMwx:11.3, spMwy:-6.05, spMtx:0, spMty:0, spTbx:3.54, spTby:8.26, spTtx:56.37, spTty:65.46, spEtx:107.64, spEty:-27.01, spHnx:0, spHny:0, fn0x:0, fn0y:0, fn1x:-17.79, fn1y:0.64, fn2x:-59.08, fn2y:5.63, fn3x:-52.23, fn3y:-10.8, ff0x:0, ff0y:0, ff1x:-1.45, ff1y:-17.86, ff2x:-19.92, ff2y:-24.7, ff3x:-17.27, ff3y:-63.28, ff4x:-4.73, ff4y:1.18, bn1x:0.2, bn1y:29.69, bn2x:4.35, bn2y:-10.5, bn3x:-10.2, bn3y:22.71, bn4x:-44.59, bn4y:-7.99, bf1x:4.75, bf1y:-20.74, bf2x:39.29, bf2y:-36.31, bf3x:12.35, bf3y:19.54, bf4x:-7.2, bf4y:-31.21, fn4a:-159.3, ff4a:-280, bn5a:20, bf5a:55, zbf:1, zff:2, zbn:4, zfn:3, zbelly:2.25, zhead:2.5, ztail:0.25, stb0y:-30, stb0ox:12, stb0oy:-0.5, stb1x:9, stb1y:-6, stb1ix:-3.5, stb1iy:11, stb1ox:4.5, stb1oy:-30.5, stb2x:48, stb2y:0, stb2ix:-1.5, stb2iy:-15, stb2ox:0.5, stb2oy:20, stb3x:30, stb3y:30, stb3ix:11, stb3iy:-5, stb3ox:-12.5, stb3oy:3, stb4y:30, stb4ix:8, stb4iy:7.5, stp0p0y:35.145, stp0p0x:34.462, stp0p1y:50.514, stp0p1x:11.3, stp0p2y:51, stp0p2x:4.838, stp0p3y:7.583, stp0p3x:-44.7, stp0p4y:-2.767, stp0p4x:-9, stp0p5y:-6.917, stp0p5x:4.7, stp0p6y:44.114, stp0p6x:-19.681, stp0p7y:5.614, stp0p7x:20.831, stp2p0y:36, stp2p0x:-24, stp2p1y:34.5, stp2p1x:39, stp2p2y:45, stp2p2x:14, stp2p3y:48, stp2p3x:5.5, stp2p4y:48, stp2p4x:-6.5, stp2p5y:37, stp2p5x:-8, stp3p0y:-11, stp3p0x:-14.5, stp3p1y:-1.5, stp3p1x:5, stp3p2y:-7, stp3p2x:12, stp3p3y:-7.5, stp3p3x:13, stp3p4y:-5.5, stp3p4x:8, stp3p5y:4, stp3p5x:4, stp4p0y:-12, stp4p0x:-12, stp4p1y:-7, stp4p1x:-6, stp4p2y:-14.5, stp4p2x:11, stp4p3y:-1.5, stp4p3x:-13, stp4p4y:-13, stp4p4x:-17.5, stp4p5y:-12.5, stp4p5x:-11, stp0y:-10, stp0x:-1.5, stp2y:30, stp2x:-3.5, stp3y:-5.5, stp3x:5, stp4y:-0.5, stp4x:-1, muzzleY:-2.98, muzzleSize:1.13, hs0p0x:0.5, hs0p0y:-39.98, hs0p0ix:-19.5, hs0p0iy:-0.5, hs0p0ox:19.5, hs0p0oy:0.5, hs0p1x:25.74, hs0p1y:-31.11, hs0p1ix:-4.299, hs0p1iy:-3.431, hs0p1ox:4.299, hs0p1oy:3.431, hs0p2x:46.36, hs0p2y:-0.86, hs0p2ix:-0.973, hs0p2iy:-10.567, hs0p2ox:0.973, hs0p2oy:10.567, hs0p3x:34.88, hs0p3y:28.9, hs0p3ix:8.829, hs0p3iy:-9.778, hs0p3ox:-8.829, hs0p3oy:9.778, hs0p4x:0.813, hs0p4y:43.905, hs0p4ix:16.317, hs0p4iy:-1.386, hs0p4ox:-16.317, hs0p4oy:1.386, hs0p5x:-35.38, hs0p5y:29.4, hs0p5ix:8.69, hs0p5iy:9.54, hs0p5ox:-8.69, hs0p5oy:-9.54, hs0p6x:-47.36, hs0p6y:-1.36, hs0p6ix:-1.513, hs0p6iy:10.416, hs0p6ox:1.513, hs0p6oy:-10.416, hs0p7x:-27.24, hs0p7y:-31.11, hs0p7ix:-3.455, hs0p7iy:2.225, hs0p7ox:3.455, hs0p7oy:-2.225, hs1p0x:-7.68, hs1p0y:8.55, hs1p0ix:0, hs1p0iy:0, hs1p0ox:2.61, hs1p0oy:-5.36, hs1p1x:7.68, hs1p1y:8.55, hs1p1ix:-2.61, hs1p1iy:-5.36, hs1p1ox:0, hs1p1oy:0, hs1p2x:32.72, hs1p2y:23.53, hs1p2ix:0, hs1p2iy:0, hs1p2ox:-4.35, hs1p2oy:3.19, hs1p3x:13.32, hs1p3y:42.96, hs1p3ix:10.8, hs1p3iy:-7.68, hs1p3ox:-10.8, hs1p3oy:7.68, hs1p4x:-13.32, hs1p4y:42.46, hs1p4ix:6.3, hs1p4iy:7.18, hs1p4ox:-6.3, hs1p4oy:-7.18, hs1p5x:-29.72, hs1p5y:22.53, hs1p5ix:4.35, hs1p5iy:3.19, hs1p5ox:0, hs1p5oy:0, groundFlat:0.32, groundReach:40, hipSquare:0, shoulderSquare:0, headRot:-20, headFx:0, fsMx:0, fsMy:0, fNx:0, fNy:0, tail0x:0, tail0y:0, tail1x:-129.97, tail1y:-4.57, tail2x:-5.91, tail2y:-9.9, tail3x:14.3, tail3y:-77.52, chestR:1 },
 };
 for (const g in SHAPE_PRESET) headBottomSave(dropOldStain(SHAPE_PRESET[g]));
 for (const g in STAIN_START) SHAPE_PRESET[g] = { ...stainVals(STAIN_START[g]), ...SHAPE_PRESET[g] };   // (a tab open from before the Bézier stain saves without them)
@@ -2338,7 +2405,40 @@ function dropOldEyes(o){
   if (!o || !o.eyeLooks) return;
   for (const id in o.eyeLooks){ const e = o.eyeLooks[id]; if (!e || !e.eyes || e.eyes.some(q => !q || !q.pts || q.pts.length !== 4 || q.pts.some(a => !a || a.length !== 6))) delete o.eyeLooks[id]; }   // eyes from before they had 4 points: left out
 }
-function save(keepTime){ if (FURPAGE) return; if (!keepTime) S.savedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (toProject) saveToProject(); if (stateTr) refreshSnaps(); }
+// a shape's (or state's) numbers all sane: none NaN / infinite or out past SANE_MAX (no offset, size or angle gets near it)
+const SANE_MAX = 3000;
+const saneObj = o => { for (const k in o){ const v = o[k]; if (typeof v === 'number' && !(Math.abs(v) <= SANE_MAX)) return false; } return true; };
+const saneS = () => Object.values(S.shapes || {}).every(saneObj) && Object.values(S.states || {}).every(o => !o || typeof o !== 'object' || saneObj(o));
+/* Ctrl+Z / Cmd+Z: up to UNDO_MAX steps back. One step is one go at something: the saves that come close together (a drag, a slider pulled
+   along) make one step, from how it all was before it to how it is once they stop for UNDO_GAP ms */
+const UNDO_MAX = 3, UNDO_GAP = 700;
+const UNDO = { base:null, stack:[], t:0, timer:null };
+const undoReset = () => { UNDO.base = structuredClone(S); UNDO.stack = []; UNDO.t = 0; clearTimeout(UNDO.timer); };
+function undoNote(){
+  if (!UNDO.base) return;
+  const now = performance.now();
+  if (now - UNDO.t > UNDO_GAP){ UNDO.stack.push(UNDO.base); if (UNDO.stack.length > UNDO_MAX) UNDO.stack.shift(); }
+  UNDO.t = now; clearTimeout(UNDO.timer); UNDO.timer = setTimeout(() => { UNDO.base = structuredClone(S); UNDO.t = 0; }, UNDO_GAP);
+}
+function undoUse(to){
+  S = structuredClone(to); UNDO.base = structuredClone(S); UNDO.t = 0; clearTimeout(UNDO.timer);
+  syncInputs(); syncShapeInputs(); applyColors(); layout(); edSelect(edId);
+  save(false, true);
+}
+function undo(){
+  if (!UNDO.stack.length){ toast('Nothing more to undo'); return; }
+  undoUse(UNDO.stack.pop()); toast(`Undone (${UNDO.stack.length} more step${UNDO.stack.length === 1 ? '' : 's'} back)`);
+}
+function save(keepTime, undoing){
+  if (FURPAGE) return;
+  // a value gone wild is never saved: everything goes back to how it was after the last good change
+  if (!saneS()){
+    const S0 = S; S = UNDO.base; const ok = UNDO.base && saneS(); S = S0;
+    if (ok){ undoUse(UNDO.base); toast('A value went out of range: put back as it was'); } else toast('A value went out of range: not saved');
+    return;
+  }
+  if (!undoing) undoNote();
+  if (!keepTime) S.savedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (toProject) saveToProject(); if (stateTr) refreshSnaps(); }
 let stateEdit = null, stateTr = null;   // the transition state being edited (a pose name) and the open transition (right-hand panel)
 let stateSel = null, playGhost = null, ghostVis = true, snapGhost = [], ghostOn = [];   // the state picked there (its index); ghosts (see drawGhosts)
 // opened from tools/edit_server.py: each change is also written into cat-stretch.html (and index.html)
@@ -2355,7 +2455,7 @@ if (location.protocol.startsWith('http')) fetch('__edit', { cache:'no-store' }).
   // the source is what gets saved, so start from it rather than from what this browser kept
   S = { ...DEFAULTS, shapes: freshShapes(), states: structuredClone(DEFAULTS.states || {}) }; syncInputs(); syncShapeInputs(); applyColors(); layout(); setLook('round', Infinity); edSelect(edId);
   if (FURPAGE) return;   // (the fur page's cat: the project's, never saved)
-  toProject = true; projState('Edit mode', 'Every change is written into cat-stretch.html');
+  toProject = true; projState('Edit mode', 'Every change is written into cat-stretch.html'); undoReset();
 }).catch(() => {});
 
 /* ---------- math ---------- */
@@ -4842,12 +4942,17 @@ function upperLeg(p, k){
   // still shows in front (it reaches past that fill)
   // (with a haunch: the three — thigh, shin, that fill — make one outline round the haunch, knee and hock, the same in every position;
   // joined one by one, the haunch's edge, in two of them, was gone round twice and the top of the leg came out empty: a step under the tail)
-  const P = hp && p.legs[k].length > 4 ? circlesHull([...hp, fold, hk], p.ground) : p.legs[k].length > 4 ? hullsUnion(hullsUnion(thigh, circlesHull([fold, hk], p.ground)), circlesHull(hp ? [...hp, hk] : [[anchor[0], anchor[1], anchor[2] * BACK_FILL, 0], hk], p.ground)) : thigh;
+  // (but a leg folded hard at the knee, the hock swung back up toward the haunch (On spine, legs in the air): one outline round all three
+  // filled the whole bend as a big block, 2026-11-23. Then it is the haunch to the knee and the knee to the hock, joined)
+  const areaOf = Q => Math.abs(Q.reduce((t, a, i) => { const b = Q[(i + 1) % Q.length]; return t + a[0] * b[1] - b[0] * a[1]; }, 0)) / 2;
+  const one = hp && p.legs[k].length > 4 ? circlesHull([...hp, fold, hk], p.ground) : null, h1 = one && circlesHull([...hp, fold], p.ground), h2 = one && circlesHull([fold, hk], p.ground);
+  const P = one ? (areaOf(one) > FOLD_FILL * (areaOf(h1) + areaOf(h2)) ? hullsUnion(h1, h2) : one) : p.legs[k].length > 4 ? hullsUnion(hullsUnion(thigh, circlesHull([fold, hk], p.ground)), circlesHull(hp ? [...hp, hk] : [[anchor[0], anchor[1], anchor[2] * BACK_FILL, 0], hk], p.ground)) : thigh;
   let bladeD = '';   // (the closer front leg: its blade too, round the same way as the leg, so they fill as one)
   if (bl && k === 'fn'){ const ar = Q => Q.reduce((t, a, i) => { const b = Q[(i + 1) % Q.length]; return t + a[0] * b[1] - b[0] * a[1]; }, 0);
     bladeD = closedCurve(Math.sign(ar(bl)) === Math.sign(ar(P)) ? bl : bl.slice().reverse()); }
   return 'M' + P.map(fmt).join('L') + 'Z' + bladeD;
 }
+const FOLD_FILL = 1.1;   // a back leg's one outline (haunch, knee, hock) this much bigger than its two parts: it is folded, drawn as the two (see upperLeg)
 const BELLY_IN = 3;     // how far inside the haunches' back the belly ends (body units; see bellyShape)
 const BLADE_IN = 6;   // how far under the spine line the shoulder blades stay (body units), so the fur's edge over them doesn't show past it
 const BLADE_LEG = 0.26;   // the belly's front and a front leg's top: the shoulder blade's round end, its points this near shoulder 1 (× shoulder 1 → withers; the wide blade reaches up
@@ -5761,11 +5866,46 @@ function neckLine(p, a, b){
 }
 // the fur page (furpage) can hold the body's, legs' and tail's lines where they were dragged (body units; only to look, never saved)
 let FUR_EDIT = null;
+/* facing you the body's fur would lie all to one side of the spine (2026-11-23, Front: the neck and chest bulged out to the right): it is the
+   side-on picture, its back on the line and its belly all to one side. So as the cat turns to you the line moves back by half the
+   picture's depth at each point (Stand's body, which the picture is made from: its depth below each spine point; the neck: its
+   thickness), and the fur lies across the middle. FUR_DEPTH: those depths, measured once from Stand (again when Stand changes) */
+const FUR_DEPTH = { key:null, d:null, busy:false };
+const FUR_FACE_K = 1.35;   // (the picture is that much deeper than Stand's outline: its chest and hips reach past it; measured on the fur, 2026-11-23)
+function furDepths(){
+  const key = JSON.stringify(S.shapes && S.shapes.stand);
+  if (FUR_DEPTH.key !== key && !FUR_DEPTH.busy){
+    FUR_DEPTH.busy = true;
+    try {
+      const { P, T } = stateMoment(['stand']), ps = poseAt(P, T), sp = ps.skel.spine, B = ps.body, out = [];
+      const edge = []; B.forEach((a, i) => { const b = B[(i + 1) % B.length]; for (let k = 0; k < 12; k++) edge.push([a[0] + (b[0] - a[0]) * k / 12, a[1] + (b[1] - a[1]) * k / 12]); });
+      sp.forEach((q, i) => {
+        const a = sp[Math.max(0, i - 1)], b = sp[Math.min(sp.length - 1, i + 1)], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, t = [(b[0] - a[0]) / l, (b[1] - a[1]) / l], n = [-t[1], t[0]];
+        let d = 0; for (const r of edge){ const x = r[0] - q[0], y = r[1] - q[1]; if (Math.abs(x * t[0] + y * t[1]) < 10) d = Math.max(d, x * n[0] + y * n[1]); }
+        out.push(d);
+      });
+      for (let i = 0; i < out.length; i++) if (!out[i]) out[i] = out[i - 1] || out[i + 1] || 0;
+      FUR_DEPTH.d = out; FUR_DEPTH.key = key;
+    } catch (err) { console.warn('fur: Stand not measured', err); }
+    finally { FUR_DEPTH.busy = false; }
+  }
+  return FUR_DEPTH.d;
+}
+function furFacing(p, L){
+  const v = clamp((p.skel && p.skel.view) || 0, 0, 1); if (v < 0.001 || FUR_DEPTH.busy) return L;
+  const D = furDepths(); if (!D) return L;
+  const nb = D.length, nr = NECK_R * p.shape.neckW;
+  return L.map((q, i) => {
+    const a = L[Math.max(0, i - 1)], b = L[Math.min(L.length - 1, i + 1)], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, n = [-(b[1] - a[1]) / l, (b[0] - a[0]) / l];   // (n: the belly's side)
+    const half = (i < nb ? D[i] / 2 * FUR_FACE_K : nr * (i === L.length - 1 ? 0.9 : 1)) * v;   // (the neck: its whole thickness, two radii, hangs under its line)
+    return [q[0] - n[0] * half, q[1] - n[1] * half, ...q.slice(2)];
+  });
+}
 const FUR_SPINES = {
   tail: p => FUR_EDIT && FUR_EDIT.tail || [p.tailIn ? [p.tailIn, ...p.tail] : [p.tail[0], ...p.tail]],   // (from inside the body, where it is drawn from: its root follows the spine's way)
   legs: p => (FUR_EDIT && FUR_EDIT.legs || ['bf', 'bn', 'ff', 'fn'].map(k => furLegSpine(p, k))).map((P, i) => pawFurOn(P, ['bf', 'bn', 'ff', 'fn'][i])),
   // the body with its neck: one line from the hips along the back to the withers, then the neck's top (the skeleton's spine) to the head
-  body: p => { if (FUR_EDIT && FUR_EDIT.body) return FUR_EDIT.body; const sk = p.skel; if (!sk || !sk.spine) return null; const e = sk.spine[sk.spine.length - 1], h = [p.head.x, p.head.y + HEAD_DROP], nH = p.neckH; return [[...sk.spine, nH ? bez3(e, [e[0] + nH[0][0], e[1] + nH[0][1]], [h[0] + nH[1][0], h[1] + nH[1][1]], h, 0.5) : neckMid(p, e, h), h]]; },
+  body: p => { if (FUR_EDIT && FUR_EDIT.body) return FUR_EDIT.body; const sk = p.skel; if (!sk || !sk.spine) return null; const e = sk.spine[sk.spine.length - 1], h = [p.head.x, p.head.y + HEAD_DROP], nH = p.neckH; return [furFacing(p, [...sk.spine, nH ? bez3(e, [e[0] + nH[0][0], e[1] + nH[0][1]], [h[0] + nH[1][0], h[1] + nH[1][1]], h, 0.5) : neckMid(p, e, h), h])]; },
   fullBody: p => { const b = FUR_SPINES.body(p), l = FUR_SPINES.legs(p); return b ? [...b, l[1], l[3]] : null; },   // (in its drawing's order: body with its neck, closer back and front legs, each its own layer)
   ears: p => {   // each ear's spine (drawn in the head's frame), six points of it, as the drawing took them
     const sh = p.shape, hs = HEAD_SCALE * sh.headSize, sx = hs * sh.headWidth, a = p.head.rot * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), hx = p.head.x, hy = p.head.y + HEAD_DROP;
@@ -6174,9 +6314,9 @@ function draw(p, ht, dt){
     const lerpTo = (q, k) => [pc[0] + (q[0] - pc[0]) * k, pc[1] + (q[1] - pc[1]) * k, 0], kc = clamp(1 + Math.min(0, p.shape.spineCurve || 0) / 8, 0, 1) * Math.max(v, 1 - clamp((pc[1] + pc[5] - 205) / 15, 0, 1));   // side views: while the hips are up (lying / sitting keep their own lines)
     const rump = p.skel.rump && p.skel.rump[2] > 0.5 ? [[...p.skel.rump, 0]] : [];   // (under the spine's tail point, see applyShape; not with the haunches: they reach up to T, and it
     // hung out behind and below T, past them, sitting: only the hips shape the behind, the user 2026-11-22)
-    const hn = ['bn', 'bf'].map(k => haunchShape(p, k)), hz = hn[0] && hn[1] ? [...hn[0], ...hn[1]].map(q => [q[0], q[1], 0.01]) : null;   // (side on: the haunches, see HAUNCH)
+    const hn = (p.skel.view || 0) < 0.5 ? ['bn', 'bf'].map(k => haunchShape(p, k)) : [], hz = hn[0] && hn[1] ? [...hn[0], ...hn[1]].map(q => [q[0], q[1], 0.01]) : null;   // (side on: the haunches, see HAUNCH; facing you the hips' circles still shape the body)
     els.massPel.setAttribute('d', 'M' + circlesHull([...(hz || hips), ...(hz ? [] : rump), ...(kb > 0 ? [[pc[0], pc[1], Math.min(pc[2], pc[4]) * 0.9 * kb, 0]] : []), ...(nc < 1 ? ribPts.map(q => lerpTo(q, kc * (1 - nc))) : []),
-      ...(nc && v > 0 ? ['shoulderR', 'shoulderL'].map(j => [pc[0] + (J[j][0] - pc[0]) * v, pc[1] + (J[j][1] - pc[1]) * v, J[j][2] * v * nc, 0]) : [])], p.ground).map(fmt).join('L') + 'Z');   // facing you: shoulders and hips joined round
+      ...(nc && v > 0 ? ['shoulderR', 'shoulderL'].map(j => [pc[0] + (J[j][0] - pc[0]) * v, pc[1] + (J[j][1] - pc[1]) * v, J[j][2] * v * nc, 0]) : []), ...(p.skel.frontMid ? [p.skel.frontMid] : [])], p.ground).map(fmt).join('L') + 'Z');   // facing you: shoulders and hips joined round
       // (side views leave them out: they would only be a point in the middle of the pelvis, a spike once the hips are dragged away from it)
     // the two waist halves (haunches): they shape the body only when it faces you (side views: the thighs do it)
     for (const j in els.massW){
@@ -6358,7 +6498,7 @@ function buildSkel(){
   // each leg in a group of its own, stacked like the legs' layers: its line, folds and points (front legs 1–4, shoulder →
   // paw tip; back legs 1–5, hip → toe tip), each a dot with its number on it (the same size whatever the cat's size) that
   // drags the point. The folds: the knee / elbow circle, and a back leg's hock
-  E.legsG = mk('g'); E.legG = {}; E.rings = {};
+  E.legsG = mk('g'); E.legG = {}; E.rings = {}; E.top = {};
   for (const l of LEGS_BACK){
     const col = LEG_COL[l], lg = E.legG[l] = mk('g', {}, E.legsG);
     E.legs[l] = mk('path', { fill:'none', stroke:col, 'stroke-width':2.2, 'stroke-linejoin':'round', 'stroke-linecap':'round', 'vector-effect':'non-scaling-stroke' }, lg);
@@ -6377,6 +6517,12 @@ function buildSkel(){
       d.addEventListener('pointerdown', e => legDown(e, l, i));
       return d;
     });
+    if (FRONT_1(l)){   // facing you: its own number 1 at the top of its blade (side on the 1 is the withers, on the spine)
+      const d = E.top[l] = mk('g', { class:'grab', 'pointer-events':'all', display:'none' }, lg);
+      mk('circle', { r:7, fill:col, stroke:'#fff', 'stroke-width':1.5 }, d);
+      mk('text', { 'text-anchor':'middle', dy:'0.35em', 'font-size':10, 'font-weight':700, style:'fill:#fff;font-family:var(--font-num)' }, d).textContent = 1;
+      d.addEventListener('pointerdown', e => topDown(e, l));
+    }
   }
   // distance between the two hips ("Hips apart")
   E.hipLine = mk('path', { fill:'none', stroke:SK.pink, 'stroke-width':2, 'stroke-dasharray':'5 4', 'vector-effect':'non-scaling-stroke' });
@@ -6393,7 +6539,7 @@ function buildSkel(){
   };
   E.tags = {};
   // (a front leg's number 1 is the withers, where the spine meets its shoulder blade: dragging it moves the withers, see FRONT_1)
-  for (const l of LEGS_BACK) E.tags[l] = [...(FRONT_1(l) ? [numTag(LEG_COL[l], 1, e => spDown(e, 'W'))] : []), ...Array.from({ length: legPts(l) }, (_, i) => numTag(LEG_COL[l], i + 1 + FRONT_1(l), e => legDown(e, l, i)))];
+  for (const l of LEGS_BACK) E.tags[l] = [...(FRONT_1(l) ? [numTag(LEG_COL[l], 1, e => skelSpine.ctl ? spDown(e, 'W') : topDown(e, l))] : []), ...Array.from({ length: legPts(l) }, (_, i) => numTag(LEG_COL[l], i + 1 + FRONT_1(l), e => legDown(e, l, i)))];
   // head (blue): the dot in its middle moves it, the white dot on its edge turns it; tail (pink): its points move on their own
   const handle = (attrs, down) => { const e = mk('circle', { stroke:'#fff', 'stroke-width':1.2, 'vector-effect':'non-scaling-stroke', class:'grab', 'pointer-events':'all', ...attrs }); e.addEventListener('pointerdown', down); return e; };
   // the tail's numbers: 1 the spine's tail point (T), 2 the tail's tip (E)
@@ -6422,7 +6568,12 @@ function buildSkel(){
   for (const k of SP_HANDLES){
     const g = mk('g', { class:'grab', 'pointer-events':'all' });
     mk('path', { d:'M0 -4.6L4.6 0L0 4.6L-4.6 0Z', fill:SK.pink, stroke:'#fff', 'stroke-width':1.2 }, g);
-    g.addEventListener('pointerdown', e => { const C = skelSpine.ctl, q = C && C['h' + k]; q && startDrag(e, { kx:'sp' + k + 'x', ky:'sp' + k + 'y', sy:1, q0:q, name:SP_NAME['h' + k] }); });
+    g.addEventListener('pointerdown', e => {
+      if (skelSpine.front){   // (facing you: the tail's middle bends the tail, the neck's middle the neck)
+        if (k === 'Et') startDrag(e, { kx:'tail2x', ky:'tail2y', sy:1, q0:skelSpine.front.Tm, name:'Tail middle' });
+        if (k === 'Wn') startDrag(e, { kx:'fNx', ky:'fNy', sy:1, q0:skelSpine.front.N, name:'Neck' });
+        return; }
+      const C = skelSpine.ctl, q = C && C['h' + k]; q && startDrag(e, { kx:'sp' + k + 'x', ky:'sp' + k + 'y', sy:1, q0:q, name:SP_NAME['h' + k] }); });
     E.spHandles[k] = g;
   }
   E.spNodes = {};
@@ -6432,7 +6583,7 @@ function buildSkel(){
     g.addEventListener('pointerdown', e => spDown(e, k));
     E.spNodes[k] = g;
   }
-  E.headDot = handle({ r:4.5, fill:SK.head }, e => startDrag(e, { kx:'headX', ky:'headY', sy:-1, q0:skelHead, name:'Head' }));
+  E.headDot = handle({ r:4.5, fill:SK.head }, e => startDrag(e, { kx: skelSpine.front ? 'headFx' : 'headX', ky:'headY', sy:-1, q0:skelHead, name:'Head' }));   // (facing you: left / right is headFx)
   E.tiltDot = handle({ r:3.6, fill:'#fff', stroke:SK.head, 'stroke-width':1.6 }, e => startDrag(e, { tilt:true, q0:skelHead, name:'Head tilt' }));
   // the belly's point and its curve handles (a smooth point: drag a handle to turn both and set that side's length)
   E.bellyArm = mk('path', { stroke:'#ffd23f', 'stroke-width':1.2, 'vector-effect':'non-scaling-stroke', fill:'none', 'pointer-events':'none' });
@@ -6505,7 +6656,9 @@ function drawSkel(p){
   for (const l in E.legs){
     // body anchor → (curved thigh / upper arm) → fold → paw
     const pts = DP[l], kn = pts[1];
-    E.legs[l].setAttribute('d', 'M' + pts.map(fmt).join('L'));
+    const top = sk.bladeTop && sk.bladeTop[l];   // (facing you: a front leg's line starts at its blade's top, its 1)
+    E.legs[l].setAttribute('d', 'M' + (top ? [top, ...pts] : pts).map(fmt).join('L'));
+    if (E.top[l]){ E.top[l].setAttribute('display', top ? 'inline' : 'none'); if (top) E.top[l].setAttribute('transform', `translate(${fmt(top)}) scale(${uf})`); }
     const T = TOE_AT[l] && TOE_AT[l].c ? TOE_AT[l] : { c: pts[pts.length - 1], r: 3 };   // (the toe's ring: on its tip's circle)
     const ti = l[0] === 'b' ? 4 : 3, rr = l[0] === 'b' ? [0, foldR(p, l), hockR(p), ankleR(p, l), T.r] : [0, foldR(p, l), ankleR(p, l), T.r], at = i => i === ti ? T.c : pts[i];
     E.rings[l].forEach((g, i) => { if (!g) return; for (const e of [g.c, g.hit]){ e.setAttribute('cx', at(i)[0].toFixed(1)); e.setAttribute('cy', at(i)[1].toFixed(1)); e.setAttribute('r', rr[i].toFixed(1)); } });
@@ -6519,7 +6672,7 @@ function drawSkel(p){
   const r = 8 * u, gap = 2 * r + 3 * u, mid = (sk.rib[0] + sk.pel[0]) / 2;
   const cols = { L:[], R:[] }, x0 = Math.min(...all.map(q => q[0])) - 3 * r, x1 = Math.max(...all.map(q => q[0])) + 3 * r;
   const high = l => Math.round(skelPts[l][0][1] / 6);
-  const W1 = sk.ctl && (sk.view || 0) < 0.5 ? sk.ctl.W : null, tagPts = l => FRONT_1(l) ? [W1 || skelPts[l][0], ...skelPts[l]] : skelPts[l];   // (a front leg's 1: the withers)
+  const W1 = sk.ctl && (sk.view || 0) < 0.5 ? sk.ctl.W : null, tagPts = l => FRONT_1(l) ? [W1 || (sk.bladeTop && sk.bladeTop[l]) || skelPts[l][0], ...skelPts[l]] : skelPts[l];   // (a front leg's 1: the withers)
   for (const l of Object.keys(skelPts).sort((a, b) => high(a) - high(b) || LEGS_BACK.indexOf(a) - LEGS_BACK.indexOf(b)))
     tagPts(l).forEach((q, i) => cols[skelPts[l][0][0] < mid ? 'L' : 'R'].push({ l, i, q }));
   // a colour's name goes where its number 1 goes, on the far side from the cat (in a window too narrow for that, the near side)
@@ -6556,9 +6709,25 @@ function drawSkel(p){
     for (const k in E.spHandles){ const g = E.spHandles[k], q = C && C['h' + k]; g.setAttribute('display', q ? 'inline' : 'none'); if (q) g.setAttribute('transform', `translate(${fmt(k === 'Hn' ? [q[0] + hc[0] - C.H[0], q[1] + hc[1] - C.H[1]] : q)}) ${sc}`); }
     E.withersLine.setAttribute('d', C ? `M${fmt(J.shoulderR)}L${fmt(C.W)}L${fmt(J.shoulderL)}` : '');
     E.rumpLine.setAttribute('d', C ? `M${fmt(J.waistR)}L${fmt(C.T)}L${fmt(J.waistL)}` : '');
-    E.blade.setAttribute('d', C && sk.blade ? sk.blade.map(B => closedCurve(B)).join('') : ''); E.bladeHit.setAttribute('d', E.blade.getAttribute('d'));
+    E.blade.setAttribute('d', (C || sk.bladeTop) && sk.blade ? sk.blade.map(B => closedCurve(B)).join('') : ''); E.bladeHit.setAttribute('d', E.blade.getAttribute('d'));
+    // facing you (after reference/image copy 28.png, 2026-11-23) the spine runs down the middle: from the head through the withers (W, between
+    // the blades' tops: dragged, it moves both) and the middle of the body (M, shown only) to the tail point (T, the tail's start: tail1, it
+    // carries the whole tail), then the tail to its tip (E: tail3), bent by the diamond in its middle (tail2)
+    const BT = !C && sk.bladeTop, mid2 = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const m0 = BT && mid2(mid2(J.shoulderR, J.shoulderL), mid2(J.waistR, J.waistL));
+    const FS = skelSpine.front = BT ? { W: mid2(BT.fn, BT.ff), M: [m0[0] + (p.shape.fsMx || 0), m0[1] + (p.shape.fsMy || 0)], T: p.tail[0], E: p.tail[5], Tm: p.tail[3] } : null;
+    if (FS){ const nm = mid2(FS.W, hc); FS.N = [nm[0] + (p.shape.fNx || 0), nm[1] + (p.shape.fNy || 0)]; }   // (the neck's middle, see applyShape)
+    if (FS){
+      for (const k in E.spNodes){ const g = E.spNodes[k]; g.setAttribute('display', 'inline'); g.setAttribute('transform', `translate(${fmt(FS[k])}) ${sc}`); }
+      E.spHandles.Et.setAttribute('display', 'inline'); E.spHandles.Et.setAttribute('transform', `translate(${fmt(FS.Tm)}) ${sc}`);
+      E.spHandles.Wn.setAttribute('display', 'inline'); E.spHandles.Wn.setAttribute('transform', `translate(${fmt(FS.N)}) ${sc}`);
+      E.spine.setAttribute('d', openCurve([hc, FS.N, FS.W]) + openCurve([FS.W, FS.M, FS.T]) + openCurve(p.tail)); E.spine.setAttribute('opacity', 1);
+      E.withersLine.setAttribute('d', `M${fmt(BT.fn)}L${fmt(FS.W)}L${fmt(BT.ff)}`);
+    }
   }
-  skelMove = DP.c[0]; E.moveDot.setAttribute('transform', `translate(${fmt(skelMove)}) scale(${u.toFixed(4)})`);
+  skelMove = DP.c[0];   // (what the drag measures from; the handle itself is drawn below the paws, off the cat)
+  { let by = skelMove[1]; for (const l in E.legs) for (const q of DP[l]) by = Math.max(by, q[1]);
+    E.moveDot.setAttribute('transform', `translate(${skelMove[0].toFixed(1)} ${(by + 30 * u).toFixed(1)}) scale(${u.toFixed(4)})`); }
   skelHead = hc; skelTail = p.tail;
 }
 // dragging a leg point (Shape tab, skeleton shown, position held): only that point of that leg moves; it snaps
@@ -6597,6 +6766,13 @@ const SP_HANDLES = ['Wn', 'Wb', 'Mw', 'Mt', 'Tb', 'Tt', 'Et', 'Hn'];
 const SP_NAME = { W:'Withers', M:'Spine middle', T:'Tail point', E:'Tail tip', hWn:'Withers, neck handle', hWb:'Withers, back handle', hMw:'Spine middle, front handle',
   hMt:'Spine middle, back handle', hTb:'Tail point, back handle', hTt:'Tail point, tail handle', hEt:'Tail tip handle', hHn:'Head, neck handle' };
 function spDown(e, k){
+  const FS = skelSpine.front;   // (facing you: see drawSkel)
+  if (FS){
+    if (k === 'W') return startDrag(e, { kx:'fn0x', ky:'fn0y', twin:['ff0x', 'ff0y'], sy:1, q0:FS.W, name:SP_NAME.W });
+    if (k === 'M') return startDrag(e, { kx:'fsMx', ky:'fsMy', sy:1, q0:FS.M, name:SP_NAME.M });   // (bends the body: see applyShape)
+    if (k === 'T' || k === 'E') return startDrag(e, { kx: k === 'T' ? 'tail1x' : 'tail3x', ky: k === 'T' ? 'tail1y' : 'tail3y', sy:1, q0:FS[k], name: k === 'T' ? 'Tail point' : 'Tail tip' });
+    return;
+  }
   const C = skelSpine.ctl; if (!C) return;
   if (k === 'W') return startDrag(e, { kx:'withers', dir:skelSpine.up, min:-skelSpine.sr, kx2:'withersX', dir2:skelSpine.fwd, q0:C.W, name:SP_NAME.W });
   startDrag(e, { kx:'sp' + k + 'x', ky:'sp' + k + 'y', sy:1, q0:C[k], name:SP_NAME[k] });
@@ -6617,6 +6793,12 @@ function legDown(e, l, i){
   const gain = 1;
   startDrag(e, { kx: l + (i + 1) + 'x', ky: l + (i + 1) + 'y', sy:1, q0: skelPts[l] && skelPts[l][i], keep, keepW, gain, name: `${LEG_NAME[l]} ${i + 1 + FRONT_1(l)}` });
 }
+// facing you, a front leg's 1: the top of its own blade (fn0x / fn0y, ff0x / ff0y), dragged anywhere; its shoulder and the rest stay
+function topDown(e, l){
+  const P = skelPose || lastShown, q = P && P.skel && P.skel.bladeTop && P.skel.bladeTop[l];
+  if (!q) return;
+  startDrag(e, { kx: l + '0x', ky: l + '0y', sy:1, q0: q, name: `${LEG_NAME[l]} 1` });
+}
 // a leg's points in the position (or state) being edited, held still (no breathing)
 function stillLeg(l){ const { P, T } = stateMoment([stateEdit || editGroup]); return dragPoints(poseAt(P, T))[l]; }
 // the withers in the position (or state) being edited, held still
@@ -6624,23 +6806,41 @@ function stillW(){ const { P, T } = stateMoment([stateEdit || editGroup]), C = p
 // after a front leg's 1 moved: the withers moved back to where they were by their own two values (up: withers, forward: withersX)
 function keepWithers(at, t){
   const up = skelSpine.up, fw = skelSpine.fwd; if (!up || !fw) return;
-  for (let k = 0; k < 4; k++){
+  let prev = Infinity, undo = null;
+  for (let k = 0; k <= 4; k++){
     const W = stillW(); if (!W) return;
-    const d = [at[0] - W[0], at[1] - W[1]]; if (Math.hypot(d[0], d[1]) < 0.05) break;
+    const d = [at[0] - W[0], at[1] - W[1]], err = Math.hypot(d[0], d[1]);
+    if (!(err < prev)){ keepUndo(t, undo); break; }   // the last nudge didn't bring it closer (a tilted body can overshoot): taken back, so it never runs away
+    if (err < 0.05 || k === 4) break;
+    prev = err; undo = { withers: t.withers, withersX: t.withersX };
     t.withers = +((t.withers || 0) + (d[0] * up[0] + d[1] * up[1]) / (up[0] * up[0] + up[1] * up[1] || 1)).toFixed(3);
     t.withersX = +((t.withersX || 0) + (d[0] * fw[0] + d[1] * fw[1]) / (fw[0] * fw[0] + fw[1] * fw[1] || 1)).toFixed(3);
   }
 }
+const keepUndo = (t, undo) => { if (undo) for (const k in undo) undo[k] === undefined ? delete t[k] : t[k] = undo[k]; };
 // after a back leg's 4 moved: 2 and 3 moved back by their own nudges to where they were (a few rounds: the floor may hold them)
 function keepUpper(K, t){
-  for (let k = 0; k < 3; k++){
+  let prev = Infinity, undo = null;
+  for (let k = 0; k <= 3; k++){
     const q = stillLeg(K.l); let off = 0;
-    [1, 2].forEach((j, n) => { const dx = K.at[n][0] - q[j][0], dy = K.at[n][1] - q[j][1]; off = Math.max(off, Math.abs(dx), Math.abs(dy));
-      t[K.l + (j + 1) + 'x'] = +((t[K.l + (j + 1) + 'x'] || 0) + dx).toFixed(2); t[K.l + (j + 1) + 'y'] = +((t[K.l + (j + 1) + 'y'] || 0) + dy).toFixed(2); });
-    if (off < 0.05) break;
+    const d = [1, 2].map((j, n) => { const dx = K.at[n][0] - q[j][0], dy = K.at[n][1] - q[j][1]; off = Math.max(off, Math.abs(dx), Math.abs(dy)); return [j, dx, dy]; });
+    if (!(off < prev)){ keepUndo(t, undo); break; }   // (as keepWithers: a nudge that made it worse is taken back)
+    if (off < 0.05 || k === 3) break;
+    prev = off; undo = {};
+    for (const [j, dx, dy] of d){ const kx = K.l + (j + 1) + 'x', ky = K.l + (j + 1) + 'y'; undo[kx] = t[kx]; undo[ky] = t[ky];
+      t[kx] = +((t[kx] || 0) + dx).toFixed(2); t[ky] = +((t[ky] || 0) + dy).toFixed(2); }
   }
 }
+// every move of a skeleton drag is checked: if it left any value not a number or out past SANE_MAX (a hold-in-place nudge that ran away,
+// 2026-11-23: Jump's front leg 1 and withers went to 10^42 and were saved), the move is taken back as if it never happened
 addEventListener('pointermove', e => {
+  if (!legDrag) return;
+  const objs = [S.shapes[editGroup], stateEdit && S.states[stateEdit], stateEdit && STATE_OF[stateEdit] && S.states[STATE_OF[stateEdit]]].filter(Boolean);
+  const was = objs.map(o => ({ ...o }));
+  legMove(e);
+  if (objs.some(o => !saneObj(o))) objs.forEach((o, i) => { for (const k in o) if (!(k in was[i])) delete o[k]; Object.assign(o, was[i]); });
+});
+const legMove = e => {
   const D = legDrag; if (!D) return;
   const p = toLocal($('skel'), e.clientX, e.clientY); if (!p) return;
   const t = editShapeObj(D.paw ? D.paw + legPts(D.paw) + 'a' : D.kx); D.moved = true;
@@ -6658,9 +6858,12 @@ addEventListener('pointermove', e => {
     t[D.paw + legPts(D.paw) + 'a'] = +(D.o0[0] + snapped - D.o0[1]).toFixed(1); legNote(D.lim ? `${D.name}: ${Math.round(-PAW_TURN - D.lim[0] + snapped - D.o0[1])}° from the leg's line` : `${D.name}: paw turned ${snapped}°`); return;
   }
   if (D.size){   // a hip / shoulder circle: as much bigger as the pointer is further from its centre
-    if (D.full0 === undefined) D.full0 = +shapeView()[D.kx] || 1;   // (in a state t holds the change from its position: size the whole value)
+    const tw = PAW_RING_TWIN[D.kx];
+    if (D.full0 === undefined){ D.full0 = +shapeView()[D.kx] || 1; if (tw) D.base2 = (+shapeView()[tw[0]] || 1) - (t[tw[0]] || 0); }   // (in a state t holds the change from its position: size the whole value)
     const d0 = Math.max(dist(D.p0, D.q0), 1), v = clamp(D.full0 * dist(p, D.q0) / d0, D.min, D.max), f = e.altKey ? +v.toFixed(3) : Math.round(v * 50) / 50;
-    t[D.kx] = +(D.o0[0] + f - D.full0).toFixed(3); legNote(`${D.name}: ${f.toFixed(2)}×`); return;
+    t[D.kx] = +(D.o0[0] + f - D.full0).toFixed(3);
+    if (tw){ t[tw[0]] = +(clamp(f * tw[1], D.min, D.max) - D.base2).toFixed(3); legNote(`${D.name}: all four paws the same size`); return; }
+    legNote(`${D.name}: ${f.toFixed(2)}×`); return;
   }
   if (D.dir){   // one value, moved along a direction (the spine's bend, the withers' height)
     const v = D.o0[0] + ((p[0] - D.p0[0]) * D.dir[0] + (p[1] - D.p0[1]) * D.dir[1]) * (D.k || 1);
@@ -6684,16 +6887,21 @@ addEventListener('pointermove', e => {
   const snap = v => e.altKey ? Math.round(v * 2) / 2 : Math.round(v / GRID.snap) * GRID.snap;
   const x = clamp(snap(q[0]), GRID.x, GRID.x + GRID.size), y = clamp(snap(q[1]), GRID.y, GRID.y + GRID.size);   // inside the grid
   t[D.kx] = +(D.o0[0] + (x - D.q0[0]) / (D.gain || 1)).toFixed(2); t[D.ky] = +(D.o0[1] + (y - D.q0[1]) * D.sy / (D.gain || 1)).toFixed(2);
+  if (D.twin){ D.tw0 ??= [t[D.twin[0]] || 0, t[D.twin[1]] || 0]; t[D.twin[0]] = +(D.tw0[0] + t[D.kx] - D.o0[0]).toFixed(2); t[D.twin[1]] = +(D.tw0[1] + t[D.ky] - D.o0[1]).toFixed(2); }
   if (D.keep) keepUpper(D.keep, t);
   if (D.keepW){   // (the shoulder: put right where the pointer is, measured a few rounds, the withers held: see gain)
     keepWithers(D.keepW, t);
-    for (let k = 0; k < 4; k++){
-      const l = D.kx.slice(0, 2), q2 = stillLeg(l)[0], dx = x - q2[0], dy = y - q2[1]; if (Math.hypot(dx, dy) < 0.05) break;
+    let prev = Infinity, undo = null;
+    for (let k = 0; k <= 4; k++){
+      const l = D.kx.slice(0, 2), q2 = stillLeg(l)[0], dx = x - q2[0], dy = y - q2[1], err = Math.hypot(dx, dy);
+      if (!(err < prev)){ keepUndo(t, undo); break; }   // (a round that didn't bring it closer is taken back, so it never runs away)
+      if (err < 0.05 || k === 4) break;
+      prev = err; undo = { [D.kx]: t[D.kx], [D.ky]: t[D.ky], withers: t.withers, withersX: t.withersX };
       t[D.kx] = +(t[D.kx] + dx / (D.gain || 1)).toFixed(2); t[D.ky] = +(t[D.ky] + dy * D.sy / (D.gain || 1)).toFixed(2); keepWithers(D.keepW, t);
     }
   }
   legNote(`${D.name}: x ${+(x - GRID.x).toFixed(1)}, y ${+(GRID.y + GRID.size - y).toFixed(1)}`);
-});
+};
 const legUp = () => { if (legDrag && legDrag.moved) save(); legDrag = null; };
 addEventListener('pointerup', legUp); addEventListener('pointercancel', legUp);
 function syncSkel(){
@@ -7503,13 +7711,16 @@ function groupControls(){
   document.querySelectorAll('#tab-shape [data-not]').forEach(el => { el.hidden = has(el, 'not'); });
 }
 function shapeView(){ return stateEdit ? withDelta(stateBase(stateEdit), S.states[stateEdit] || {}) : S.shapes[editGroup]; }
+// the position (or state) being edited faces you (Front): Head left / right then moves the head across (headFx)
+const editFacing = () => { const P = POSES[stateEdit || GROUP_POSE[editGroup]]; return !!(P && P.fx && P.fx.view >= 0.5); };
 function syncShapeInputs(){
   const sh = shapeView();
   groupControls();   // ranges first, so a value outside the old range is not clipped
   for (const k in SHAPE_DEFAULT){
     const el = $(k); if (!el) continue;
-    el.value = sh[k];
-    const out = document.querySelector(`output[for="${k}"]`); if (out) out.textContent = fmtOut[k](sh[k]);
+    const val = k === 'headX' && editFacing() ? sh.headFx || 0 : sh[k];
+    el.value = val;
+    const out = document.querySelector(`output[for="${k}"]`); if (out) out.textContent = fmtOut[k](val);
   }
   document.querySelectorAll('.ptab').forEach(b => b.setAttribute('aria-selected', String(!stateEdit && b.dataset.group === editGroup)));
   const st = stateEdit && TRANSITIONS[stateTr].states.find(e => e[0] === stateEdit);
@@ -7526,7 +7737,7 @@ function setShapeKey(k, v){
 for (const k in SHAPE_DEFAULT){
   const el = $(k); if (!el) continue;
   el.addEventListener('input', () => {
-    setShapeKey(k, +el.value);
+    setShapeKey(k === 'headX' && editFacing() ? 'headFx' : k, +el.value);   // (Head left / right facing you: headFx, see applyShape)
     const out = document.querySelector(`output[for="${k}"]`); if (out) out.textContent = fmtOut[k](+el.value);
     save(); mkDraw();
   });
@@ -7624,9 +7835,12 @@ refShow();
 // the cat's sizes (head, body, legs, tail), never where anything is: the skeleton's points, the head's place, the layers stay each position's own
 const SIZE_KEYS = ['headSize', 'headWidth', 'earScale', 'neckW', 'ribW', 'ribH', 'waistLen', 'waistH', 'pelW', 'pelH', 'hipSize', 'hipW', 'hipLen', 'thighW', 'bladeSize',
   'legLength', 'legThick', 'foldR', 'rf2', 'rf3', 'rf4', 'rb2', 'rb3', 'rb4', 'rb5', 'pawW', 'pawH', 'toeR', 'tailThick', 'tailLen'].filter(k => k in SHAPE_DEFAULT);
+// (the leg rings at 3, 4 and 5 are also taken out of every transition state, so they are one size everywhere)
+const RING_KEYS = ['rf2', 'rf3', 'rf4', 'rb3', 'rb4', 'rb5'];
 $('copyShape').onclick = () => {
   for (const g of SHAPE_GROUPS) for (const k of SIZE_KEYS) if (S.shapes[editGroup][k] !== undefined) S.shapes[g][k] = S.shapes[editGroup][k];
-  save(); toast('Sizes copied to all positions');
+  for (const st in S.states) if (S.states[st]) for (const k of RING_KEYS) delete S.states[st][k];
+  save(); syncShapeInputs(); toast('Sizes copied to all positions');
 };
 // head size, cheek width, the Face sliders, the stain and nose and both ears; where the head sits stays each position's own
 const FACE_KEYS = Object.keys(SHAPE_DEFAULT).filter(k => /^(headSize|eye(Size|Gap|Shift|X|Y)|earScale|muzzle\w+|hs\d+p\d+(x|y|ix|iy|ox|oy))$/.test(k) || MASK_KEY.test(k));
@@ -7864,7 +8078,7 @@ function openTransition(id){
    sliders take the previous frame's values; then each point (whole cat, head and its tilt, tail, belly, leg points 1–3
    and the paws' turn) is moved onto where it is in the previous frame, as if dragged there (a few rounds, since moving
    one point can shift the next). The poses under the two frames differ, so it is their looks that match, not the numbers */
-const PT_KEY = k => LEG_KEY.test(k) || /^(tail[1-3]|spT|spE)[xy]$/.test(k) || ['headX', 'headY', 'headRot', 'catX', 'catY', 'bellyX', 'bellyY'].includes(k);
+const PT_KEY = k => LEG_KEY.test(k) || /^(tail[1-3]|spT|spE)[xy]$/.test(k) || ['headX', 'headY', 'headFx', 'fsMx', 'fsMy', 'fNx', 'fNy', 'headRot', 'catX', 'catY', 'bellyX', 'bellyY'].includes(k);
 function samePrevFrame(i){
   const L = TRANSITIONS[stateTr].states, name = L[i][0], held = HELD_LEGS.has(name), d = S.states[name] = { ...(S.states[name] || {}) };
   const was = skelShown; skelShown = false;
@@ -8984,6 +9198,11 @@ function togglePanel(){
 }
 $('hideBtn').onclick = togglePanel; $('showBtn').onclick = togglePanel;
 addEventListener('keydown', e => {
+  // Ctrl+Z / Cmd+Z: a step back (see undo), also with a slider or button focused; text boxes keep their own
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')){
+    const tx = e.target.closest && e.target.closest('textarea,input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color])');
+    if (!tx){ e.preventDefault(); undo(); return; }
+  }
   const typing = e.target.closest && e.target.closest('input,textarea,button,summary');
   if (e.key === 'h' || e.key === 'H') return togglePanel();
   if (typing) return;
@@ -8994,7 +9213,7 @@ addEventListener('keydown', e => {
 addEventListener('resize', layout);
 
 /* ---------- start ---------- */
-syncInputs(); syncShapeInputs(); applyColors(); setCollapsed(!!UI.collapsed); layout();
+syncInputs(); syncShapeInputs(); applyColors(); setCollapsed(!!UI.collapsed); layout(); undoReset();
 if (S.routine) routineStart(true); else startIdle(S.auto ? 2 : Infinity);
 look.cur = look.prev = 'round'; setLook('round', Infinity); edSelect(edId); runNote();
 showTab(!WALL && ['shape', 'eyes', 'tongue'].includes(UI.tab) ? UI.tab : 'anim');
@@ -9010,7 +9229,7 @@ function useSettings(j){
   if (!j.kitten) toKitten(S);
   if (oldFluid(j) !== null) S.fluid = oldFluid(j);
   for (const k of Object.keys(SHAPE_DEFAULT)) delete S[k];
-  save(true); syncInputs(); syncShapeInputs(); applyColors(); layout(); setLook('round', Infinity); edSelect(edId);
+  save(true, true); syncInputs(); syncShapeInputs(); applyColors(); layout(); setLook('round', Infinity); edSelect(edId); undoReset();
 }
 if (location.protocol.startsWith('http')){
   fetch('settings.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => {
